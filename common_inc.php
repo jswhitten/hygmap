@@ -1,7 +1,6 @@
 <?php
 
 function getVars() {
-
     global $_GET;
 
     $select_star = isset($_GET["select_star"])?$_GET["select_star"]:"0";
@@ -22,61 +21,6 @@ function getVars() {
 
     return array($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $image_size, $image_type, $max_line, $trek_names);
 }
-
-function getLabel($trek_names) {
-    global $row, $yellow, $white, $black, $grey, $darkgrey, $image_type;
-
-    if($trek_names == "1" && isset($row["Name"]) && $row["Name"] != "") {
-        $name = $row["Name"];
-        $labelcolor = $yellow;
-        $printcolor = $black;
-    } elseif(isset($row["ProperName"]) && $row["ProperName"] != "") {
-        $name = $row["ProperName"];
-        $labelcolor = $white;
-        $printcolor = $black;
-    } elseif($row["BayerFlam"] != "" && $row["BayerFlam"] != "-") {
-        $name = ltrim($row["BayerFlam"]);
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
-    } elseif($row["Gliese"] != "") {
-        $name = $row["Gliese"];
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
-    } elseif($row["HD"] > 0) {
-        $name = "HD".$row["HD"];
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
-    } else {
-        $name = $row["Spectrum"];
-        $labelcolor = $darkgrey;
-        $printcolor = $darkgrey;
-    }
-
-    if($image_type == "printable") {
-        $labelcolor = $printcolor;
-    }
-
-    return array($name, $labelcolor);
-}
-
-function getDisplayName($row, $trek_names) {
-    if($trek_names == "1" && isset($row["Name"]) && $row["Name"] != "") {
-        $name = $row["Name"];
-    } elseif(isset($row["ProperName"]) && $row["ProperName"] != "") {
-        $name = $row["ProperName"];
-    } elseif($row["BayerFlam"] != "" && $row["BayerFlam"] != "-") {
-        $name = ltrim($row["BayerFlam"]);
-    } elseif($row["Gliese"] != "") {
-        $name = $row["Gliese"];
-    } elseif($row["HD"] > 0) {
-        $name = "HD".$row["HD"];
-    } else {
-        $name = $row["Spectrum"];
-    }
-
-    return $name;
-}
-
 
 // Call this at each point of interest, passing a descriptive string
 function prof_flag($str)
@@ -99,5 +43,3 @@ function prof_print()
     echo "<b>{$prof_names[$size-1]}</b><br>";
     echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
 }
-
-?>
