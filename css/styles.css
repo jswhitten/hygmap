@@ -25,6 +25,14 @@ h4 { margin-top: 5px; margin-bottom: 5px;}
     vertical-align: top; 
     padding: 10px 10px;
 }
+.datatable {
+    display: inline-block; 
+    vertical-align: top; 
+    padding: 10px 10px;
+}
+.datatable th {
+    background-color: #ddddcc;
+}
 #submit {
     margin: auto;
 }
