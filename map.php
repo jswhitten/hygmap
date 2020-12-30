@@ -9,70 +9,64 @@ list($select_star, $select_center, $x_c, $y_c, $z_c, $zoom, $z_zoom, $mag_limit,
 while (@ob_end_clean());
 Header("Content-type: image/jpeg");
 
-$image = ImageCreate($image_size*2,$image_size);
+if($image_type == "left" || $image_type == "right") {
+    $image = ImageCreate($image_size,$image_size);
+} else {
+    $image = ImageCreate($image_size*2,$image_size);
+}
 
 // Allocate colors
 list($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $lightblue, $blue, $darkblue, $black) = allocateColors();
 
 // Fill background
-if($image_type == "printable") {
-    ImageFill($image,50,50,$white);
-} else {
-    ImageFill($image,50,50,$black);
-}
+ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
 // Connect, select, query database for stars within given coordinates
 $link = open_db();
-
-$result = query_all();
-// XXX: WTF
-$result_i = query_all();
-$result_j = query_all();
-
+$rows = query_all(($image_type == "left" || $image_type == "right"));
+mysqli_close($link);
 
 // Draw grid
 drawGrid();
 
-// XXX: Plot connecting lines
+// Plot connecting lines
 if($max_line > 0) {
-while ($row_i = mysqli_fetch_array($result_i, MYSQLI_ASSOC)) {
-    $x_i = $row_i["X"];
-    $y_i = $row_i["Y"];
-    $z_i = $row_i["Z"];
+    foreach($rows as $row_i) {
+        $x_i = $row_i["X"];
+        $y_i = $row_i["Y"];
+        $z_i = $row_i["Z"];
 
-    mysqli_data_seek($result_j, 0);
-    while ($row_j = mysqli_fetch_array($result_j, MYSQLI_ASSOC)) {
-        $x_j = $row_j["X"];
-        $y_j = $row_j["Y"];
-        $z_j = $row_j["Z"];
+        foreach($rows as $row_j) {
+            $x_j = $row_j["X"];
+            $y_j = $row_j["Y"];
+            $z_j = $row_j["Z"];
 
-        $x_diff = $x_i - $x_j;
-        $y_diff = $y_i - $y_j;
-        $z_diff = $z_i - $z_j;
-        $dist_sums = pow($x_diff,2) + pow($y_diff,2) + pow($z_diff,2);
-        $dist_sqrt = sqrt($dist_sums);
-        if(($row_i["AbsMag"] < $mag_limit) && ($row_j["AbsMag"] < $mag_limit)) {
-            if($dist_sqrt < $max_line/2) {
-                list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
-                list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
-                ImageLine($image,$screen_x_i,$screen_y_i,$screen_x_j,$screen_y_j,$lightblue);
-            } elseif($dist_sqrt < 0.75 * $max_line) {
-                list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
-                list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
-                ImageLine($image,$screen_x_i,$screen_y_i,$screen_x_j,$screen_y_j,$blue);
-            } elseif($dist_sqrt < $max_line) {
-                list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
-                list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
-                ImageLine($image,$screen_x_i,$screen_y_i,$screen_x_j,$screen_y_j,$darkblue);
+            $x_diff = $x_i - $x_j;
+            $y_diff = $y_i - $y_j;
+            $z_diff = $z_i - $z_j;
+            $dist_sums = pow($x_diff,2) + pow($y_diff,2) + pow($z_diff,2);
+            $dist_sqrt = sqrt($dist_sums);
+            if(($row_i["AbsMag"] < $mag_limit) && ($row_j["AbsMag"] < $mag_limit)) {
+                if($dist_sqrt < $max_line/2) {
+                    list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
+                    list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
+                    ImageLine($image,$screen_x_i,$screen_y_i,$screen_x_j,$screen_y_j,$lightblue);
+                } elseif($dist_sqrt < 0.75 * $max_line) {
+                    list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
+                    list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
+                    ImageLine($image,$screen_x_i,$screen_y_i,$screen_x_j,$screen_y_j,$blue);
+                } elseif($dist_sqrt < $max_line) {
+                    list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
+                    list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
+                    ImageLine($image,$screen_x_i,$screen_y_i,$screen_x_j,$screen_y_j,$darkblue);
+                }
             }
         }
     }
-
-}
 }
 
 // Plot each star
-while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
+foreach($rows as $row) {
 
     $id = $row["StarID"];
     $x = $row["X"];
@@ -99,12 +93,6 @@ while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
 ImageJPEG($image);
 ImageDestroy($image);
 
-// Free resultset
-mysqli_free_result($result);
-
-// Close database connection */
-mysqli_close($link);
-
 function allocateColors() {
     global $image;
 
@@ -126,9 +114,29 @@ function allocateColors() {
 }
 
 function screenCoords($x, $y, $z) {
-    global $zoom, $z_zoom, $x_c, $y_c, $center_z, $image_size, $image_type;
+    global $zoom, $z_zoom, $x_c, $y_c, $z_c, $image_size, $image_type;
+
+    if($image_type == "left" || $image_type == "right") {
+        return screenCoords3d($x, $y, $z);
+    }
 
     $screen_x = ($image_size) - (($image_size / (2 * $zoom)) * ($y-$y_c));
+    $screen_y = ($image_size / 2) - (($image_size / (2 * $zoom)) * ($x-$x_c));
+
+    if($image_type == "left") {
+        $screen_x += 4 * (($z - $z_c) / $z_zoom);
+    }
+    if($image_type == "right") {
+        $screen_x -= 4 * (($z - $z_c) / $z_zoom);
+    }
+
+    return array($screen_x, $screen_y);
+}
+
+function screenCoords3d($x, $y, $z) {
+    global $zoom, $z_zoom, $x_c, $y_c, $z_c, $image_size, $image_type;
+
+    $screen_x = ($image_size / 2) - (($image_size / (2 * $zoom)) * ($y-$y_c));
     $screen_y = ($image_size / 2) - (($image_size / (2 * $zoom)) * ($x-$x_c));
 
     if($image_type == "left") {
@@ -194,6 +202,9 @@ function drawGrid() {
         $linecolor = $darkgrey;
     } else {
         $linecolor = $green;
+        if($image_type == "left" || $image_type == "right") {
+            return drawGrid3d();
+        }
     }
 
     $gx_first = fmod(($y_c + $zoom * 2),20);
@@ -211,6 +222,36 @@ function drawGrid() {
     }
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image,0,$g,$image_size * 2,$g,$linecolor);
+        ImageString($image,1,5,$g + 5,$gy_label,$grey);
+        $gy_label -= 20;
+    }
+}
+
+function drawGrid3d() {
+
+    global $y_c, $x_c, $zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type;
+
+    if($image_type == "printable") {
+       $linecolor = $darkgrey;
+    } else {
+       $linecolor = $green;
+    }
+
+    $gx_first = fmod(($y_c + $zoom),20);
+    $gx_label = ($y_c + $zoom) - $gx_first;
+    $gxs_int = ($image_size / 2)*(20 / $zoom);
+    $gxs_first = ($gx_first/20) * $gxs_int;
+    $gy_first = fmod(($x_c + $zoom),20);
+    $gy_label = ($x_c + $zoom) - $gy_first;
+    $gys_int = ($image_size / 2)*(20 / $zoom);
+    $gys_first = ($gy_first/20) * $gxs_int;
+    for($g = $gxs_first; $g < $image_size; $g += $gxs_int) {
+        ImageLine($image,$g,0,$g,$image_size,$linecolor);
+        ImageString($image,1,$g + 5,5,$gx_label,$grey);
+        $gx_label -= 20;
+    }
+    for($g = $gys_first; $g < $image_size; $g += $gys_int) {
+        ImageLine($image,0,$g,$image_size,$g,$linecolor);
         ImageString($image,1,5,$g + 5,$gy_label,$grey);
         $gy_label -= 20;
     }
