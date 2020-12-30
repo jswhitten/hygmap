@@ -134,19 +134,19 @@ mysqli_close($link);
 <div class="topmenu">
    <!-- CENTER COORDINATES -->
    <span class="menupanel">
-      <h4>Center of map</h4>
+      <h4>Center</h4>
       <table>
-         <tr><td>X</td><td><input type="text" name="x_c" size="10" value="<?=$x_c?>"></td></tr>
-         <tr><td>Y</td><td><input type="text" name="y_c" size="10" value="<?=$y_c?>"></td></tr>         
-         <tr><td>Z</td><td><input type="text" name="z_c" size="10" value="<?=$z_c?>"></td></tr>
+         <tr><td>X</td><td><input type="text" name="x_c" size="6" value="<?=$x_c?>"></td></tr>
+         <tr><td>Y</td><td><input type="text" name="y_c" size="6" value="<?=$y_c?>"></td></tr>         
+         <tr><td>Z</td><td><input type="text" name="z_c" size="6" value="<?=$z_c?>"></td></tr>
       </table>
    </span>
    <!-- ZOOM -->
    <span class="menupanel">
       <h4>Zoom</h4>
       <table>
-         <tr><td>X</td><td><input type="text" name="xy_zoom" size="4" value="<?=$zoom?>"> ly</td></tr> 
-         <tr><td>Y</td><td><input type="text" name="y_zoom" size="4" value="<?=$zoom*2?>" DISABLED> ly</td></tr> 
+         <tr><td>X</td><td><input type="text" name="xy_zoom" id="xy_zoom" size="4" value="<?=$zoom?>" onKeyUp="document.getElementById('y_zoom').value = this.value * 2;"> ly</td></tr> 
+         <tr><td>Y</td><td><input type="text" name="y_zoom" id="y_zoom" size="4" value="<?=$zoom*2?>" DISABLED> ly</td></tr> 
          <tr><td>Z</td><td><input type="text" name="z_zoom" size="4" value="<?=$z_zoom?>"> ly</td></tr>
       </table>
    </span>
@@ -156,12 +156,12 @@ mysqli_close($link);
       <table>
          <tr><td>Image Type/Size</td>
          <td>
-            <SELECT NAME="image_type">
+            <SELECT NAME="image_type" id="image_type" onClick="if(this.value === '3d') { document.getElementById('image_size').value = '300'; } else { document.getElementById('image_size').value = '600'; }">
                <OPTION VALUE="normal" <?=$sel_normal?> >Normal
                <OPTION VALUE="3d" <?=$sel_3d?> >3-D
                <OPTION VALUE="printable" <?=$sel_printable?> >Black & white
             </SELECT>
-            <INPUT TYPE="text" NAME="image_size" size="4" VALUE="<?=$image_size?>"> pixels
+            <INPUT TYPE="text" NAME="image_size" id="image_size" size="4" VALUE="<?=$image_size?>"> pixels
          </td></tr>
          <tr><td>Connecting Lines</td><td><INPUT TYPE="text" NAME="max_line" size="4" VALUE="<?=$max_line?>"> ly</td></tr>
          <tr><td>Show fictional names</td><td><INPUT TYPE="checkbox" NAME="trek_names" VALUE="1" <?=$trek_checked?> ></td></tr>
