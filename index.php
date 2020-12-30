@@ -205,8 +205,8 @@ mysqli_close($link);
       </form>
    </span>
    <!-- TABLE OF STARS IN MAP -->
-   <span class="info">
-      <table cellspacing="5" cellpadding="2">
+   <span class="datatable">
+      <table cellspacing="2" cellpadding="5">
          <tr>
             <th>Name</th><th>Distance</th><th>Spectral Type</th><th>Absolute Magnitude</th>
          </tr>
