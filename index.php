@@ -125,18 +125,15 @@ mysqli_close($link);
 <html>
 <head>
    <title>HYGMap</title>
-   <style>
-      td { font-size: small; }
-      h4 { margin-top: 5px; margin-bottom: 5px;}
-   </style>
+   <link href="css/styles.css" rel="stylesheet">
 </head>
-<body style="font-family: sans-serif;">
+<body>
 <a href="about.html">About HYGMap</a>
 <!-- TOP MENU -->
 <form method="GET" action="index.php">
-<div style="display: flex; border: 4px solid #ddddcc;">
+<div class="topmenu">
    <!-- CENTER COORDINATES -->
-   <span style="display: inline-block; border-right: 2px solid #ddddcc; padding: 5px 50px; align-self: stretch;">
+   <span class="menupanel">
       <h4>Center of map</h4>
       <table>
          <tr><td>X</td><td><input type="text" name="x_c" size="10" value="<?=$x_c?>"></td></tr>
@@ -145,7 +142,7 @@ mysqli_close($link);
       </table>
    </span>
    <!-- ZOOM -->
-   <span style="display: inline-block; border-right: 2px solid #ddddcc; padding: 5px 50px;">
+   <span class="menupanel">
       <h4>Zoom</h4>
       <table>
          <tr><td>X</td><td><input type="text" name="xy_zoom" size="4" value="<?=$zoom?>"> ly</td></tr> 
@@ -154,7 +151,7 @@ mysqli_close($link);
       </table>
    </span>
    <!-- MAP OPTIONS -->
-   <span style="display: inline-block; border-right: 2px solid #ddddcc; padding: 5px 50px;">
+   <span class="menupanel">
       <h4>Map Options</h4>
       <table>
          <tr><td>Image Type/Size</td>
@@ -171,31 +168,31 @@ mysqli_close($link);
       </table>
    </span>
    <!-- MAP OPTIONS -->
-   <span style="display: inline-block; border-right: 2px solid #ddddcc; padding: 5px 50px;">
+   <span class="menupanel">
       <h4>Filters</h4>
       <table>
          <tr><td>Absolute Magnitude Limit</td><td><INPUT TYPE="text" name="m_limit" size="4" value="<?=$mag_limit?>" maxlength="4" size="4"></td></tr> 
       </table>
    </span>
-   <span style="margin: auto;">
+   <span id="submit">
       <input type="submit" value="Get Map"/>
    </span>
 </div>
 </form>
-<div style="text-align: center;">
+<div class="mapcontainer">
    <!-- SELECTED STAR DATA -->
-   <span style="display: inline-block; vertical-align: top;">
+   <span class="info">
       <?= $selected_data ?>
    </span>
    <!-- MAP -->
-   <span style="display: inline-block; padding: 10px 10px; margin: auto; horizontal-align: center;">
+   <span class="map">
       <?= $map ?>
    </span>
    <br/>
 </div>
 <div>
    <!-- JUMP TO STAR BY FICTIONAL NAME -->
-   <span style="display: inline-block; vertical-align: top; padding: 10px 10px;">
+   <span class="info">
       <b>Jump to star by fictional name</b><br>
       <form method="GET" action="index.php">
          <INPUT TYPE="hidden" NAME="trek_names" VALUE="1">
@@ -208,8 +205,8 @@ mysqli_close($link);
       </form>
    </span>
    <!-- TABLE OF STARS IN MAP -->
-   <span style="display: inline-block; padding: 10px 10px;">
-      <table>
+   <span class="info">
+      <table cellspacing="5" cellpadding="2">
          <tr>
             <th>Name</th><th>Distance</th><th>Spectral Type</th><th>Absolute Magnitude</th>
          </tr>
