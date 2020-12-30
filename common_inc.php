@@ -8,7 +8,7 @@ function getVars() {
     $center_x = isset($_GET["x_c"])?$_GET["x_c"]:"0";
     $center_y = isset($_GET["y_c"])?$_GET["y_c"]:"0";
     $center_z = isset($_GET["z_c"])?$_GET["z_c"]:"0";
-    $zoom = isset($_GET["xy_zoom"])?$_GET["xy_zoom"]:"20";
+    $zoom = isset($_GET["xy_zoom"])?$_GET["xy_zoom"]:"25";
     $z_zoom = isset($_GET["z_zoom"])?$_GET["z_zoom"]:"20";
     $mag_limit = isset($_GET["m_limit"])?$_GET["m_limit"]:"20"; 
     if(!(is_numeric($mag_limit))) {
