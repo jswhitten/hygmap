@@ -33,6 +33,7 @@ $sel_3d = ($image_type == "3d")?"SELECTED":"";
 $sel_printable = ($image_type == "printable")?"SELECTED":"";
 
 // Selected star
+$memory_alpha = '';
 if($select_star > 0) {
    $selected_ra_deg = $selected_star["ra"] * 360 / 24;
    $selected_dec_av = abs($selected_star["dec"]);
@@ -45,8 +46,15 @@ if($select_star > 0) {
    }
    $select_star_name = getDisplayName($selected_star, 0);
    $selected_display_name = $select_star_name;
+   if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
+      $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . $selected_display_name . '">' . $selected_display_name . '</a>';
+   }
    if($trek_names && $selected_star["Name"] != "" && $selected_display_name != $selected_star["Name"]) {
       $selected_display_name .= " (" . $selected_star["Name"] . ")";
+      $memory_alpha = <<<END
+<br/>
+[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query={$selected_star["Name"]}&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>
+END;
    }
 }
 
@@ -88,6 +96,7 @@ END;
 $selected_data = '';
 if($select_star > 0) {
    $distance_ly = $selected_star["dist"];
+
    $selected_data = <<<END
    <h3>$selected_display_name</h3>
    <table width=100% cellpadding=1 cellspacing=1>
@@ -112,6 +121,7 @@ if($select_star > 0) {
       [ <a href="http://simbad.u-strasbg.fr/sim-id.pl?protocol=html&Ident={$selected_ra_deg}+{$selected_dec_simbad}&NbIdent=1&Radius=1&Radius.unit=arcmin&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&output.max=all&o.catall=on&output.mesdisp=N&Bibyear1=1983&Bibyear2=2004&Frame1=FK5&Frame2=FK4&Frame3=G&Equi1=2000.0&Equi2=1950.0&Equi3=2000.0&Epoch1=2000.0&Epoch2=1950.0&Epoch3=2000.0" target="_blank">Look up this star in SIMBAD</a> ]<br/>
       <br/>
       [ <a href="http://www.fourmilab.ch/cgi-bin/uncgi/Yourtel?lon={$selected_star["ra"]}h&lat={$selected_dec_av}&ns={$selected_dec_ns}&date=0&fov=45�&coords=1&moonp=1&deep=1&deepm=7&consto=1&constn=1&constb=1&limag=6.5&starn=1&starnm=3.5&starb=1&starbm=4.5&imgsize=512&scheme=0" target="_blank">Plot a sky map centered on this star at fourmilab.ch</a> ]<br/>
+      $memory_alpha
       </td>
      <tr>
    </table>
