@@ -23,7 +23,7 @@ ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
 // Connect, select, query database for stars within given coordinates
 $link = open_db();
-$rows = query_all(($image_type == "left" || $image_type == "right"), $max_line);
+$rows = query_all(($image_type == "left" || $image_type == "right"), $max_line, "absmag desc");
 mysqli_close($link);
 
 // Draw grid
@@ -150,27 +150,31 @@ function screenCoords3d($x, $y, $z) {
 }
 
 function getLabel($trek_names) {
-    global $row, $yellow, $white, $black, $grey, $darkgrey, $image_type;
+    global $row, $yellow, $white, $black, $grey, $darkgrey, $image_type, $mag;
 
-    if($trek_names == "1" && isset($row["name"]) && $row["name"] != "") {
+    if($trek_names == "1" && !empty($row["name"])) {
         $name = $row["name"];
         $labelcolor = $yellow;
         $printcolor = $black;
-    } elseif(isset($row["proper"]) && $row["proper"] != "") {
+    } elseif(!empty($row["proper"])) {
         $name = $row["proper"];
         $labelcolor = $white;
         $printcolor = $black;
-    } elseif($row["bf"] != "" && $row["bf"] != "-") {
-        $name = ltrim($row["bf"]);
+    } elseif(!empty($row["bayer"])) {
+        $name = ltrim($row["bayer"]) . " " . $row["con"];
         $labelcolor = $grey;
         $printcolor = $darkgrey;
-    } elseif($row["gl"] != "") {
+    } elseif(!empty($row["flam"])) {
+        $name = ltrim($row["flam"]) . " " . $row["con"];
+        $labelcolor = $grey;
+        $printcolor = $darkgrey;
+    } elseif(!empty($row["gl"])) {
         $name = $row["gl"];
-        $labelcolor = $grey;
+        $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
         $printcolor = $darkgrey;
-    } elseif($row["hd"] > 0) {
+    } elseif(!empty($row["hd"])) {
         $name = "hd".$row["hd"];
-        $labelcolor = $grey;
+        $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
         $printcolor = $darkgrey;
     } else {
         $name = $row["spect"];

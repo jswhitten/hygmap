@@ -130,6 +130,7 @@ mysqli_close($link);
    <link href="css/styles.css" rel="stylesheet">
 </head>
 <body>
+<span class="toplink"><a href="index.php">HYGMap</a></span>
 <span class="toplink"><a href="about.html">About HYGMap</a></span>
 <span class="toplink"><a href="treknotes.html">Star Trek notes</a></span>
 <!-- TOP MENU -->
@@ -227,14 +228,16 @@ if($profiling) {
 }
 
 function getDisplayName($row, $trek_names) {
-   $fields = array("proper","bf","gl","hd","hip");
+   $fields = array("proper","bayer","flam","gl","hd","hip");
    if($trek_names == "1") {
       array_unshift($fields, "Name");
    }
    foreach($fields as $field) {
       if(isset($row[$field]) && !empty($row[$field])) {
          $name = $row[$field];
-         if(is_numeric($name)) {
+         if(in_array($field, array("bayer", "flam"))) {
+            $name .= " " . $row["con"];
+         } elseif(is_numeric($name)) {
             $name = $field . $name;
          }
          return $name;
