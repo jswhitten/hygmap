@@ -86,7 +86,7 @@ END;
 // Build details for selected star
 $selected_data = '';
 if($select_star > 0) {
-   $distance_ly = $selected_star["dist"] * 3.26;
+   $distance_ly = $selected_star["dist"];
    $selected_data = <<<END
    <h3>$selected_display_name</h3>
    <table width=100% cellpadding=1 cellspacing=1>
