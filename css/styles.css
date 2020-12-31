@@ -1,6 +1,11 @@
 body { font-family: sans-serif; }
 td { font-size: small; }
 h4 { margin-top: 5px; margin-bottom: 5px;}
+.toplink {
+    background-color: #ddddcc;
+    padding: 5px 5px;
+    font-weight: bold;
+}
 .topmenu {
     display: flex;
     border: 4px solid #ddddcc;

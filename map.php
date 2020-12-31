@@ -23,7 +23,7 @@ ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
 // Connect, select, query database for stars within given coordinates
 $link = open_db();
-$rows = query_all(($image_type == "left" || $image_type == "right"));
+$rows = query_all(($image_type == "left" || $image_type == "right"), $max_line);
 mysqli_close($link);
 
 // Draw grid
