@@ -3,7 +3,6 @@
       <title>About HYGMap</title>
    </head>
    <body background="rom.jpg">
-
       <h2>About HYGMap</h2>
       <p>
       [ <a href="index.php">Back to the map</a> ]
@@ -19,65 +18,71 @@
       <p>
       <a name="how">
       <h3>How it works</h3>
-      I obtained the <a href="http://www.astronexus.com/data/hyg.htm">HYG Database</a> compiled by David Nash for the star data.  From his site:
-<i>
-<P>The database is a subset of the data in three major catalogs:  the
-Hipparcos Catalog,the Yale Bright Star Catalog (5th Edition), and the
-Gliese Catalog of Nearby Stars (3rd Edition).  Each of these catalogs
-contains information useful to amateur astronomers:</P>
-
- <UL>
-
- <LI>The Hipparcos catalog is the largest collection of high-accuracy
-stellar positional data, particularly parallaxes, which makes it useful
-as a starting point for stellar distance data.</LI>
-
- <LI>The Yale Bright Star Catalog contains basic data on essentially all
-naked-eye stars, including much information (such as the traditional
-Bayer Greek letters and Flamsteed numbers) missing from many other 
-catalogs</LI>
-
- <LI>The Gliese catalog is the most comprehensive catalog of nearby
-stars (those within 75 light years of the Sun).  It contains many 
-fainter stars not found in Hipparcos.</LI>
-
- </UL>
-
-<P>The name of the database comes from the three catalogs comprising its
-data:  <B>H</B>ipparcos, <B>Y</B>ale, and <B>G</B>liese.</p>
-</i>
-<p>
-      This database contains all known stars that are either within 50 parsecs (160 light years) of the Sun or brighter than magnitude +9.0 (87476 stars).
-<p>
-      I then imported this comma-separated database into a MySQL table using <tt>LOAD DATA LOCAL INFILE 'hygfull.csv' INTO TABLE tblHYG FIELDS TERMINATED BY ','</tt>.  Then I wrote <a href="files/src/gal.txt">a small Perl script</a> to convert the equatorial coordinates and distance data into Galactic coordinates using the formulas at <a href="http://www.projectrho.com/smap04.html">Winchell Chung's Project Rho site</a>, and then insert those into a second table.
+      I obtained the <a href="https://github.com/astronexus/HYG-Database">HYG Database</a> 
+      compiled by David Nash for the star data.  From his site:
+      <i>
+      <P>The database is a subset of the data in three major catalogs:  the
+      Hipparcos Catalog,the Yale Bright Star Catalog (5th Edition), and the
+      Gliese Catalog of Nearby Stars (3rd Edition).  Each of these catalogs
+      contains information useful to amateur astronomers:</P>
+      <UL>
+      <LI>The Hipparcos catalog is the largest collection of high-accuracy
+      stellar positional data, particularly parallaxes, which makes it useful
+      as a starting point for stellar distance data.</LI>
+      <LI>The Yale Bright Star Catalog contains basic data on essentially all
+      naked-eye stars, including much information (such as the traditional
+      Bayer Greek letters and Flamsteed numbers) missing from many other 
+      catalogs</LI>
+      <LI>The Gliese catalog is the most comprehensive catalog of nearby
+      stars (those within 75 light years of the Sun).  It contains many 
+      fainter stars not found in Hipparcos.</LI>
+      </UL>
+      <P>The name of the database comes from the three catalogs comprising its
+      data:  <B>H</B>ipparcos, <B>Y</B>ale, and <B>G</B>liese.</p>
+      </i>
       <p>
-      Finally, I created a third table to store the fictional Star Trek names for selected stars.  For some stars, this was easy.  <a href="/index.php?x_c=-12.1121&y_c=-4.58985&z_c=-10.1309&xy_zoom=10&z_zoom=20&select_star=13916">Vulcan</a>, for example, is agreed to be in the 40 Eridani star system.  Others, like Romulus, have not been explicitly matched to a real star.  In these cases, I set the Z zoom to a large number (to include stars within a wide range of Z coordinates) and looked for a star very close to the position plotted in Geoffrey Mandel's <a href="http://www.amazon.com/exec/obidos/tg/detail/-/0743437705/104-2990944-2687115?vi=glance">Star Charts</a>.  With <a href="index.php?x_c=41.32&y_c=-31.4142&z_c=86.3733&xy_zoom=30&z_zoom=80&select_star=48119&select_center=on">Romulus and Romii</a>, I was lucky; there are two stars right where they are supposed to be.
-      <p>
-      Thanks to Jörg for identifying nearly 100 (the majority) of the Trek stars I have in the database.
+      I converted distances into light years and added galactic coordinates to the database.
+      This site generates a star map of the selected area of space, and optionally displays
+      the names of stars from a selected science fiction universe. Currently nearly 200 systems
+      from Star Trek have been identified. Thanks to J&#246;rg for identifying the majority of them.
       <p>
       <a name="coords">
       <h3>Coordinate system</h3>
-      Two sets of coordinates are stored for each star in the database.  The equatorial (2000.0) coordinates, which you can view by <a href="#selecting">selecting</a> a star, and the Galactic Cartesian coordinates.  The equatorial coordinates determine the two-dimensional location of a star in the sky.  Select Romulus, for example, and find its location in a star atlas, and you will see that it is a dim star in the constellation Virgo.  You'll need binoculars or a telescope to actually see it.
+      Two sets of coordinates are stored for each star in the database. The equatorial (2000.0) 
+      coordinates, which you can view by <a href="#selecting">selecting</a> a star, and the Galactic 
+      Cartesian coordinates.  The equatorial coordinates determine the two-dimensional 
+      location of a star in the sky.  Select Romulus, for example, and find its location in a star atlas, 
+      and you will see that it is a dim star in the constellation Virgo.  You'll need binoculars or a 
+      telescope to actually see it.
       <p>
-      The Galactic coordinates place the star in three-dimensional space.  (0,0,0) is our Sun's coordinates.  The X axis points toward the Galactic center, about 25,000 light years away or (25000,0,0).  The Y axis points toward 90 degrees Galactic longitude, in the direction of the constellation Cygnus.  And the Z axis points "up" out of the Galactic plane, toward Coma Berenices.
+      The Galactic coordinates place the star in three-dimensional space.  (0,0,0) is our Sun's coordinates.
+      The positive X axis points toward the Galactic center, about 26,700 light years away or (26700,0,0).  
+      The positive Y axis points toward 90 degrees Galactic longitude, in the direction of the constellation 
+      Cygnus.  And the Z axis points "up" out of the Galactic plane, toward Coma Berenices.
       <p>
-      This might be a little confusing, since I have oriented the maps so that the positive X axis is "up" on the screen, and the positive Y axis is left.  This is just because I'm used to seeing galactic star maps with this orientation, and this is how the maps are displayed in the book Star Charts.  Just keep this in mind.  The Z axis points out of the screen toward you.
+      On the screen, the positive X axis is up toward the top of the screen, Y to the left, and Z out of the
+      screen toward the viewer. You're looking down on the galactic plane from above it.
       <p>
       <a name="selecting">
       <h3>Selecting stars</h3>
-      You can choose a specific star from the drop-down menu at the top of the screen.  It will list only the stars visible on the current map.  After selecting a star, it will have a blue box around it on the map and details will be displayed below the map.  If you check the "center on selection" box, the map will also be moved so that the selected star is in the middle.      
+      You can choose a specific star from the table at the bottom of the screen.  It will list only the 
+      stars visible on the current map.  After selecting a star, it will have a blue box around it on the 
+      map and details will be displayed to the left of the map.  If you check the "center on selection" box, 
+      the map will also be moved so that the selected star is in the middle. Selecting a fictional star name
+      from the dropdown at the bottom will automatically center and select that star on the map.
       <p>
       <a name="source">
       <h3>Source code</h3>
-      Source code and database dumps are now available for download <a href="https://github.com/jswhitten/hygmap">here</a>! To import the dump into a MySQL database, use the following commands:<br>
-<tt>tar xvf stardata.tar.gz</tt><br>
-<tt>mysql -p stars &lt; stars-alldata.sql</tt>
+      Source code and database dumps are now available 
+      <a href="https://github.com/jswhitten/hygmap">on github</a>.
       <p>
       <a name="author">
       <h3>About the author</h3>
-      Jed Whitten is a software engineer in California.  You can email him at <a href="mailto:jswhitten@gmail.com">jswhitten@gmail.com</a>.
+      Jed Whitten is a software engineer in California.  You can email him at 
+      <a href="mailto:jswhitten@gmail.com">jswhitten@gmail.com</a>.
       <p>
-      <a href="http://www.astronexus.com/misc/index.html">David Nash</a> compiled the <a href="http://www.astronexus.com/data/hyg.html">original database</a> that this program uses.
+      <a href="http://www.astronexus.com/misc/index.html">David Nash</a> compiled the 
+      <a href="https://github.com/astronexus/HYG-Database">original database</a> that this program uses.
    </body>
 </html>
 

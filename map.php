@@ -32,21 +32,21 @@ drawGrid();
 // Plot connecting lines
 if($max_line > 0) {
     foreach($rows as $row_i) {
-        $x_i = $row_i["X"];
-        $y_i = $row_i["Y"];
-        $z_i = $row_i["Z"];
+        $x_i = $row_i["x"];
+        $y_i = $row_i["y"];
+        $z_i = $row_i["z"];
 
         foreach($rows as $row_j) {
-            $x_j = $row_j["X"];
-            $y_j = $row_j["Y"];
-            $z_j = $row_j["Z"];
+            $x_j = $row_j["x"];
+            $y_j = $row_j["y"];
+            $z_j = $row_j["z"];
 
             $x_diff = $x_i - $x_j;
             $y_diff = $y_i - $y_j;
             $z_diff = $z_i - $z_j;
             $dist_sums = pow($x_diff,2) + pow($y_diff,2) + pow($z_diff,2);
             $dist_sqrt = sqrt($dist_sums);
-            if(($row_i["AbsMag"] < $mag_limit) && ($row_j["AbsMag"] < $mag_limit)) {
+            if(($row_i["absmag"] < $mag_limit) && ($row_j["absmag"] < $mag_limit)) {
                 if($dist_sqrt < $max_line/2) {
                     list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
                     list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
@@ -68,17 +68,17 @@ if($max_line > 0) {
 // Plot each star
 foreach($rows as $row) {
 
-    $id = $row["StarID"];
-    $x = $row["X"];
-    $y = $row["Y"];
-    $z = $row["Z"];
-    $mag = $row["AbsMag"];
+    $id = $row["id"];
+    $x = $row["x"];
+    $y = $row["y"];
+    $z = $row["z"];
+    $mag = $row["absmag"];
 
     if($mag < $mag_limit) {
 
         list ($name, $labelcolor) = getLabel($trek_names);
         list ($screen_x, $screen_y) = screenCoords($x, $y, $z);
-        $spec = getSpecClass($row["Spectrum"]); 
+        $spec = getSpecClass($row["spect"]); 
         $starcolor = specColor();
         list ($size, $labelsize) = starSize();
 
@@ -152,28 +152,28 @@ function screenCoords3d($x, $y, $z) {
 function getLabel($trek_names) {
     global $row, $yellow, $white, $black, $grey, $darkgrey, $image_type;
 
-    if($trek_names == "1" && isset($row["Name"]) && $row["Name"] != "") {
-        $name = $row["Name"];
+    if($trek_names == "1" && isset($row["name"]) && $row["name"] != "") {
+        $name = $row["name"];
         $labelcolor = $yellow;
         $printcolor = $black;
-    } elseif(isset($row["ProperName"]) && $row["ProperName"] != "") {
-        $name = $row["ProperName"];
+    } elseif(isset($row["proper"]) && $row["proper"] != "") {
+        $name = $row["proper"];
         $labelcolor = $white;
         $printcolor = $black;
-    } elseif($row["BayerFlam"] != "" && $row["BayerFlam"] != "-") {
-        $name = ltrim($row["BayerFlam"]);
+    } elseif($row["bf"] != "" && $row["bf"] != "-") {
+        $name = ltrim($row["bf"]);
         $labelcolor = $grey;
         $printcolor = $darkgrey;
-    } elseif($row["Gliese"] != "") {
-        $name = $row["Gliese"];
+    } elseif($row["gl"] != "") {
+        $name = $row["gl"];
         $labelcolor = $grey;
         $printcolor = $darkgrey;
-    } elseif($row["HD"] > 0) {
-        $name = "HD".$row["HD"];
+    } elseif($row["hd"] > 0) {
+        $name = "hd".$row["hd"];
         $labelcolor = $grey;
         $printcolor = $darkgrey;
     } else {
-        $name = $row["Spectrum"];
+        $name = $row["spect"];
         $labelcolor = $darkgrey;
         $printcolor = $darkgrey;
     }
@@ -196,12 +196,14 @@ function getSpecClass($specdata) {
 
 function drawGrid() {
 
-    global $y_c, $x_c, $zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type;
+    global $y_c, $x_c, $zoom, $image, $green, $grey, $blue, $darkblue, $darkgrey, $image_size, $image_type;
 
     if($image_type == "printable") {
         $linecolor = $darkgrey;
+        $zerolinecolor = $darkblue;
     } else {
         $linecolor = $green;
+        $zerolinecolor = $blue;
         if($image_type == "left" || $image_type == "right") {
             return drawGrid3d();
         }
@@ -216,12 +218,12 @@ function drawGrid() {
     $gys_int = ($image_size / 2)*(20 / $zoom);
     $gys_first = ($gy_first/20) * $gxs_int;
     for($g = $gxs_first; $g < $image_size * 2; $g += $gxs_int) {
-        ImageLine($image,$g,0,$g,$image_size,$linecolor);
+        ImageLine($image,$g,0,$g,$image_size,$gx_label == 0 ? $zerolinecolor : $linecolor);
         ImageString($image,1,$g + 5,5,$gx_label,$grey);
         $gx_label -= 20;
     }
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
-        ImageLine($image,0,$g,$image_size * 2,$g,$linecolor);
+        ImageLine($image,0,$g,$image_size * 2,$g,$gy_label == 0 ? $zerolinecolor : $linecolor);
         ImageString($image,1,5,$g + 5,$gy_label,$grey);
         $gy_label -= 20;
     }
