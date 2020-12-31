@@ -76,9 +76,10 @@ $star_table = "";
 foreach ($rows as $row) {
    $star_count++;
    $display_name = getDisplayName($row, 0);
+   $distance_from_center = number_format(sqrt(pow($row["x"] - $x_c, 2) + pow($row["y"] - $y_c, 2) + pow($row["z"] - $z_c, 2)),2);
    $star_table .= <<<END
          <tr>
-            <td><a href="?select_star={$row['id']}&select_center=1">$display_name</td></a><td>{$row["dist"]}</td><td>{$row["spect"]}</td><td>{$row["absmag"]}</td>
+            <td><a href="?select_star={$row['id']}&select_center=1">$display_name</a></td><td>{$row["con"]}</td><td>{$row["spect"]}</td><td>{$row["absmag"]}</td><td>{$row["dist"]}</td><td>$distance_from_center</td>
          </tr>\n
 END;
 }
@@ -210,7 +211,7 @@ mysqli_close($link);
    <span class="datatable">
       <table cellspacing="2" cellpadding="5">
          <tr>
-            <th>Name</th><th>Distance</th><th>Spectral Type</th><th>Absolute Magnitude</th>
+            <th>Name</th><th>Constellation</th><th>Spectral Type</th><th>Absolute Magnitude</th><th>Distance from Sun (ly)</th><th>Distance from map center (ly)</th>
          </tr>
          <?=$star_table?>
       </table>
