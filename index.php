@@ -129,7 +129,8 @@ mysqli_close($link);
    <link href="css/styles.css" rel="stylesheet">
 </head>
 <body>
-<a href="about.html">About HYGMap</a>
+<span class="toplink"><a href="about.html">About HYGMap</a></span>
+<span class="toplink"><a href="treknotes.html">Star Trek notes</a></span>
 <!-- TOP MENU -->
 <form method="GET" action="index.php">
 <div class="topmenu">

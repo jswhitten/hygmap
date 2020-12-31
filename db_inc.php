@@ -12,16 +12,16 @@ function open_db() {
     return $link;
 }
 
-function query_all($square = false) {
+function query_all($square = false, $max_line = 0) {
 
     global $x_c, $y_c, $z_c, $zoom, $z_zoom, $mag_limit, $link;
 
-    $x_max = $x_c + $zoom;
-    $y_max = $y_c + ($square ? 1 : 2) * $zoom;
+    $x_max = $x_c + $zoom + $max_line;
+    $y_max = $y_c + ($square ? 1 : 2) * $zoom + $max_line;
     $z_max = $z_c + $z_zoom;
 
-    $x_min = $x_c - $zoom;
-    $y_min = $y_c - ($square ? 1 : 2) * $zoom;
+    $x_min = $x_c - $zoom - $max_line;
+    $y_min = $y_c - ($square ? 1 : 2) * $zoom - $max_line;
     $z_min = $z_c - $z_zoom;
 
     $query = "SELECT hyg.*, trek.name FROM hyg LEFT JOIN trek ON hyg.id = trek.hyg_id WHERE x > $x_min AND x < $x_max AND y > $y_min AND y < $y_max AND z > $z_min AND z < $z_max AND absmag < $mag_limit AND (gl IS NOT NULL OR bf IS NOT NULL OR proper IS NOT NULL OR spect IS NOT NULL) ORDER BY z";
