@@ -156,10 +156,14 @@ function getLabel($trek_names) {
         $name = $row["name"];
         $labelcolor = $yellow;
         $printcolor = $black;
-    } elseif(!empty($row["proper"])) {
-        $name = $row["proper"];
+    } elseif(!empty($row["iauname"])) {
+        $name = $row["iauname"];
         $labelcolor = $white;
         $printcolor = $black;
+    } elseif(!empty($row["altname"])) {
+        $name = $row["altname"];
+        $labelcolor = $white;
+        $printcolor = $black;        
     } elseif(!empty($row["bayer"])) {
         $name = ltrim($row["bayer"]) . " " . $row["con"];
         $labelcolor = $grey;

@@ -12,7 +12,7 @@ function open_db() {
     return $link;
 }
 
-function query_all($square = false, $max_line = 0) {
+function query_all($square = false, $max_line = 0, $order = "absmag") {
 
     global $x_c, $y_c, $z_c, $zoom, $z_zoom, $mag_limit, $link;
 
@@ -24,7 +24,7 @@ function query_all($square = false, $max_line = 0) {
     $y_min = $y_c - ($square ? 1 : 2) * $zoom - $max_line;
     $z_min = $z_c - $z_zoom;
 
-    $query = "SELECT hyg.*, trek.name FROM hyg LEFT JOIN trek ON hyg.id = trek.hyg_id WHERE x > $x_min AND x < $x_max AND y > $y_min AND y < $y_max AND z > $z_min AND z < $z_max AND absmag < $mag_limit AND (gl IS NOT NULL OR bf IS NOT NULL OR proper IS NOT NULL OR spect IS NOT NULL) ORDER BY absmag";
+    $query = "SELECT hyg.*, trek.name FROM hyg LEFT JOIN trek ON hyg.id = trek.hyg_id WHERE x > $x_min AND x < $x_max AND y > $y_min AND y < $y_max AND z > $z_min AND z < $z_max AND absmag < $mag_limit AND (gl IS NOT NULL OR bf IS NOT NULL OR iauname IS NOT NULL OR altname IS NOT NULL OR spect IS NOT NULL) ORDER BY $order";
     $result = mysqli_query($link, $query) or die("Query failed");
     $rows = mysqli_fetch_all($result, MYSQLI_ASSOC);
     mysqli_free_result($result);
