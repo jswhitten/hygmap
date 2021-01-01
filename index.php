@@ -141,13 +141,14 @@ mysqli_close($link);
 </head>
 <body>
 <span class="toplink"><a href="index.php">HYGMap</a></span>
-<span class="toplink"><a href="about.html">About HYGMap</a></span>
+<span class="toplink"><a href="about.html">About</a></span>
 <span class="toplink"><a href="treknotes.html">Star Trek notes</a></span>
+<span class="toplink"><a href="changelog.html">Change log</a></span>
 <!-- TOP MENU -->
 <form method="GET" action="index.php">
 <div class="topmenu">
    <!-- CENTER COORDINATES -->
-   <span class="menupanel">
+   <span class="menupanel" title="Coordinates for the center of the map.">
       <h4>Center</h4>
       <table>
          <tr><td>X</td><td><input type="text" name="x_c" size="6" value="<?=$x_c?>"></td></tr>
@@ -156,19 +157,20 @@ mysqli_close($link);
       </table>
    </span>
    <!-- ZOOM -->
-   <span class="menupanel">
+   <span class="menupanel" title="Distance from center of map to edge, in light years.">
       <h4>Zoom</h4>
       <table>
          <tr><td>X</td><td><input type="text" name="xy_zoom" id="xy_zoom" size="4" value="<?=$zoom?>" onKeyUp="document.getElementById('y_zoom').value = this.value * 2;"> ly</td></tr> 
          <tr><td>Y</td><td><input type="text" name="y_zoom" id="y_zoom" size="4" value="<?=$zoom*2?>" DISABLED> ly</td></tr> 
          <tr><td>Z</td><td><input type="text" name="z_zoom" size="4" value="<?=$z_zoom?>"> ly</td></tr>
       </table>
+      <br/>
    </span>
    <!-- MAP OPTIONS -->
    <span class="menupanel">
-      <h4>Map Options</h4>
+      <h4>Map options</h4>
       <table>
-         <tr><td>Image Type/Size</td>
+         <tr><td>Image type/size</td>
          <td>
             <SELECT NAME="image_type" id="image_type" onClick="if(this.value === '3d') { document.getElementById('image_size').value = '300'; } else { document.getElementById('image_size').value = '600'; }">
                <OPTION VALUE="normal" <?=$sel_normal?> >Normal
@@ -177,7 +179,7 @@ mysqli_close($link);
             </SELECT>
             <INPUT TYPE="text" NAME="image_size" id="image_size" size="4" VALUE="<?=$image_size?>"> pixels
          </td></tr>
-         <tr><td>Connecting Lines</td><td><INPUT TYPE="text" NAME="max_line" size="4" VALUE="<?=$max_line?>"> ly</td></tr>
+         <tr><td>Connecting lines</td><td><INPUT TYPE="text" NAME="max_line" size="4" VALUE="<?=$max_line?>"> ly</td></tr>
          <tr><td>Show fictional names</td><td><INPUT TYPE="checkbox" NAME="trek_names" VALUE="1" <?=$trek_checked?> ></td></tr>
       </table>
    </span>
@@ -185,7 +187,7 @@ mysqli_close($link);
    <span class="menupanel">
       <h4>Filters</h4>
       <table>
-         <tr><td>Absolute Magnitude Limit</td><td><INPUT TYPE="text" name="m_limit" size="4" value="<?=$mag_limit?>" maxlength="4" size="4"></td></tr> 
+         <tr><td><span title="Do not display stars dimmer than this absolute magnitude.">Absolute magnitude limit</span></td><td><INPUT TYPE="text" name="m_limit" size="4" value="<?=$mag_limit?>" maxlength="4" size="4"></td></tr> 
       </table>
    </span>
    <span id="submit">
@@ -220,6 +222,7 @@ mysqli_close($link);
    </span>
    <!-- TABLE OF STARS IN MAP -->
    <span class="datatable">
+      <b>Stars in current map</b><br>
       <table cellspacing="2" cellpadding="5">
          <tr>
             <th>Name</th><th>Constellation</th><th>Spectral Type</th><th>Absolute Magnitude</th><th>Distance from Sun (ly)</th><th>Distance from map center (ly)</th>
