@@ -46,7 +46,7 @@ if($select_star > 0) {
    }
    $select_star_name = getDisplayName($selected_star, 0);
    $selected_display_name = $select_star_name;
-   if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
+   if(!empty($selected_star["iauname"]) || !empty($selected_star["altname"]) || !empty($selected_star["bf"])) {
       $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . $selected_display_name . '">' . $selected_display_name . '</a>';
    }
    if($trek_names && $selected_star["Name"] != "" && $selected_display_name != $selected_star["Name"]) {
@@ -241,7 +241,7 @@ if($profiling) {
 }
 
 function getDisplayName($row, $trek_names) {
-   $fields = array("proper","bayer","flam","gl","hd","hip");
+   $fields = array("iauname","altname","bayer","flam","gl","hd","hip");
    if($trek_names == "1") {
       array_unshift($fields, "Name");
    }
