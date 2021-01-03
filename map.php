@@ -77,18 +77,24 @@ foreach($rows as $row) {
     if($mag < $mag_limit) {
         list ($screen_x, $screen_y) = screenCoords($x, $y, $z);
         $starcolor = specColor(getSpecClass($row["spect"]));
-        list ($size, $labelsize) = starSize();
+        list ($size, $labelsize) = starSize($mag);
 
         // plot star
         plotStar($screen_x, $screen_y, $size, $starcolor, $select_star == $id);
 
         // label
         $skiplabel = false;
-        foreach($rows as $checkrow) {
-            // if a brighter star is at the same location don't label this one
-            if($checkrow['absmag'] < $mag) {
-                if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
-                    $skiplabel = true;
+        if(sizeof($rows) > 1000) {
+            if($mag > 3 && $id > 0) {
+                $skiplabel = true;
+            }
+        } else {
+            foreach($rows as $checkrow) {
+                // if a brighter star is at the same location don't label this one
+                if($checkrow['absmag'] < $mag) {
+                    if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
+                        $skiplabel = true;
+                    }
                 }
             }
         }
@@ -298,10 +304,7 @@ function specColor($spec) {
     return $color;
 }
 
-function starSize() {
-
-    global $mag;
-
+function starSize($mag) {
     if($mag > 8) {
         $size = 2;
         $labelsize = 1;
