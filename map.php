@@ -75,18 +75,27 @@ foreach($rows as $row) {
     $mag = $row["absmag"];
 
     if($mag < $mag_limit) {
-
-        list ($name, $labelcolor) = getLabel($trek_names);
         list ($screen_x, $screen_y) = screenCoords($x, $y, $z);
-        $spec = getSpecClass($row["spect"]); 
-        $starcolor = specColor();
+        $starcolor = specColor(getSpecClass($row["spect"]));
         list ($size, $labelsize) = starSize();
 
         // plot star
-        plotStar($select_star, $id);
+        plotStar($screen_x, $screen_y, $size, $starcolor, $select_star == $id);
 
         // label
-        labelStar($name, $labelsize, $labelcolor);
+        $skiplabel = false;
+        foreach($rows as $checkrow) {
+            // if a brighter star is at the same location don't label this one
+            if($checkrow['absmag'] < $mag) {
+                if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
+                    $skiplabel = true;
+                }
+            }
+        }
+        if(!$skiplabel) {
+            list ($name, $labelcolor) = getLabel($trek_names);
+            labelStar($name, $labelsize, $labelcolor);
+        }
     }
 }
 // draw it
@@ -268,8 +277,8 @@ function drawGrid3d() {
 
 }
 
-function specColor() {
-    global $spec, $lightblue, $blue, $lightyellow, $yellow, $orange, $red, $white;
+function specColor($spec) {
+    global $lightblue, $blue, $lightyellow, $yellow, $orange, $red, $white;
 
     if($spec == "O") {
         $color = $blue;
@@ -307,8 +316,8 @@ function starSize() {
     return array($size, $labelsize);
 }
 
-function plotStar($select_star, $id) {
-    global $image, $screen_x, $screen_y, $size, $starcolor, $black, $darkgrey, $red, $blue, $image_type;
+function plotStar($screen_x, $screen_y, $size, $starcolor, $selected) {
+    global $image, $black, $darkgrey, $red, $blue, $image_type;
 
     if($image_type == "printable") {
         $starcolor = $black;
@@ -320,7 +329,7 @@ function plotStar($select_star, $id) {
     ImageFilledEllipse($image,$screen_x,$screen_y,$size,$size,$starcolor);
 
     // selected star
-    if($select_star == $id) {
+    if($selected) {
         ImageRectangle($image,$screen_x-20,$screen_y-20,$screen_x+20,$screen_y+20,$boxcolor);
     }
 }
