@@ -11,15 +11,19 @@ function getVars() {
     $zoom = isset($_GET["xy_zoom"])?$_GET["xy_zoom"]:"25";
     $z_zoom = isset($_GET["z_zoom"])?$_GET["z_zoom"]:"20";
     $mag_limit = isset($_GET["m_limit"])?$_GET["m_limit"]:"20"; 
+    $mag_limit_label = isset($_GET["m_limit_label"])?$_GET["m_limit_label"]:"8"; 
     if(!(is_numeric($mag_limit))) {
-       $mag_limit = 20;
+        $mag_limit = 20;
+    }
+    if(!(is_numeric($mag_limit_label))) {
+        $mag_limit_label = 8;
     }
     $image_size = isset($_GET["image_size"])?$_GET["image_size"]:"600";
     $image_type = isset($_GET["image_type"])?$_GET["image_type"]:"normal";
     $max_line = isset($_GET["max_line"])?$_GET["max_line"]:"0";
     $trek_names = isset($_GET["trek_names"])?$_GET["trek_names"]:"0"; 
 
-    return array($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $image_size, $image_type, $max_line, $trek_names);
+    return array($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $mag_limit_label, $image_size, $image_type, $max_line, $trek_names);
 }
 
 // Call this at each point of interest, passing a descriptive string

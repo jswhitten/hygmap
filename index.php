@@ -6,7 +6,7 @@ $profiling = false;
 prof_flag("START");
 
 // Extract variables from query string
-list($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $image_size, $image_type, $max_line, $trek_names) = getVars();
+list($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $mag_limit_label, $image_size, $image_type, $max_line, $trek_names) = getVars();
 $x_c = $center_x; 
 $y_c = $center_y; 
 $z_c = $center_z; 
@@ -69,10 +69,10 @@ foreach ($trek_rows as $trek_row) {
 
 // Generate html for map
 if($image_type == "3d") {
-      $map = "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&select_star=$select_star&image_size=$image_size&image_type=left&max_line=$max_line&trek_names=$trek_names\" width=$image_size height=$image_size>&nbsp;";
-      $map .= "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&select_star=$select_star&image_size=$image_size&image_type=right&max_line=$max_line&trek_names=$trek_names\" width=$image_size height=$image_size>";
+      $map = "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&m_limit_label=$mag_limit_label&select_star=$select_star&image_size=$image_size&image_type=left&max_line=$max_line&trek_names=$trek_names\" width=$image_size height=$image_size>&nbsp;";
+      $map .= "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&m_limit_label=$mag_limit_label&select_star=$select_star&image_size=$image_size&image_type=right&max_line=$max_line&trek_names=$trek_names\" width=$image_size height=$image_size>";
 } else {
-      $map = "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&select_star=$select_star&image_size=$image_size&image_type=$image_type&max_line=$max_line&trek_names=$trek_names\" width=" . $image_size*2 . " height=$image_size>";
+      $map = "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&m_limit_label=$mag_limit_label&select_star=$select_star&image_size=$image_size&image_type=$image_type&max_line=$max_line&trek_names=$trek_names\" width=" . $image_size*2 . " height=$image_size>";
 }
 
 // Get data for star table
@@ -141,7 +141,7 @@ mysqli_close($link);
 </head>
 <body>
 <span class="toplink"><a href="index.php">HYGMap</a></span>
-<span class="toplink"><a href="about.html">About</a></span>
+<span class="toplink"><a href="https://github.com/jswhitten/hygmap">Source code</a></span>
 <span class="toplink"><a href="treknotes.html">Star Trek notes</a></span>
 <span class="toplink"><a href="changelog.html">Change log</a></span>
 <!-- TOP MENU -->
@@ -187,7 +187,8 @@ mysqli_close($link);
    <span class="menupanel">
       <h4>Filters</h4>
       <table>
-         <tr><td><span title="Do not display stars dimmer than this absolute magnitude.">Absolute magnitude limit</span></td><td><INPUT TYPE="text" name="m_limit" size="4" value="<?=$mag_limit?>" maxlength="4" size="4"></td></tr> 
+      <tr><td><span title="Do not display stars dimmer than this absolute magnitude.">Show stars brighter than magnitude</span></td><td><INPUT TYPE="text" name="m_limit" size="4" value="<?=$mag_limit?>" maxlength="4" size="4"></td></tr> 
+      <tr><td><span title="Do not label stars dimmer than this absolute magnitude.">Label stars brighter than magnitude</span></td><td><INPUT TYPE="text" name="m_limit_label" size="4" value="<?=$mag_limit_label?>" maxlength="4" size="4"></td></tr> 
       </table>
    </span>
    <span id="submit">

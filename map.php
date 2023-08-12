@@ -3,7 +3,7 @@ require 'db_inc.php';
 require 'common_inc.php';
 
 // Extract variables from query string
-list($select_star, $select_center, $x_c, $y_c, $z_c, $zoom, $z_zoom, $mag_limit, $image_size, $image_type, $max_line, $trek_names) = getVars();
+list($select_star, $select_center, $x_c, $y_c, $z_c, $zoom, $z_zoom, $mag_limit, $mag_limit_label, $image_size, $image_type, $max_line, $trek_names) = getVars();
 
 // Create image
 while (@ob_end_clean());
@@ -84,8 +84,10 @@ foreach($rows as $row) {
 
         // label
         $skiplabel = false;
-        if(sizeof($rows) > 1000) {
-            if($mag > 3 && $id > 0) {
+        if($mag > $mag_limit_label) {
+            $skiplabel = true;
+        } elseif(sizeof($rows) > 1000) {
+            if($mag > 5 && $id > 0) {
                 $skiplabel = true;
             }
         } else {
@@ -94,6 +96,7 @@ foreach($rows as $row) {
                 if($checkrow['absmag'] < $mag) {
                     if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
                         $skiplabel = true;
+                        break;
                     }
                 }
             }
@@ -311,9 +314,12 @@ function starSize($mag) {
     } elseif($mag > 6) {
         $size = 20 - 2 * $mag;
         $labelsize = 1;
+    } elseif($mag > 3) {
+        $size = 20 - 2 * $mag;
+        $labelsize = 2;        
     } else {
         $size = 20 - 2 * $mag;
-        $labelsize = 2;
+        $labelsize = 4;
     }
 
     return array($size, $labelsize);
