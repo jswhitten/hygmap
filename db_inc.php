@@ -1,8 +1,9 @@
 <?php
-require '../userpass.php';
 
 function open_db() {
-    global $db_user, $db_pass;
+    // Retrieve environment variables
+    $db_user = $_SERVER['DB_USERNAME'];
+    $db_pass = $_SERVER['DB_PASSWORD'];
 
     $link = mysqli_connect("localhost", "$db_user", "$db_pass")
         or die("Could not connect");
