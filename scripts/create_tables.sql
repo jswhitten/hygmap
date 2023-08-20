@@ -68,6 +68,45 @@ CREATE TABLE `hyg` (
 ) ENGINE=InnoDB AUTO_INCREMENT=119621 DEFAULT CHARSET=utf8;
 
 --
+-- Table structure for table `hyg`
+--
+
+DROP TABLE IF EXISTS `hyg`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `hyg` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tyc` int(11) DEFAULT NULL,
+  `gaia` int(11) DEFAULT NULL,
+  `hyg` int(11) DEFAULT NULL,
+  `hip` int(11) DEFAULT NULL,
+  `hd` int(11) DEFAULT NULL,
+  `hr` int(11) DEFAULT NULL,
+  `gl` varchar(16) DEFAULT NULL,
+  `bayer` varchar(16) DEFAULT NULL,
+  `flam` int(11) DEFAULT NULL,
+  `proper` varchar(128) DEFAULT NULL,
+  `altname` varchar(128) DEFAULT NULL,
+  `ra` double DEFAULT NULL,
+  `dec` double DEFAULT NULL,
+  `pos_src` varchar(16) DEFAULT NULL,
+  `dist` float DEFAULT NULL,
+  `x` float DEFAULT NULL,
+  `y` float DEFAULT NULL,
+  `z` float DEFAULT NULL,
+  `x_eq` float DEFAULT NULL,
+  `y_eq` float DEFAULT NULL,
+  `z_eq` float DEFAULT NULL,
+  `dist_src` varchar(16) DEFAULT NULL,
+  `mag` float DEFAULT NULL,
+  `absmag` float DEFAULT NULL,
+  `mag_src` varchar(16) DEFAULT NULL,
+  `spect` varchar(16) DEFAULT NULL,
+  `spect_src` varchar(16) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
 -- Table structure for table `trek`
 --
 
