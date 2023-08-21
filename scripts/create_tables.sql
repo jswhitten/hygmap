@@ -68,13 +68,13 @@ CREATE TABLE `hyg` (
 ) ENGINE=InnoDB AUTO_INCREMENT=119621 DEFAULT CHARSET=utf8;
 
 --
--- Table structure for table `hyg`
+-- Table structure for table `athyg`
 --
 
-DROP TABLE IF EXISTS `hyg`;
+DROP TABLE IF EXISTS `athyg`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `hyg` (
+CREATE TABLE `athyg` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `tyc` int(11) DEFAULT NULL,
   `gaia` int(11) DEFAULT NULL,
@@ -85,8 +85,9 @@ CREATE TABLE `hyg` (
   `gl` varchar(16) DEFAULT NULL,
   `bayer` varchar(16) DEFAULT NULL,
   `flam` int(11) DEFAULT NULL,
+  `con` varchar(16) DEFAULT NULL,
   `proper` varchar(128) DEFAULT NULL,
-  `altname` varchar(128) DEFAULT NULL,
+  `altname` varchar(128) DEFAULT NULL, /* from HYG3 */
   `ra` double DEFAULT NULL,
   `dec` double DEFAULT NULL,
   `pos_src` varchar(16) DEFAULT NULL,
@@ -101,9 +102,43 @@ CREATE TABLE `hyg` (
   `mag` float DEFAULT NULL,
   `absmag` float DEFAULT NULL,
   `mag_src` varchar(16) DEFAULT NULL,
-  `spect` varchar(16) DEFAULT NULL,
-  `spect_src` varchar(16) DEFAULT NULL,
+  `spect` varchar(16) DEFAULT NULL, /* from HYG3 */
+  `spect_src` varchar(16) DEFAULT NULL, /* HYG */
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
+-- Table structure for table `gcns`
+--
+
+DROP TABLE IF EXISTS `gcns`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `gcns` (
+  `gaia` int(11) NOT NULL,
+  `main_id` VARCHAR(255),
+  `ra` float NOT NULL,
+  `dec` float NOT NULL,
+  `plx` float DEFAULT NULL,
+  `pmRA` float DEFAULT NULL,
+  `pmDE` float DEFAULT NULL,
+  `Gmag` float DEFAULT NULL,
+  `BPmag` float DEFAULT NULL,
+  `RPmag` float DEFAULT NULL,
+  `Bmag` float DEFAULT NULL,
+  `Vmag` float DEFAULT NULL,
+  `RV` float DEFAULT NULL,
+  `sp_type` varchar(16),
+  `WDprob` float DEFAULT NULL,
+  `dist` float NOT NULL,
+  `x` float NOT NULL,
+  `y` float NOT NULL,
+  `z` float NOT NULL,
+  `U` float DEFAULT NULL,
+  `V` float DEFAULT NULL,
+  `W` float DEFAULT NULL,
+  `main_type` varchar(50),
+  PRIMARY KEY (`gaia`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
