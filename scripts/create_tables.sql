@@ -76,18 +76,17 @@ DROP TABLE IF EXISTS `athyg`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `athyg` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `tyc` int(11) DEFAULT NULL,
-  `gaia` int(11) DEFAULT NULL,
+  `tyc` varchar(255) DEFAULT NULL,
+  `gaia` varchar(255) DEFAULT NULL,
   `hyg` int(11) DEFAULT NULL,
-  `hip` int(11) DEFAULT NULL,
-  `hd` int(11) DEFAULT NULL,
-  `hr` int(11) DEFAULT NULL,
+  `hip` varchar(255) DEFAULT NULL,
+  `hd` varchar(255) DEFAULT NULL,
+  `hr` varchar(255) DEFAULT NULL,
   `gl` varchar(16) DEFAULT NULL,
   `bayer` varchar(16) DEFAULT NULL,
   `flam` int(11) DEFAULT NULL,
   `con` varchar(16) DEFAULT NULL,
   `proper` varchar(128) DEFAULT NULL,
-  `altname` varchar(128) DEFAULT NULL, /* from HYG3 */
   `ra` double DEFAULT NULL,
   `dec` double DEFAULT NULL,
   `pos_src` varchar(16) DEFAULT NULL,
@@ -115,8 +114,8 @@ DROP TABLE IF EXISTS `gcns`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `gcns` (
-  `gaia` int(11) NOT NULL,
-  `main_id` VARCHAR(255),
+  `gaia` varchar(255) NOT NULL,
+  `main_id` varchar(255) DEFAULT NULL,
   `ra` float NOT NULL,
   `dec` float NOT NULL,
   `plx` float DEFAULT NULL,
