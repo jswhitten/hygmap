@@ -8,7 +8,7 @@ SET
     gaia = nullif(gaia,''),
     hyg = nullif(hyg,''),
     hip = nullif(hip,''),
-	hd = nullif(hd,''),
+    hd = nullif(hd,''),
     hr = nullif(hr,''),
     gl = nullif(gl,''),
     bayer = nullif(bayer,''),
@@ -22,6 +22,6 @@ update athyg set z = -(.8677 * x_eq) - (.1979 * y_eq) + (.4560 * z_eq);
 
 UPDATE athyg
 JOIN hyg ON hyg.id = athyg.hyg
-SET athyg.spect = hyg.spect, athyg.spect_src = 'HYG', athyg.altname = hyg.altname
+SET athyg.spect = hyg.spect, athyg.spect_src = 'HYG'
 WHERE athyg.hyg IS NOT NULL;
 
