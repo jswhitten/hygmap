@@ -46,7 +46,7 @@ if($select_star > 0) {
    }
    $select_star_name = getDisplayName($selected_star, 0);
    $selected_display_name = $select_star_name;
-   if(!empty($selected_star["iauname"]) || !empty($selected_star["altname"]) || !empty($selected_star["bf"])) {
+   if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
       $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . $selected_display_name . '">' . $selected_display_name . '</a>';
    }
    if($trek_names && $selected_star["Name"] != "" && $selected_display_name != $selected_star["Name"]) {
@@ -64,7 +64,7 @@ $trek_checked = ($trek_names == "1") ? "CHECKED" : "";
 $trek_rows = query_startrek();
 $trek_options = "";
 foreach ($trek_rows as $trek_row) {
-      $trek_options .= "<option value=\"$trek_row[hyg_id]\">$trek_row[name]\n";
+      $trek_options .= "<option value=\"$trek_row[id]\">$trek_row[name]\n";
 }
 
 // Generate html for map
@@ -95,7 +95,7 @@ END;
 // Build details for selected star
 $selected_data = '';
 if($select_star > 0) {
-   $distance_ly = $selected_star["dist"];
+   $distance_pc = $selected_star["dist"];
 
    $selected_data = <<<END
    <h3>$selected_display_name</h3>
@@ -105,7 +105,7 @@ if($select_star > 0) {
       </tr><tr>
          <td>Spectral type</td><td>{$selected_star["spect"]}</td>
       </tr><tr>
-         <td>Distance from Sol</td><td>{$distance_ly} light years</td>
+         <td>Distance from Sol</td><td>{$distance_pc} parsecs</td>
       </tr><tr>
          <td>Galactic coordinates</td><td>{$selected_star["x"]}, {$selected_star["y"]}, {$selected_star["z"]}</td>
       </tr><tr>
@@ -160,9 +160,9 @@ mysqli_close($link);
    <span class="menupanel" title="Distance from center of map to edge, in light years.">
       <h4>Zoom</h4>
       <table>
-         <tr><td>X</td><td><input type="text" name="xy_zoom" id="xy_zoom" size="4" value="<?=$zoom?>" onKeyUp="document.getElementById('y_zoom').value = this.value * 2;"> ly</td></tr> 
-         <tr><td>Y</td><td><input type="text" name="y_zoom" id="y_zoom" size="4" value="<?=$zoom*2?>" DISABLED> ly</td></tr> 
-         <tr><td>Z</td><td><input type="text" name="z_zoom" size="4" value="<?=$z_zoom?>"> ly</td></tr>
+         <tr><td>X</td><td><input type="text" name="xy_zoom" id="xy_zoom" size="4" value="<?=$zoom?>" onKeyUp="document.getElementById('y_zoom').value = this.value * 2;"> pc</td></tr> 
+         <tr><td>Y</td><td><input type="text" name="y_zoom" id="y_zoom" size="4" value="<?=$zoom*2?>" DISABLED> pc</td></tr> 
+         <tr><td>Z</td><td><input type="text" name="z_zoom" size="4" value="<?=$z_zoom?>"> pc</td></tr>
       </table>
       <br/>
    </span>
@@ -226,7 +226,7 @@ mysqli_close($link);
       <b>Stars in current map</b><br>
       <table cellspacing="2" cellpadding="5">
          <tr>
-            <th>Name</th><th>Constellation</th><th>Spectral Type</th><th>Absolute Magnitude</th><th>Distance from Sun (ly)</th><th>Distance from map center (ly)</th>
+            <th>Name</th><th>Constellation</th><th>Spectral Type</th><th>Absolute Magnitude</th><th>Distance from Sun (pc)</th><th>Distance from map center (pc)</th>
          </tr>
          <?=$star_table?>
       </table>
@@ -242,7 +242,7 @@ if($profiling) {
 }
 
 function getDisplayName($row, $trek_names) {
-   $fields = array("iauname","altname","bayer","flam","gl","hd","hip");
+   $fields = array("proper","bayer","flam","gl","hd","hip","gaia");
    if($trek_names == "1") {
       array_unshift($fields, "Name");
    }
@@ -257,5 +257,5 @@ function getDisplayName($row, $trek_names) {
          return $name;
       }
    }
-   return $row["Spectrum"];
+   return $row["spect"];
 }
