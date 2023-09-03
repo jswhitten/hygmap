@@ -83,24 +83,26 @@ foreach($rows as $row) {
         plotStar($screen_x, $screen_y, $size, $starcolor, $select_star == $id);
 
         // label
-        $skiplabel = false;
-        if($mag > $mag_limit_label) {
-            $skiplabel = true;
-        } elseif(sizeof($rows) > 1000) {
-            if($mag > 5 && $id > 0) {
+	$skiplabel = false;
+	if($select_star != $id) {
+            if($mag > $mag_limit_label) {
                 $skiplabel = true;
-            }
-        } else {
-            foreach($rows as $checkrow) {
-                // if a brighter star is at the same location don't label this one
-                if($checkrow['absmag'] < $mag) {
-                    if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
-                        $skiplabel = true;
-                        break;
+            } elseif(sizeof($rows) > 1000) {
+                if($mag > 5 && $id > 0) {
+                    $skiplabel = true;
+                }
+            } else {
+                foreach($rows as $checkrow) {
+                     // if a brighter star is at the same location don't label this one
+                    if($checkrow['absmag'] < $mag) {
+                        if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
+                            $skiplabel = true;
+                            break;
+                        }
                     }
                 }
-            }
-        }
+	    }
+	}
         if(!$skiplabel) {
             list ($name, $labelcolor) = getLabel($trek_names);
             labelStar($name, $labelsize, $labelcolor);
