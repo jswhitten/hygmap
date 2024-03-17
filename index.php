@@ -2,8 +2,10 @@
 require('db_inc.php');
 require('common_inc.php');
 
-$profiling = false;
+$profiling = true;
 prof_flag("START");
+
+header("X-Robots-Tag: noindex");
 
 // Extract variables from query string
 list($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $mag_limit_label, $image_size, $image_type, $max_line, $trek_names) = getVars();

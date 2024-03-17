@@ -45,5 +45,5 @@ function prof_print()
         echo sprintf("&nbsp;&nbsp;&nbsp;%f<br>", $prof_timing[$i+1]-$prof_timing[$i]);
     }
     echo "<b>{$prof_names[$size-1]}</b><br>";
-    echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
+    //echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
 }
