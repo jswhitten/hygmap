@@ -8,8 +8,8 @@ function getVars() {
     $center_x = isset($_GET["x_c"])?$_GET["x_c"]:"0";
     $center_y = isset($_GET["y_c"])?$_GET["y_c"]:"0";
     $center_z = isset($_GET["z_c"])?$_GET["z_c"]:"0";
-    $zoom = isset($_GET["xy_zoom"])?$_GET["xy_zoom"]:"25";
-    $z_zoom = isset($_GET["z_zoom"])?$_GET["z_zoom"]:"20";
+    $zoom = isset($_GET["xy_zoom"])?$_GET["xy_zoom"]:"10";
+    $z_zoom = isset($_GET["z_zoom"])?$_GET["z_zoom"]:"10";
     $mag_limit = isset($_GET["m_limit"])?$_GET["m_limit"]:"20"; 
     $mag_limit_label = isset($_GET["m_limit_label"])?$_GET["m_limit_label"]:"8"; 
     if(!(is_numeric($mag_limit))) {
@@ -45,5 +45,5 @@ function prof_print()
         echo sprintf("&nbsp;&nbsp;&nbsp;%f<br>", $prof_timing[$i+1]-$prof_timing[$i]);
     }
     echo "<b>{$prof_names[$size-1]}</b><br>";
-    echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
+    //echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
 }

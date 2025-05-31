@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ERROR | E_WARNING | E_PARSE);
+
 require 'db_inc.php';
 require 'common_inc.php';
 
@@ -22,9 +24,7 @@ list($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $li
 ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
 // Connect, select, query database for stars within given coordinates
-$link = open_db();
 $rows = query_all(($image_type == "left" || $image_type == "right"), $max_line, "absmag desc");
-mysqli_close($link);
 
 // Draw grid
 drawGrid();
@@ -83,24 +83,26 @@ foreach($rows as $row) {
         plotStar($screen_x, $screen_y, $size, $starcolor, $select_star == $id);
 
         // label
-        $skiplabel = false;
-        if($mag > $mag_limit_label) {
-            $skiplabel = true;
-        } elseif(sizeof($rows) > 1000) {
-            if($mag > 5 && $id > 0) {
+	$skiplabel = false;
+	if($select_star != $id) {
+            if($mag > $mag_limit_label) {
                 $skiplabel = true;
-            }
-        } else {
-            foreach($rows as $checkrow) {
-                // if a brighter star is at the same location don't label this one
-                if($checkrow['absmag'] < $mag) {
-                    if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
-                        $skiplabel = true;
-                        break;
+            } elseif(sizeof($rows) > 1000) {
+                if($mag > 5 && $id > 0) {
+                    $skiplabel = true;
+                }
+            } else {
+                foreach($rows as $checkrow) {
+                     // if a brighter star is at the same location don't label this one
+                    if($checkrow['absmag'] < $mag) {
+                        if(abs($checkrow['x']-$x) < $zoom / 50 && abs($checkrow['y']-$y) < $zoom / 20) {
+                            $skiplabel = true;
+                            break;
+                        }
                     }
                 }
-            }
-        }
+	    }
+	}
         if(!$skiplabel) {
             list ($name, $labelcolor) = getLabel($trek_names);
             labelStar($name, $labelsize, $labelcolor);
@@ -174,14 +176,10 @@ function getLabel($trek_names) {
         $name = $row["name"];
         $labelcolor = $yellow;
         $printcolor = $black;
-    } elseif(!empty($row["iauname"])) {
-        $name = $row["iauname"];
+    } elseif(!empty($row["proper"])) {
+        $name = $row["proper"];
         $labelcolor = $white;
         $printcolor = $black;
-    } elseif(!empty($row["altname"])) {
-        $name = $row["altname"];
-        $labelcolor = $white;
-        $printcolor = $black;        
     } elseif(!empty($row["bayer"])) {
         $name = ltrim($row["bayer"]) . " " . $row["con"];
         $labelcolor = $grey;
@@ -198,10 +196,14 @@ function getLabel($trek_names) {
         $name = "hd".$row["hd"];
         $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
         $printcolor = $darkgrey;
-    } else {
+    } elseif(!empty($row["spect"])) {
         $name = $row["spect"];
         $labelcolor = $darkgrey;
         $printcolor = $darkgrey;
+    } else {
+	$name = '';
+        $labelcolor = $darkgrey;
+	$printcolor = $darkgrey;
     }
 
     if($image_type == "printable") {
@@ -220,7 +222,7 @@ function getSpecClass($specdata) {
     return $spec;
 }
 
-function drawGrid() {
+function drawGridOld() {
 
     global $y_c, $x_c, $zoom, $image, $green, $grey, $blue, $darkblue, $darkgrey, $image_size, $image_type;
 
@@ -255,7 +257,44 @@ function drawGrid() {
     }
 }
 
-function drawGrid3d() {
+function drawGrid($distance = 20/3.26) {
+
+    global $y_c, $x_c, $zoom, $image, $green, $grey, $blue, $darkblue, $darkgrey, $image_size, $image_type;
+
+    if($image_type == "printable") {
+        $linecolor = $darkgrey;
+        $zerolinecolor = $darkblue;
+    } else {
+        $linecolor = $green;
+        $zerolinecolor = $blue;
+        if($image_type == "left" || $image_type == "right") {
+            return drawGrid3d($distance); // Modify the drawGrid3d function to also accept $distance if needed
+        }
+    }
+
+    $gx_first = fmod(($y_c + $zoom * 2), $distance);
+    $gx_label = ($y_c + $zoom * 2) - $gx_first;
+    $gxs_int = ($image_size / 2) * ($distance / $zoom);
+    $gxs_first = ($gx_first / $distance) * $gxs_int;
+    $gy_first = fmod(($x_c + $zoom), $distance);
+    $gy_label = ($x_c + $zoom) - $gy_first;
+    $gys_int = ($image_size / 2) * ($distance / $zoom);
+    $gys_first = ($gy_first / $distance) * $gxs_int;
+
+    for($g = $gxs_first; $g < $image_size * 2; $g += $gxs_int) {
+        ImageLine($image, $g, 0, $g, $image_size, $gx_label == 0 ? $zerolinecolor : $linecolor);
+	ImageString($image,1,$g + 5,5,round($gx_label, 2),$grey);
+        $gx_label -= $distance;
+    }
+
+    for($g = $gys_first; $g < $image_size; $g += $gys_int) {
+        ImageLine($image, 0, $g, $image_size * 2, $g, $gy_label == 0 ? $zerolinecolor : $linecolor);
+	ImageString($image,1,5,$g + 5,round($gy_label, 2),$grey);
+        $gy_label -= $distance;
+    }
+}
+
+function drawGrid3dOld() {
 
     global $y_c, $x_c, $zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type;
 
@@ -285,6 +324,39 @@ function drawGrid3d() {
     }
 
 }
+
+function drawGrid3d($distance = 20) {
+
+    global $y_c, $x_c, $zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type;
+
+    if($image_type == "printable") {
+       $linecolor = $darkgrey;
+    } else {
+       $linecolor = $green;
+    }
+
+    $gx_first = fmod(($y_c + $zoom), $distance);
+    $gx_label = ($y_c + $zoom) - $gx_first;
+    $gxs_int = ($image_size / 2) * ($distance / $zoom);
+    $gxs_first = ($gx_first / $distance) * $gxs_int;
+    $gy_first = fmod(($x_c + $zoom), $distance);
+    $gy_label = ($x_c + $zoom) - $gy_first;
+    $gys_int = ($image_size / 2) * ($distance / $zoom);
+    $gys_first = ($gy_first / $distance) * $gxs_int;
+
+    for($g = $gxs_first; $g < $image_size; $g += $gxs_int) {
+        ImageLine($image, $g, 0, $g, $image_size, $linecolor);
+        ImageString($image, 1, $g + 5, 5, $gx_label, $grey);
+        $gx_label -= $distance;
+    }
+
+    for($g = $gys_first; $g < $image_size; $g += $gys_int) {
+        ImageLine($image, 0, $g, $image_size, $g, $linecolor);
+        ImageString($image, 1, 5, $g + 5, $gy_label, $grey);
+        $gy_label -= $distance;
+    }
+}
+
 
 function specColor($spec) {
     global $lightblue, $blue, $lightyellow, $yellow, $orange, $red, $white;
