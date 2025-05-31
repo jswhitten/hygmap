@@ -1,0 +1,12 @@
+# docker-compose.prod.yml
+services:
+  hygmap-db:
+    ports: []  # Don't expose database port in production
+    restart: unless-stopped
+
+  hygmap-php:
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - PHP_INI_SCAN_DIR=/usr/local/etc/php/conf.d:/usr/local/etc/php/production.d
