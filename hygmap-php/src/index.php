@@ -14,8 +14,6 @@ $y_c = $center_y;
 $z_c = $center_z; 
 $select_center_checked = "";
 
-// Connecting, selecting database
-$link = open_db();
 
 if($select_star > 0) {
    // Find the center from the selected star
@@ -51,11 +49,11 @@ if($select_star > 0) {
    if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
       $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . $selected_display_name . '">' . $selected_display_name . '</a>';
    }
-   if($trek_names && $selected_star["Name"] != "" && $selected_display_name != $selected_star["Name"]) {
-      $selected_display_name .= " (" . $selected_star["Name"] . ")";
+   if($trek_names && $selected_star["name"] != "" && $selected_display_name != $selected_star["name"]) {
+      $selected_display_name .= " (" . $selected_star["name"] . ")";
       $memory_alpha = <<<END
 <br/>
-[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query={$selected_star["Name"]}&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>
+[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query={$selected_star["name"]}&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>
 END;
    }
 }
@@ -66,7 +64,7 @@ $trek_checked = ($trek_names == "1") ? "CHECKED" : "";
 $trek_rows = query_startrek();
 $trek_options = "";
 foreach ($trek_rows as $trek_row) {
-      $trek_options .= "<option value=\"$trek_row[id]\">$trek_row[name]\n";
+      $trek_options .= "<option value=\"$trek_row[star_id]\">$trek_row[name]\n";
 }
 
 // Generate html for map
@@ -130,9 +128,6 @@ if($select_star > 0) {
 END;
 
 }
-
-// Close database connection
-mysqli_close($link);
 
 ?>
 
@@ -245,8 +240,8 @@ if($profiling) {
 
 function getDisplayName($row, $trek_names) {
    $fields = array("proper","bayer","flam","gl","hd","hip","gaia");
-   if($trek_names == "1") {
-      array_unshift($fields, "Name");
+   if($trek_names == "1" && isset($row["name"]) && !empty($row["name"])) {
+      array_unshift($fields, "name");
    }
    foreach($fields as $field) {
       if(isset($row[$field]) && !empty($row[$field])) {

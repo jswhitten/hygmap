@@ -1,0 +1,33 @@
+services:
+  hygmap-db:
+    image: postgres:15
+    container_name: hygmap_database
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-hygmap}
+      - POSTGRES_USER=${POSTGRES_USER:-hygmap_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"  # Expose port for pgAdmin access
+    volumes:
+      - hygmap_data:/var/lib/postgresql/data
+      - ./db/sql:/docker-entrypoint-initdb.d
+      - ./db/data:/data
+    restart: unless-stopped
+  
+  hygmap-php:
+    build: ./hygmap-php
+    container_name: hygmap_php
+    ports:
+      - "80:80"      # Main interface
+    depends_on:
+      - hygmap-db
+    environment:
+      - DB_USERNAME=${POSTGRES_USER:-hygmap_user}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=hygmap-db    # Container name
+      - DB_PORT=5432
+      - DB_NAME=${POSTGRES_DB:-hygmap}
+    restart: unless-stopped
+
+volumes:
+  hygmap_data:

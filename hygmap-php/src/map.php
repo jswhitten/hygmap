@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ERROR | E_WARNING | E_PARSE);
+
 require 'db_inc.php';
 require 'common_inc.php';
 
@@ -22,9 +24,7 @@ list($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $li
 ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
 // Connect, select, query database for stars within given coordinates
-$link = open_db();
 $rows = query_all(($image_type == "left" || $image_type == "right"), $max_line, "absmag desc");
-mysqli_close($link);
 
 // Draw grid
 drawGrid();
