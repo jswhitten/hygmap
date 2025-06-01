@@ -11,53 +11,57 @@ cd hygmap
 cp .env.example .env
 # Edit .env with your desired credentials. The username and password you select will be created the first time you build the database.
 vi .env
+# Download the AT-HYG database
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v32-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v32-2.csv.gz
 # Now you are ready to build and start the application and database containers
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 ## Daily Operations
 
 ```bash
 # Start application (--build may be omitted if there have been no code changes since it last ran)
-docker-compose up -d --build
+docker compose up -d --build
 
 # Start application (prod)
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # Stop application  
-docker-compose down
+docker compose down
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ## Database Management
 
 ```bash
-# Reset database (⚠️ DESTROYS ALL DATA)
-docker-compose down
+# Reset database (⚠️ DESTROYS ALL DATA - next time you bring up the db container the database will be recreated)
+docker compose down --volumes
+
+# Reset database if the container is already down
 docker volume rm hygmap_hygmap_data
-docker-compose up -d
 
 # Backup database
-docker-compose exec -T hygmap-db pg_dump -U hygmap_user hygmap > backup.sql
+docker compose exec -T hygmap-db pg_dump -U hygmap_user hygmap > backup.sql
 
 # Connect to database
-docker-compose exec hygmap-db psql -U hygmap_user -d hygmap
+docker compose exec hygmap-db psql -U hygmap_user -d hygmap
 ```
 
 ## Troubleshooting
 
 ```bash
 # Check container status
-docker-compose ps
+docker compose ps
 
 # View specific service logs
-docker-compose logs hygmap-php
-docker-compose logs hygmap-db
+docker compose logs hygmap-php
+docker compose logs hygmap-db
 
 # Connect to PHP container
-docker-compose exec hygmap-php bash
+docker compose exec hygmap-php bash
 ```
 
 ## Updates
@@ -65,5 +69,5 @@ docker-compose exec hygmap-php bash
 ```bash
 # Update from git
 git pull origin main
-docker-compose up -d --build
+docker compose up -d --build
 ```

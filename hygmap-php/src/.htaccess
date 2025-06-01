@@ -1,0 +1,10 @@
+# Disable automatic directory indexes
+Options -Indexes
+
+# Block direct access to sensitive files
+<FilesMatch "^(\.env|composer\.(json|lock)|.*\.(sql|sh|bak|gz))$">
+    Require all denied
+</FilesMatch>
+
+# Force UTF-8 for text files
+AddDefaultCharset UTF-8
