@@ -20,9 +20,14 @@ Interactive 3D star mapping application showing nearby stars with real astronomi
 git clone https://github.com/jswhitten/hygmap.git
 cd hygmap
 cp .env.example .env
-# Edit .env with your desired database credentials
+# Edit .env with your desired database credentials. Make sure you at least change the value of POSTGRES_PASSWORD.
+vi .env
 # Download AT-HYG CSV files to db/data directory
-docker-compose up -d --build
+cd db/data
+curl -L -O https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-{1..2}.csv.gz
+gunzip *.csv.gz
+# Build and start the containers. If the database doesn't exist it will automatically be created by the scripts in the db/sql directory.
+docker compose up -d --build
 ```
 
 Open http://localhost to start exploring the galaxy!
@@ -40,12 +45,15 @@ The interface shows an overhead view of the galactic plane, with stars colored b
 
 ## Data Sources
 
-- **[HYG Database](https://github.com/astronexus/HYG-Database)** - Compiled by David Nash
-  - Hipparcos Catalog (satellite measurements)
-  - Yale Bright Star Catalog (5th Edition)
-  - Gliese Catalog of Nearby Stars (3rd Edition)
+- **[AT-HYG Database](https://codeberg.org/astronexus/athyg)** - Compiled by David Nash
+  - Tycho-2, compiled by the Hipparcos mission
+  - Gaia Data Release 3
+  - The Hipparcos Catalog
+  - The Yale Bright Star Catalog
+  - The Gliese-Jahreiss Catalog
+  - Star names from the IAU's official list of names.
 
-  I am using the new AT-HYG version of the database which includes over 2.5 million stars from the Tycho catalog and distances from Gaia
+The AT-HYG database includes over 2.5 million stars; essentially all known stars within 25 parsecs or brighter than magnitude 11.
 
 ## Documentation
 
@@ -55,15 +63,15 @@ The interface shows an overhead view of the galactic plane, with stars colored b
 
 ## Technology Stack
 
-- **Frontend:** PHP (GD library for image generation)
-- **Backend:** PostgreSQL with spatial indexing
+- **Frontend:** PHP (GD library for image generation) and Apache
+- **Backend:** PostgreSQL
 - **Deployment:** Docker containers
 
 ## Requirements
 
-- Docker and Docker Compose
+- Docker
 - 2GB RAM minimum
-- 5GB disk space for star database
+- 4GB disk space for star database + cache
 
 ## Contributing
 
