@@ -285,7 +285,7 @@ function drawGrid($distance) {
 
 function drawGrid3d($distance = 20) {
 
-    global $y_c, $x_c, $xy_zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type;
+    global $y_c, $x_c, $xy_zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type, $unit;
 
     if($image_type == "printable") {
        $linecolor = $darkgrey;
