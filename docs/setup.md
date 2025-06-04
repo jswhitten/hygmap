@@ -54,7 +54,7 @@ POSTGRES_PASSWORD=your_secure_password_here
 
 ```bash
 # Build and start all containers
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 This will:
@@ -71,7 +71,7 @@ Open your web browser and go to:
 
 The initial database import may take a few minutes. You can monitor progress with:
 ```bash
-docker-compose logs -f hygmap-db
+docker compose logs -f hygmap-db
 ```
 
 ## Verification
@@ -80,7 +80,7 @@ docker-compose logs -f hygmap-db
 
 ```bash
 # View container status
-docker-compose ps
+docker compose ps
 
 # Should show both containers as "Up"
 ```
@@ -89,7 +89,7 @@ docker-compose ps
 
 ```bash
 # Connect to database
-docker-compose exec hygmap-db psql -U hygmap_user -d hygmap
+docker compose exec hygmap-db psql -U hygmap_user -d hygmap
 
 # Check star count
 SELECT COUNT(*) FROM athyg;
@@ -110,8 +110,8 @@ Visit http://localhost and you should see:
 
 ```bash
 # Check logs for errors
-docker-compose logs hygmap-php
-docker-compose logs hygmap-db
+docker compose logs hygmap-php
+docker compose logs hygmap-db
 
 # Common issues:
 # - Port 80 already in use (stop Apache/nginx)
@@ -123,19 +123,18 @@ docker-compose logs hygmap-db
 
 ```bash
 # Reset and try again
-docker-compose down
-docker volume rm hygmap_hygmap_data
-docker-compose up -d --build
+docker compose down -- volumes
+docker compose up -d --build
 ```
 
 ### Can't Access Application
 
 ```bash
 # Check if containers are running
-docker-compose ps
+docker compose ps
 
 # Check PHP logs
-docker-compose logs hygmap-php
+docker compose logs hygmap-php
 
 # Test direct connection
 curl http://localhost
@@ -164,7 +163,7 @@ If you want to modify the code:
 ```bash
 # Make changes to PHP files in hygmap-php/src/
 # Rebuild and restart
-docker-compose up -d --build
+docker compose up -d --build
 
 # Or mount source for live editing:
 # Add to docker-compose.yml:
@@ -176,17 +175,17 @@ docker-compose up -d --build
 
 ```bash
 # Stop all containers (data is preserved)
-docker-compose down
+docker compose down
 
 # Start again later
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Uninstalling
 
 ```bash
 # Stop and remove everything
-docker-compose down
+docker compose down
 docker volume rm hygmap_hygmap_data
 docker image rm hygmap_hygmap-php
 ```
