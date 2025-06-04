@@ -11,9 +11,10 @@ cd hygmap
 cp .env.example .env
 # Edit .env with your desired credentials. The username and password you select will be created the first time you build the database.
 vi .env
-# Download the AT-HYG database
-wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v32-1.csv.gz
-wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v32-2.csv.gz
+# Download AT-HYG CSV files to db/data directory
+cd db/data
+curl -L -O https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-{1..2}.csv.gz
+gunzip *.csv.gz
 # Now you are ready to build and start the application and database containers
 docker compose up -d --build
 ```

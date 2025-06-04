@@ -7,7 +7,7 @@ h4 { margin-top: 5px; margin-bottom: 5px;}
     font-weight: bold;
 }
 .topmenu {
-    display: flex;
+    display: inline-block;
     border: 4px solid #ddddcc;
 }
 .menupanel {
@@ -25,19 +25,50 @@ h4 { margin-top: 5px; margin-bottom: 5px;}
     margin: auto; 
     horizontal-align: center;
 }
-.info {
+/* .info {
     display: inline-block; 
     vertical-align: top; 
     padding: 10px 10px;
+} */
+.datatable{
+  display:block;          /* was inline-block */
+  margin:1.5rem auto;     /* auto L/R centres it; add a top gap */
+  max-width:95%;          /* keeps it from hugging the edges */
+  text-align:center;
 }
-.datatable {
-    display: inline-block; 
-    vertical-align: top; 
-    padding: 10px 10px;
+.datatable table{
+  margin:0 auto;          /* centres the <table> inside */
 }
+
 .datatable th {
     background-color: #ddddcc;
 }
 #submit {
     margin: auto;
 }
+/* === layout for sidebar + map === */
+.page{
+  display:flex;       /* put .sidebar and .main on the same row   */
+  gap:1rem;           /* a little space between them               */
+  margin-top: 1.2rem; /* space between header and content          */
+}
+
+.sidebar{
+  width:330px;             /* fixed sidebar width                       */
+  flex-shrink:0;           /* don’t let it collapse                     */
+  display:flex;
+  flex-direction:column;   /* stack its panels vertically               */
+  gap:1rem;
+}
+
+.main{
+  flex:1 1 auto;           /* map takes the remaining width             */
+}
+
+/* optional panel styling */
+.menupanel,.info,.datatable{
+  padding:.5rem .8rem;
+  border:1px solid #ccc;
+  border-radius:4px;
+}
+

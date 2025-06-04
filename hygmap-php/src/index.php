@@ -1,35 +1,39 @@
 <?php
-require('db_inc.php');
 require('common_inc.php');
+require_once __DIR__ . '/Database.php';
+require_once 'config.inc.php';
 
-$profiling = true;
+$cfg = cfg_load();
+extract($cfg);               // gives $unit, $grid, $fic_names, $image_type, etc.
+
 prof_flag("START");
 
 header("X-Robots-Tag: noindex");
 
 // Extract variables from query string
-list($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $mag_limit_label, $image_size, $image_type, $max_line, $trek_names) = getVars();
-$x_c = $center_x; 
-$y_c = $center_y; 
-$z_c = $center_z; 
+$vars = getVars();
+extract($vars);
 $select_center_checked = "";
-
+if(!isset($profiling)) {
+   $profiling = false; // default to false
+}
 
 if($select_star > 0) {
    // Find the center from the selected star
    prof_flag("Querying selected star");
-   $selected_star = query_star($select_star);
+   $selected_star = Database::queryStar((int)$select_star);
+
    if($select_center == "1") {
-      $x_c = $selected_star["x"]; 
-      $y_c = $selected_star["y"]; 
-      $z_c = $selected_star["z"]; 
+      $x_c = from_pc($selected_star["x"], $unit); 
+      $y_c = from_pc($selected_star["y"], $unit); 
+      $z_c = from_pc($selected_star["z"], $unit); 
       $select_center_checked = "CHECKED";
    }
 }
 
 // Image type selection
 $sel_normal = ($image_type == "normal")?"SELECTED":"";
-$sel_3d = ($image_type == "3d")?"SELECTED":"";
+$sel_3d = ($image_type == "stereo")?"SELECTED":"";
 $sel_printable = ($image_type == "printable")?"SELECTED":"";
 
 // Selected star
@@ -49,7 +53,7 @@ if($select_star > 0) {
    if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
       $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . $selected_display_name . '">' . $selected_display_name . '</a>';
    }
-   if($trek_names && $selected_star["name"] != "" && $selected_display_name != $selected_star["name"]) {
+   if($fic_names && $selected_star["name"] != "" && $selected_display_name != $selected_star["name"]) {
       $selected_display_name .= " (" . $selected_star["name"] . ")";
       $memory_alpha = <<<END
 <br/>
@@ -59,36 +63,85 @@ END;
 }
 
 // Retrieve list of stars with fictional names
-prof_flag("Querying Star Trek stars");
-$trek_checked = ($trek_names == "1") ? "CHECKED" : "";
-$trek_rows = query_startrek();
-$trek_options = "";
-foreach ($trek_rows as $trek_row) {
-      $trek_options .= "<option value=\"$trek_row[star_id]\">$trek_row[name]\n";
+prof_flag("Querying fictional star names");
+$fic_checked = ($fic_names == "1") ? "CHECKED" : "";
+$fic_rows = Database::queryFiction();
+$fic_options = "";
+foreach ($fic_rows as $fic_row) {
+      $fic_options .= "<option value=\"$fic_row[star_id]\">$fic_row[name]\n";
 }
 
 // Generate html for map
-if($image_type == "3d") {
-      $map = "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&m_limit_label=$mag_limit_label&select_star=$select_star&image_size=$image_size&image_type=left&max_line=$max_line&trek_names=$trek_names\" width=$image_size height=$image_size>&nbsp;";
-      $map .= "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&m_limit_label=$mag_limit_label&select_star=$select_star&image_size=$image_size&image_type=right&max_line=$max_line&trek_names=$trek_names\" width=$image_size height=$image_size>";
+// ------------------------------------------------------------------
+// Build the common query parameters once
+// ------------------------------------------------------------------
+$baseParams = [
+   'x_c'            => $x_c,
+   'y_c'            => $y_c,
+   'z_c'            => $z_c,
+   'xy_zoom'        => $xy_zoom,
+   'z_zoom'         => $z_zoom,
+   'm_limit'        => $m_limit,
+   'm_limit_label'  => $m_limit_label,
+   'select_star'    => $select_star,
+   'image_size'     => $image_size,
+   'max_line'       => $max_line,
+];
+
+// Generate <img> tags
+if ($image_type === 'stereo') {
+   // LEFT
+   $leftSrc  = 'map.php?' . http_build_query($baseParams + ['image_side' => 'left']);
+   // RIGHT
+   $rightSrc = 'map.php?' . http_build_query($baseParams + ['image_side' => 'right']);
+
+   $map  = '<img src="'  . htmlspecialchars($leftSrc)  . '" ';
+   $map .= 'width="'    . (int)$image_size . '" height="' . (int)$image_size . '">&nbsp;';
+   $map .= '<img src="' . htmlspecialchars($rightSrc) . '" ';
+   $map .= 'width="'    . (int)$image_size . '" height="' . (int)$image_size . '">';
+
 } else {
-      $map = "<img src=\"map.php?x_c=$x_c&y_c=$y_c&z_c=$z_c&xy_zoom=$zoom&z_zoom=$z_zoom&m_limit=$mag_limit&m_limit_label=$mag_limit_label&select_star=$select_star&image_size=$image_size&image_type=$image_type&max_line=$max_line&trek_names=$trek_names\" width=" . $image_size*2 . " height=$image_size>";
+   $src = 'map.php?' . http_build_query($baseParams);
+
+   // For the single-image case you double the width
+   $map  = '<img src="' . htmlspecialchars($src) . '" ';
+   $map .= 'width="'   . (int)($image_size * 2) . '" height="' . (int)$image_size . '">';
 }
 
 // Get data for star table
 prof_flag("Querying all stars in map");
-$rows = query_all();
+$xy_zoom_pc = to_pc($xy_zoom, $unit);
+$z_zoom_pc  = to_pc($z_zoom , $unit);
+
+$bbox = [
+    to_pc($x_c, $unit) - $xy_zoom_pc,
+    to_pc($x_c, $unit) + $xy_zoom_pc,
+    to_pc($y_c, $unit) - ($image_type==='stereo' ? $xy_zoom_pc : 2*$xy_zoom_pc),
+    to_pc($y_c, $unit) + ($image_type==='stereo' ? $xy_zoom_pc : 2*$xy_zoom_pc),
+    to_pc($z_c, $unit) - $z_zoom_pc,
+    to_pc($z_c, $unit) + $z_zoom_pc,
+];
+
+
+$rows = Database::queryAll($bbox, $m_limit, 'absmag asc');
 prof_flag("Query complete");
 $star_count = 0;
+$star_count_displayed = 0;
 $star_table = "";
 foreach ($rows as $row) {
    $star_count++;
    $display_name = getDisplayName($row, 0);
-   $distance_from_center = number_format(sqrt(pow($row["x"] - $x_c, 2) + pow($row["y"] - $y_c, 2) + pow($row["z"] - $z_c, 2)),2);
-   if($row['absmag'] < $mag_limit_label) {
-       $star_table .= <<<END
+   $distance_from_center = from_pc(number_format(sqrt(pow($row["x"] - $x_c, 2) + pow($row["y"] - $y_c, 2) + pow($row["z"] - $z_c, 2)),2), $unit);
+   $distance_ui = from_pc($row["dist"], $unit);
+   $x_ui = from_pc($row["x"], $unit);
+   $y_ui = from_pc($row["y"], $unit); 
+   $z_ui = from_pc($row["z"], $unit);
+
+   if($row['absmag'] < $m_limit_label) {
+      $star_count_displayed++;
+      $star_table .= <<<END
          <tr>
-		 <td><a href="?select_star={$row['id']}&select_center=1">$display_name</a></td><td>{$row["con"]}</td><td>{$row["spect"]}</td><td>{$row["absmag"]}</td><td>{$row["dist"]}</td><td>$distance_from_center</td><td>{$row["x"]}</td><td>{$row["y"]}</td><td>{$row["z"]}</td>
+		 <td><a href="?select_star={$row['id']}&select_center=1">$display_name</a></td><td>{$row["con"]}</td><td>{$row["spect"]}</td><td>{$row["absmag"]}</td><td>{$distance_ui}</td><td>$distance_from_center</td><td>{$x_ui}</td><td>{$y_ui}</td><td>{$z_ui}</td>
          </tr>\n
 END;
    }
@@ -98,6 +151,10 @@ END;
 $selected_data = '';
 if($select_star > 0) {
    $distance_pc = $selected_star["dist"];
+   $distance_ui = from_pc($distance_pc, $unit);
+   $x_c = from_pc($selected_star["x"], $unit);
+   $y_c = from_pc($selected_star["y"], $unit);
+   $z_c = from_pc($selected_star["z"], $unit);
 
    $selected_data = <<<END
    <h3>$selected_display_name</h3>
@@ -107,9 +164,9 @@ if($select_star > 0) {
       </tr><tr>
          <td>Spectral type</td><td>{$selected_star["spect"]}</td>
       </tr><tr>
-         <td>Distance from Sol</td><td>{$distance_pc} parsecs</td>
+         <td>Distance from Sol</td><td>{$distance_ui} $unit</td>
       </tr><tr>
-         <td>Galactic coordinates</td><td>{$selected_star["x"]}, {$selected_star["y"]}, {$selected_star["z"]}</td>
+         <td>Galactic coordinates</td><td>{$x_c}, {$y_c}, {$z_c}</td>
       </tr><tr>
          <td>Apparent magnitude</td><td>{$selected_star["mag"]}</td> 
       </tr><tr>
@@ -129,7 +186,10 @@ if($select_star > 0) {
    </table>
 END;
 
+} else {
+   $selected_data = '<em>No star selected.</em>';
 }
+
 
 ?>
 
@@ -141,108 +201,96 @@ END;
 <body>
 <span class="toplink"><a href="index.php">HYGMap</a></span>
 <span class="toplink"><a href="https://github.com/jswhitten/hygmap">Source code</a></span>
-<span class="toplink"><a href="treknotes.html">Star Trek notes</a></span>
+<span class="toplink"><a href="configure.php">Configure</a></span>
 <span class="toplink"><a href="changelog.html">Change log</a></span>
-<!-- TOP MENU -->
-<form method="GET" action="index.php">
-<div class="topmenu">
-   <!-- CENTER COORDINATES -->
-   <span class="menupanel" title="Coordinates for the center of the map.">
-      <h4>Center</h4>
-      <table>
-         <tr><td>X</td><td><input type="text" name="x_c" size="6" value="<?=$x_c?>"></td></tr>
-         <tr><td>Y</td><td><input type="text" name="y_c" size="6" value="<?=$y_c?>"></td></tr>         
-         <tr><td>Z</td><td><input type="text" name="z_c" size="6" value="<?=$z_c?>"></td></tr>
-      </table>
-   </span>
-   <!-- ZOOM -->
-   <span class="menupanel" title="Distance from center of map to edge, in light years.">
-      <h4>Zoom</h4>
-      <table>
-         <tr><td>X</td><td><input type="text" name="xy_zoom" id="xy_zoom" size="4" value="<?=$zoom?>" onKeyUp="document.getElementById('y_zoom').value = this.value * 2;"> pc</td></tr> 
-         <tr><td>Y</td><td><input type="text" name="y_zoom" id="y_zoom" size="4" value="<?=$zoom*2?>" DISABLED> pc</td></tr> 
-         <tr><td>Z</td><td><input type="text" name="z_zoom" size="4" value="<?=$z_zoom?>"> pc</td></tr>
-      </table>
-      <br/>
-   </span>
-   <!-- MAP OPTIONS -->
-   <span class="menupanel">
-      <h4>Map options</h4>
-      <table>
-         <tr><td>Image type/size</td>
-         <td>
-            <SELECT NAME="image_type" id="image_type" onClick="if(this.value === '3d') { document.getElementById('image_size').value = '300'; } else { document.getElementById('image_size').value = '600'; }">
-               <OPTION VALUE="normal" <?=$sel_normal?> >Normal
-               <OPTION VALUE="3d" <?=$sel_3d?> >3-D
-               <OPTION VALUE="printable" <?=$sel_printable?> >Black & white
-            </SELECT>
-            <INPUT TYPE="text" NAME="image_size" id="image_size" size="4" VALUE="<?=$image_size?>"> pixels
-         </td></tr>
-         <tr><td>Connecting lines</td><td><INPUT TYPE="text" NAME="max_line" size="4" VALUE="<?=$max_line?>"> ly</td></tr>
-         <tr><td>Show fictional names</td><td><INPUT TYPE="checkbox" NAME="trek_names" VALUE="1" <?=$trek_checked?> ></td></tr>
-      </table>
-   </span>
-   <!-- MAP OPTIONS -->
-   <span class="menupanel">
-      <h4>Filters</h4>
-      <table>
-      <tr><td><span title="Do not display stars dimmer than this absolute magnitude.">Show stars brighter than magnitude</span></td><td><INPUT TYPE="text" name="m_limit" size="4" value="<?=$mag_limit?>" maxlength="4" size="4"></td></tr> 
-      <tr><td><span title="Do not label stars dimmer than this absolute magnitude.">Label stars brighter than magnitude</span></td><td><INPUT TYPE="text" name="m_limit_label" size="4" value="<?=$mag_limit_label?>" maxlength="4" size="4"></td></tr> 
-      </table>
-   </span>
-   <span id="submit">
-      <input type="submit" value="Get Map"/>
-   </span>
-</div>
-</form>
-<div class="mapcontainer">
-   <!-- SELECTED STAR DATA -->
-   <span class="info">
+<!-- existing header links stay as-is … -->
+
+<!-- ───────── PAGE WRAPPER ───────── -->
+<div class="page">
+
+  <!-- ───── SIDEBAR (LEFT) ───── -->
+  <div class="sidebar">
+
+    <!-- SELECTED STAR INFO (unchanged) -->
+    <div class="info">
       <?= $selected_data ?>
-   </span>
-   <!-- MAP -->
-   <span class="map">
-      <?= $map ?>
-   </span>
-   <br/>
-</div>
-<div>
-   <!-- JUMP TO STAR BY FICTIONAL NAME -->
-   <span class="info">
+    </div>
+
+    <!-- CENTER + ZOOM form (moved) -->
+    <form method="GET" action="index.php">
+      <fieldset class="menupanel">
+        <legend>Center (<?= $unit ?>)</legend>
+        X <input name="x_c" size="6" value="<?= $x_c ?>"><br>
+        Y <input name="y_c" size="6" value="<?= $y_c ?>"><br>
+        Z <input name="z_c" size="6" value="<?= $z_c ?>">
+      </fieldset>
+
+      <fieldset class="menupanel">
+        <legend>Zoom (<?= $unit ?>)</legend>
+        X <input name="xy_zoom" id="xy_zoom" size="4" value="<?= $xy_zoom ?>"
+                 onkeyup="document.getElementById('y_zoom').value=this.value*2;"><br>
+        Y <input id="y_zoom" size="4" value="<?= $xy_zoom*2 ?>" disabled><br>
+        Z <input name="z_zoom" size="4" value="<?= $z_zoom ?>">
+      </fieldset>
+      <input type="hidden" name="select_star" value="<?= $select_star ?>">
+
+      <p><button type="submit">Get map</button></p>
+    </form>
+
+    <!-- SEARCH BOX -->
+    <?php if ($fic_names > 0): ?>
+    <div class="info">
       <b>Jump to star by fictional name</b><br>
       <form method="GET" action="index.php">
-         <INPUT TYPE="hidden" NAME="trek_names" VALUE="1">
-         <INPUT TYPE="hidden" NAME="select_center" VALUE="1">
-         <SELECT NAME="select_star">
-            <option value="">(None)
-            <?=$trek_options?>
-         </SELECT>
-         <input type="submit" value="Go">
+        <input type="hidden" name="select_center" value="1">
+        <select name="select_star">
+          <option value="">(None)
+          <?= $fic_options ?>
+        </select>
+        <button type="submit">Go</button>
       </form>
-   </span>
-   <!-- TABLE OF STARS IN MAP -->
-   <span class="datatable">
-      <b>Stars in current map</b><br>
-      <table cellspacing="2" cellpadding="5">
-         <tr>
-            <th>Name</th><th>Constellation</th><th>Spectral Type</th><th>Absolute Magnitude</th><th>Distance from Sun (pc)</th><th>Distance from map center (pc)</th><th>X</th><th>Y</th><th>Z</th>
-         </tr>
-         <?=$star_table?>
-      </table>
-      <?=$star_count?> stars displayed.
-   </span>
+    </div>
+    <?php endif; ?>
+
+  </div><!-- /sidebar -->
+
+
+  <!-- ───── MAIN MAP (RIGHT) ───── -->
+  <div class="main">
+    <?= $map ?>
+  </div>
+
+</div><!-- /page -->
+
+
+<!-- DATA TABLE -->
+<div class="datatable">
+<b>Stars in current map</b><br>
+<table cellspacing="2" cellpadding="5">
+   <tr>
+      <th>Name</th><th>Con</th><th>Spectral</th><th>Abs Mag</th>
+      <th>Dist (<?= $unit ?>)</th><th>Δ Center</th><th>X</th><th>Y</th><th>Z</th>
+   </tr>
+   <?= $star_table ?>
+</table>
+<?= $star_count_displayed ?> of <?= $star_count ?> stars displayed.
 </div>
+<?php
+prof_flag('FINISH');
+if ($profiling) {
+    echo '<div style="margin:1rem auto;max-width:95%;font-size:small;text-align:left">';
+    prof_print();                 // echoes its own <br>s
+    echo '</div>';
+}
+?>
+
 </body>
 </html>
-<?php
-prof_flag("FINISH");
-if($profiling) {
-   prof_print();
-}
 
-function getDisplayName($row, $trek_names) {
+<?php
+function getDisplayName($row, $fic_names) {
    $fields = array("proper","bayer","flam","gl","hd","hip","gaia");
-   if($trek_names == "1" && isset($row["name"]) && !empty($row["name"])) {
+   if($fic_names == "1" && isset($row["name"]) && !empty($row["name"])) {
       array_unshift($fields, "name");
    }
    foreach($fields as $field) {

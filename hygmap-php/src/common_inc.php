@@ -1,29 +1,44 @@
-<?php
+<?php declare(strict_types=1); error_reporting(E_ALL); ini_set('display_errors','1');
 
-function getVars() {
-    global $_GET;
+function getVars(): array
+{
+    // ---------- Default values ----------
+    $defaults = [
+        'select_star'   => 0,
+        'select_center' => 0,          // bool as 0/1
+        'x_c'           => 0.0,
+        'y_c'           => 0.0,
+        'z_c'           => 0.0,
+        'xy_zoom'       => 10.0,
+        'z_zoom'        => 10.0,
+        'image_side'    => '',
+    ];
 
-    $select_star = isset($_GET["select_star"])?$_GET["select_star"]:"0";
-    $select_center = isset($_GET["select_center"])?"1":"0";
-    $center_x = isset($_GET["x_c"])?$_GET["x_c"]:"0";
-    $center_y = isset($_GET["y_c"])?$_GET["y_c"]:"0";
-    $center_z = isset($_GET["z_c"])?$_GET["z_c"]:"0";
-    $zoom = isset($_GET["xy_zoom"])?$_GET["xy_zoom"]:"10";
-    $z_zoom = isset($_GET["z_zoom"])?$_GET["z_zoom"]:"10";
-    $mag_limit = isset($_GET["m_limit"])?$_GET["m_limit"]:"20"; 
-    $mag_limit_label = isset($_GET["m_limit_label"])?$_GET["m_limit_label"]:"8"; 
-    if(!(is_numeric($mag_limit))) {
-        $mag_limit = 20;
-    }
-    if(!(is_numeric($mag_limit_label))) {
-        $mag_limit_label = 8;
-    }
-    $image_size = isset($_GET["image_size"])?$_GET["image_size"]:"600";
-    $image_type = isset($_GET["image_type"])?$_GET["image_type"]:"normal";
-    $max_line = isset($_GET["max_line"])?$_GET["max_line"]:"0";
-    $trek_names = isset($_GET["trek_names"])?$_GET["trek_names"]:"0"; 
+    // ---------- Filter specification ----------
+    $spec = [
+        'select_star'   => ['filter'=>FILTER_VALIDATE_INT,   'flags'=>FILTER_NULL_ON_FAILURE],
+        'select_center' => ['filter'=>FILTER_VALIDATE_BOOLEAN, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'x_c'           => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'y_c'           => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'z_c'           => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'xy_zoom'       => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'z_zoom'        => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'image_side'    => ['filter'=>FILTER_UNSAFE_RAW],
+    ];
 
-    return array($select_star, $select_center, $center_x, $center_y, $center_z, $zoom, $z_zoom, $mag_limit, $mag_limit_label, $image_size, $image_type, $max_line, $trek_names);
+    $input = filter_input_array(INPUT_GET, $spec, true) ?: [];
+
+    // ---------- Merge with defaults ----------
+    $vars = array_replace($defaults, array_filter($input, static fn($v) => $v !== null));
+    $vars['image_side'] = in_array($vars['image_side'], ['left','right'], true)
+    ? $vars['image_side']
+    : '';
+
+    // ---------- Post-validation / clamping ----------
+    $vars['xy_zoom']  = max(0.1, $vars['xy_zoom']);
+    $vars['z_zoom']   = max(0.1, $vars['z_zoom']);
+
+    return $vars;
 }
 
 // Call this at each point of interest, passing a descriptive string
@@ -45,5 +60,17 @@ function prof_print()
         echo sprintf("&nbsp;&nbsp;&nbsp;%f<br>", $prof_timing[$i+1]-$prof_timing[$i]);
     }
     echo "<b>{$prof_names[$size-1]}</b><br>";
-    //echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
+    echo "<b>Total time:</b> " . $prof_timing[$size-1]-$prof_timing[0];
 }
+
+const LY_PER_PC = 3.26156;
+
+/* convert UI-units ➜ pc  (for queries, maths) */
+function to_pc(float $v, string $unit): float {
+    return $unit === 'ly' ? $v / LY_PER_PC : $v;
+}
+/* convert pc ➜ UI-units (for labels, tables) */
+function from_pc(float $v, string $unit): float {
+    return $unit === 'ly' ? $v * LY_PER_PC : $v;
+}
+
