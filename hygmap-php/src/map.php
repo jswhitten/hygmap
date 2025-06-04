@@ -53,14 +53,14 @@ drawGrid(to_pc($grid, $unit));
 // Plot connecting lines
 if($max_line > 0) {
     foreach($rows as $row_i) {
-        $x_i = $row_i["x"];
-        $y_i = $row_i["y"];
-        $z_i = $row_i["z"];
+        $x_i = from_pc($row_i["x"], $unit);
+        $y_i = from_pc($row_i["y"], $unit);
+        $z_i = from_pc($row_i["z"], $unit);
 
         foreach($rows as $row_j) {
-            $x_j = $row_j["x"];
-            $y_j = $row_j["y"];
-            $z_j = $row_j["z"];
+            $x_j = from_pc($row_j["x"], $unit);
+            $y_j = from_pc($row_j["y"], $unit);
+            $z_j = from_pc($row_j["z"], $unit);
 
             $x_diff = $x_i - $x_j;
             $y_diff = $y_i - $y_j;

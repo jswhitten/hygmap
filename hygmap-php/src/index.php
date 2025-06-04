@@ -14,9 +14,8 @@ header("X-Robots-Tag: noindex");
 $vars = getVars();
 extract($vars);
 $select_center_checked = "";
-if(!isset($profiling)) {
-   $profiling = false; // default to false
-}
+
+$profiling = true;
 
 if($select_star > 0) {
    // Find the center from the selected star
