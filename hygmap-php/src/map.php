@@ -48,7 +48,7 @@ $max_line_pc = to_pc($max_line, $unit);
 $rows = Database::queryAll($bbox, $m_limit, 'absmag desc');
 
 // Draw grid
-drawGrid(to_pc($grid, $unit));
+drawGrid($grid, $unit);
 
 // Plot connecting lines
 if($max_line > 0) {
@@ -209,12 +209,12 @@ function getLabel($fic_names) {
         $name = ltrim($row["flam"]) . " " . $row["con"];
         $labelcolor = $grey;
         $printcolor = $darkgrey;
-    } elseif(!empty($row["gl"])) {
-        $name = $row["gl"];
+    } elseif(!empty($row["gj"])) {
+        $name = "GJ ".$row["gj"];
         $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
         $printcolor = $darkgrey;
     } elseif(!empty($row["hd"])) {
-        $name = "hd".$row["hd"];
+        $name = "HD ".$row["hd"];
         $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
         $printcolor = $darkgrey;
     } elseif(!empty($row["spect"])) {
@@ -222,9 +222,9 @@ function getLabel($fic_names) {
         $labelcolor = $darkgrey;
         $printcolor = $darkgrey;
     } else {
-	$name = '';
+	    $name = '';
         $labelcolor = $darkgrey;
-	$printcolor = $darkgrey;
+	    $printcolor = $darkgrey;
     }
 
     if($image_type == "printable") {

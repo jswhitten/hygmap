@@ -1,7 +1,7 @@
 services:
   hygmap-db:
     image: postgres:15
-    container_name: hygmap_database
+    container_name: hygmap_db
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-hygmap}
       - POSTGRES_USER=${POSTGRES_USER:-hygmap_user}
@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"  # Expose port for pgAdmin access
     volumes:
-      - hygmap_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
       - ./db/sql:/docker-entrypoint-initdb.d
       - ./db/data:/data
     restart: unless-stopped
@@ -30,4 +30,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  hygmap_data:
+  db_data:
