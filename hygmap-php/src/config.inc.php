@@ -2,11 +2,11 @@
 declare(strict_types=1);
 session_start();
 
-/* helper: load prefs */
+// load prefs
 function cfg_load(): array
 {
     return $_SESSION['cfg'] ?? [
-        'unit'          => 'pc',
+        'unit'          => 'ly',
         'grid'          => 20,
         'fic_names'     => '0', // 0=none, 1=Star Trek, 2=Babylon 5
         'image_type'    => 'normal',
@@ -17,7 +17,7 @@ function cfg_load(): array
     ];
 }
 
-/* helper: save prefs */
+// save prefs
 function cfg_set(array $new): void
 {
     $_SESSION['cfg'] = array_merge(cfg_load(), $new);

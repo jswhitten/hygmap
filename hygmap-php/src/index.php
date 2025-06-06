@@ -70,6 +70,13 @@ foreach ($fic_rows as $fic_row) {
       $fic_options .= "<option value=\"$fic_row[star_id]\">$fic_row[name]\n";
 }
 
+prof_flag("Querying star proper names");
+$proper_options = '';
+foreach (Database::queryProperNames() as $p) {   // small helper returning id,proper
+    $proper_options .= "<option value=\"{$p['id']}\">{$p['proper']}</option>\n";
+}
+
+
 // Generate html for map
 // ------------------------------------------------------------------
 // Build the common query parameters once
@@ -130,11 +137,11 @@ $star_table = "";
 foreach ($rows as $row) {
    $star_count++;
    $display_name = getDisplayName($row, 0);
-   $distance_from_center = from_pc(number_format(sqrt(pow($row["x"] - $x_c, 2) + pow($row["y"] - $y_c, 2) + pow($row["z"] - $z_c, 2)),2), $unit);
-   $distance_ui = from_pc($row["dist"], $unit);
-   $x_ui = from_pc($row["x"], $unit);
-   $y_ui = from_pc($row["y"], $unit); 
-   $z_ui = from_pc($row["z"], $unit);
+   $distance_from_center = number_format(from_pc(sqrt(pow($row["x"] - $x_c, 2) + pow($row["y"] - $y_c, 2) + pow($row["z"] - $z_c, 2)), $unit), 3);
+   $distance_ui = number_format(from_pc($row["dist"], $unit), 3);
+   $x_ui = number_format(from_pc($row["x"], $unit), 3);
+   $y_ui = number_format(from_pc($row["y"], $unit), 3); 
+   $z_ui = number_format(from_pc($row["z"], $unit), 3);
 
    if($row['absmag'] < $m_limit_label) {
       $star_count_displayed++;
@@ -150,10 +157,14 @@ END;
 $selected_data = '';
 if($select_star > 0) {
    $distance_pc = $selected_star["dist"];
-   $distance_ui = from_pc($distance_pc, $unit);
-   $x_c = from_pc($selected_star["x"], $unit);
-   $y_c = from_pc($selected_star["y"], $unit);
-   $z_c = from_pc($selected_star["z"], $unit);
+   $distance_ui = number_format(from_pc($distance_pc, $unit), 3);
+   $x_ui = number_format(from_pc($selected_star["x"], $unit), 3);
+   $y_ui = number_format(from_pc($selected_star["y"], $unit), 3);
+   $z_ui = number_format(from_pc($selected_star["z"], $unit), 3);
+
+   $x_ly = to_ly($selected_star["x"], "pc");
+   $y_ly = to_ly($selected_star["y"], "pc");
+   $z_ly = to_ly($selected_star["z"], "pc");
 
    $selected_data = <<<END
    <h3>$selected_display_name</h3>
@@ -165,7 +176,7 @@ if($select_star > 0) {
       </tr><tr>
          <td>Distance from Sol</td><td>{$distance_ui} $unit</td>
       </tr><tr>
-         <td>Galactic coordinates</td><td>{$x_c}, {$y_c}, {$z_c}</td>
+         <td>Galactic coordinates</td><td>{$x_ui}, {$y_ui}, {$z_ui}</td>
       </tr><tr>
          <td>Apparent magnitude</td><td>{$selected_star["mag"]}</td> 
       </tr><tr>
@@ -174,7 +185,7 @@ if($select_star > 0) {
      <tr>
       <td colspan="2">
       <br/>
-      [ <a href="http://www.stellar-database.com/Scripts/find_neighbors.exe?ly=2&X={$selected_star["x"]}&Y={$selected_star["y"]}&Z={$selected_star["z"]}" target="_blank">Look up this star at stellar-database.com</a> ]<br/>
+      [ <a href="http://www.stellar-database.com/Scripts/find_neighbors.exe?ly=2&X={$x_ly}&Y={$y_ly}&Z={$z_ly}" target="_blank">Look up this star at stellar-database.com</a> ]<br/>
       <br/>
       [ <a href="http://simbad.u-strasbg.fr/sim-id.pl?protocol=html&Ident={$selected_ra_deg}+{$selected_dec_simbad}&NbIdent=1&Radius=1&Radius.unit=arcmin&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&output.max=all&o.catall=on&output.mesdisp=N&Bibyear1=1983&Bibyear2=2004&Frame1=FK5&Frame2=FK4&Frame3=G&Equi1=2000.0&Equi2=1950.0&Equi3=2000.0&Epoch1=2000.0&Epoch2=1950.0&Epoch3=2000.0" target="_blank">Look up this star in SIMBAD</a> ]<br/>
       <br/>
@@ -233,23 +244,42 @@ END;
       </fieldset>
       <input type="hidden" name="select_star" value="<?= $select_star ?>">
 
-      <p><button type="submit">Get map</button></p>
+      <button type="submit">Get map</button>
     </form>
 
-    <!-- SEARCH BOX -->
-    <?php if ($fic_names > 0): ?>
-    <div class="info">
-      <b>Jump to star by fictional name</b><br>
+   <!-- STAR SEARCH -->
+   <fieldset class="menupanel">
+   <legend>Search for star</legend>
+   <!-- Proper-name drop-down -->
+   <form method="GET" action="index.php">
+      <input type="hidden" name="select_center" value="1">
+      <select name="select_star">
+         <option value="">(Proper names)</option>
+         <?= $proper_options /* build once from DB on page load */ ?>
+      </select>
+      <button type="submit">Go</button>
+   </form>
+   <br>
+   <!-- FICTIONAL NAME SEARCH -->
+   <?php if ($fic_names == 1): ?>
       <form method="GET" action="index.php">
         <input type="hidden" name="select_center" value="1">
         <select name="select_star">
-          <option value="">(None)
+          <option value="">(Fictional names)</option>)
           <?= $fic_options ?>
         </select>
         <button type="submit">Go</button>
       </form>
-    </div>
-    <?php endif; ?>
+   <?php endif; ?>
+   <br>
+   <!-- text field to search any catalog -->
+   <form method="GET" action="search.php">
+      <input type="text" name="q" size="20" placeholder="Alpha Cen / HD 48915">
+      <button type="submit">Go</button>
+   </form>
+</fieldset>
+
+
 
   </div><!-- /sidebar -->
 
@@ -288,7 +318,7 @@ if ($profiling) {
 
 <?php
 function getDisplayName($row, $fic_names) {
-   $fields = array("proper","bayer","flam","gl","hd","hip","gaia");
+   $fields = array("proper","bayer","flam","gj","hd","hip","gaia");
    if($fic_names == "1" && isset($row["name"]) && !empty($row["name"])) {
       array_unshift($fields, "name");
    }
@@ -297,8 +327,8 @@ function getDisplayName($row, $fic_names) {
          $name = $row[$field];
          if(in_array($field, array("bayer", "flam"))) {
             $name .= " " . $row["con"];
-         } elseif(is_numeric($name)) {
-            $name = $field . $name;
+         } elseif(in_array($field, array("gj", "hd", "hip"))) {
+            $name = strtoupper($field) . " " . $name;
          }
          return $name;
       }

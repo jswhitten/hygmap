@@ -48,9 +48,24 @@ BEGIN
   RAISE NOTICE 'Loaded CSV files into staging table.';
 END $$;
 
+-- Strip the leading “Gl ” / “GJ ” (any case, any spaces) from the gl column
+UPDATE athyg_stage
+SET    gl =
+       NULLIF(                        -- turn empty string into NULL
+         regexp_replace(gl,
+                        '^\s*(gl|gj)\s*',  -- leading prefix + spaces
+                        '',
+                        'i'),              -- case-insensitive
+         ''
+       );
+
+DO $$
+BEGIN
+  RAISE NOTICE 'Cleaned gl prefixes (Gl/GJ) in staging table.';
+END $$;
 
 INSERT INTO athyg (
-  id, tyc, gaia, hyg, hip, hd, hr, gl, bayer, flam, con, proper,
+  id, tyc, gaia, hyg, hip, hd, hr, gj, bayer, flam, con, proper,
   ra, dec, pos_src, dist, x, y, z, x_eq, y_eq, z_eq,
   dist_src, mag, absmag, mag_src, spect, spect_src
 )

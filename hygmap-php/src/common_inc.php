@@ -2,19 +2,19 @@
 
 function getVars(): array
 {
-    // ---------- Default values ----------
+    // Default values
     $defaults = [
         'select_star'   => 0,
-        'select_center' => 0,          // bool as 0/1
+        'select_center' => 0,
         'x_c'           => 0.0,
         'y_c'           => 0.0,
         'z_c'           => 0.0,
-        'xy_zoom'       => 10.0,
-        'z_zoom'        => 10.0,
+        'xy_zoom'       => 25.0,
+        'z_zoom'        => 25.0,
         'image_side'    => '',
     ];
 
-    // ---------- Filter specification ----------
+    // Filter specification
     $spec = [
         'select_star'   => ['filter'=>FILTER_VALIDATE_INT,   'flags'=>FILTER_NULL_ON_FAILURE],
         'select_center' => ['filter'=>FILTER_VALIDATE_BOOLEAN, 'flags'=>FILTER_NULL_ON_FAILURE],
@@ -28,13 +28,13 @@ function getVars(): array
 
     $input = filter_input_array(INPUT_GET, $spec, true) ?: [];
 
-    // ---------- Merge with defaults ----------
+    // Merge with defaults
     $vars = array_replace($defaults, array_filter($input, static fn($v) => $v !== null));
     $vars['image_side'] = in_array($vars['image_side'], ['left','right'], true)
     ? $vars['image_side']
     : '';
 
-    // ---------- Post-validation / clamping ----------
+    // Post-validation / clamping
     $vars['xy_zoom']  = max(0.1, $vars['xy_zoom']);
     $vars['z_zoom']   = max(0.1, $vars['z_zoom']);
 
@@ -73,4 +73,7 @@ function to_pc(float $v, string $unit): float {
 function from_pc(float $v, string $unit): float {
     return $unit === 'ly' ? $v * LY_PER_PC : $v;
 }
-
+/* convert UI-units ➜ ly (for ISDB) */
+function to_ly(float $v, string $unit): float {
+    return $unit === 'pc' ? $v * LY_PER_PC : $v;
+}

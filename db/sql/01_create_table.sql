@@ -8,7 +8,7 @@ CREATE TABLE athyg (
   hip TEXT,
   hd TEXT,
   hr TEXT,
-  gl TEXT,
+  gj TEXT,
   bayer TEXT,
   flam TEXT,
   con TEXT,

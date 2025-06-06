@@ -4,7 +4,7 @@ require_once 'config.inc.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // ---------- validate -------------
+    // validate
     $unit  = ($_POST['unit'] ?? 'pc') === 'ly' ? 'ly' : 'pc';
     $grid  = max(1, min((int)($_POST['grid'] ?? 20), 100));
 
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mLimit       = max(0, min((float)($_POST['m_limit'] ?? 20), 30));
     $mLimitLabel  = max(0, min((float)($_POST['m_limit_label'] ?? 8), 30));
 
-    // ---------- save -------------
+    // save
     cfg_set([
         'unit'            => $unit,
         'grid'            => $grid,
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'm_limit_label'   => $mLimitLabel,
     ]);
 
-    // ---------- redirect back -------------
+    // redirect back
     $prevUnit = $_POST['unit_prev'] ?? 'pc';   // what the map was using
     if ($prevUnit !== 'pc' && $prevUnit !== 'ly') {
         $prevUnit = 'pc'; // fallback
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $dest = $_POST['back'] ?? ($_SESSION['last_map'] ?? 'index.php');
 
-    // ------------ inject / convert params -------------
+    // inject / convert params
     $parts = parse_url($dest);
     parse_str($parts['query'] ?? '', $q);
 
@@ -92,6 +92,7 @@ $back = $_SERVER['HTTP_REFERER'] ?? ($_SESSION['last_map'] ?? 'index.php');
 </style></head><body>
 <h2>Map Settings</h2>
 <form action="configure.php" method="post">
+
 <!---------------- Units & Grid ---------------->
 <fieldset><legend>Units &amp; Grid</legend>
 <label><input type="radio" name="unit" value="pc" <?= $cfg['unit']==='pc'?'checked':'' ?>> Parsecs</label>

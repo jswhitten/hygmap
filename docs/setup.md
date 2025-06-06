@@ -186,6 +186,6 @@ docker compose up -d
 ```bash
 # Stop and remove everything
 docker compose down
-docker volume rm hygmap_hygmap_data
+docker volume rm hygmap_db_data
 docker image rm hygmap_hygmap-php
 ```

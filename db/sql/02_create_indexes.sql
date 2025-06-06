@@ -9,3 +9,5 @@ CREATE INDEX idx_athyg_gaia ON athyg(gaia) WHERE gaia IS NOT NULL;
 CREATE INDEX idx_athyg_con ON athyg(con) WHERE con IS NOT NULL;
 CREATE INDEX idx_athyg_spect ON athyg(spect) WHERE spect IS NOT NULL;
 CREATE INDEX idx_athyg_proper_lower ON athyg(LOWER(proper)) WHERE proper IS NOT NULL;
+CREATE INDEX idx_athyg_bayer_con ON athyg (bayer, con);
+CREATE INDEX idx_athyg_flam_con  ON athyg (flam,  con);
