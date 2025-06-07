@@ -20,7 +20,7 @@ $profiling = true;
 if($select_star > 0) {
    // Find the center from the selected star
    prof_flag("Querying selected star");
-   $selected_star = Database::queryStar((int)$select_star);
+   $selected_star = Database::queryStar((int)$select_star, (int)$fic_names);
 
    if($select_center == "1") {
       $x_c = from_pc($selected_star["x"], $unit); 
@@ -63,8 +63,8 @@ END;
 
 // Retrieve list of stars with fictional names
 prof_flag("Querying fictional star names");
-$fic_checked = ($fic_names == "1") ? "CHECKED" : "";
-$fic_rows = Database::queryFiction();
+$fic_checked = ((int)$fic_names > 0) ? "CHECKED" : "";
+$fic_rows = Database::queryFiction($fic_names);
 $fic_options = "";
 foreach ($fic_rows as $fic_row) {
       $fic_options .= "<option value=\"$fic_row[star_id]\">$fic_row[name]\n";
@@ -129,7 +129,7 @@ $bbox = [
 ];
 
 
-$rows = Database::queryAll($bbox, $m_limit, 'absmag asc');
+$rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
 prof_flag("Query complete");
 $star_count = 0;
 $star_count_displayed = 0;
@@ -261,7 +261,7 @@ END;
    </form>
    <br>
    <!-- FICTIONAL NAME SEARCH -->
-   <?php if ($fic_names == 1): ?>
+   <?php if ($fic_names > 0): ?>
       <form method="GET" action="index.php">
         <input type="hidden" name="select_center" value="1">
         <select name="select_star">
