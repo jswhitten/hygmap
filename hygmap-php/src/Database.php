@@ -45,6 +45,7 @@ final class Database
     public static function queryAll(
         array  $bbox,
         float  $magLimit,
+        int    $world_id = 0,
         string $order = 'absmag asc'
     ): array {
         [$xmin, $xmax, $ymin, $ymax, $zmin, $zmax] = $bbox;
@@ -56,33 +57,62 @@ final class Database
 
         $MAX_ROWS = 10000;
 
-        $sql = "
-            SELECT a.*, f.name
-            FROM   athyg a
-            LEFT   JOIN fic f ON a.id = f.star_id
-            WHERE  x BETWEEN ? AND ?
-              AND  y BETWEEN ? AND ?
-              AND  z BETWEEN ? AND ?
-              AND  absmag <= ?
-            ORDER  BY $order
-            LIMIT $MAX_ROWS
-        ";
+        if($world_id > 0) {
+            $sql = "
+                SELECT a.*, f.name
+                FROM   athyg a
+                LEFT   JOIN fic f 
+                ON     a.id = f.star_id
+                AND    f.world_id = ?
+                WHERE  x BETWEEN ? AND ?
+                AND  y BETWEEN ? AND ?
+                AND  z BETWEEN ? AND ?
+                AND  absmag <= ?
+                ORDER  BY $order
+                LIMIT $MAX_ROWS
+            ";
 
-        $stmt = self::connection()->prepare($sql);
-        $stmt->execute([$xmin,$xmax,$ymin,$ymax,$zmin,$zmax,$magLimit]);
+            $stmt = self::connection()->prepare($sql);
+            $stmt->execute([$world_id,$xmin,$xmax,$ymin,$ymax,$zmin,$zmax,$magLimit]);
+        } else {
+            $sql = "
+                SELECT a.*, ''
+                FROM   athyg a
+                WHERE  x BETWEEN ? AND ?
+                AND  y BETWEEN ? AND ?
+                AND  z BETWEEN ? AND ?
+                AND  absmag <= ?
+                ORDER  BY $order
+                LIMIT $MAX_ROWS
+            ";
+
+            $stmt = self::connection()->prepare($sql);
+            $stmt->execute([$xmin,$xmax,$ymin,$ymax,$zmin,$zmax,$magLimit]);
+
+        }
+
         return $stmt->fetchAll();
     }
 
     /** Return one star by ATHYG id, or null */
-    public static function queryStar(int $id): ?array
+    public static function queryStar(int $id, int $world_id): ?array
     {
-        $sql  = "SELECT a.*, f.name
-                 FROM   athyg a
-                 LEFT   JOIN fic f ON a.id = f.id
-                 WHERE  a.id = ?";
+        echo 'queryStar('.$id.','.$world_id.')<br>';
+        if($world_id) {
+            $sql = "SELECT a.*, f.name
+                    FROM athyg a
+                    LEFT JOIN fic f ON a.id = f.star_id AND f.world_id = ?
+                    WHERE a.id = ?";
+            $stmt = self::connection()->prepare($sql);
+            $stmt->execute([$world_id, $id]); // order of parameters flipped!
+        } else {
+            $sql  = "SELECT    *, '' AS name
+                        FROM   athyg
+                        WHERE  id = ?";
+            $stmt = self::connection()->prepare($sql);
+            $stmt->execute([$id]);
+        }
 
-        $stmt = self::connection()->prepare($sql);
-        $stmt->execute([$id]);
         return $stmt->fetch() ?: null;
     }
 
@@ -289,7 +319,7 @@ final class Database
     public static function queryFiction(?string $universe = null): array
     {
         if ($universe) {
-            $sql = "SELECT * FROM fic WHERE universe = ? ORDER BY name";
+            $sql = "SELECT * FROM fic WHERE world_id = ? ORDER BY name";
             $stmt = self::connection()->prepare($sql);
             $stmt->execute([$universe]);
         } else {

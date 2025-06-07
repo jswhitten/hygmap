@@ -8,7 +8,7 @@ function cfg_load(): array
     return $_SESSION['cfg'] ?? [
         'unit'          => 'ly',
         'grid'          => 20,
-        'fic_names'     => '0', // 0=none, 1=Star Trek, 2=Babylon 5
+        'fic_names'     => 0, // 0=none, 1=Star Trek, 2=Babylon 5
         'image_type'    => 'normal',
         'image_size'    => 600,
         'max_line'      => 0,

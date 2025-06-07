@@ -13,8 +13,8 @@ $vars = getVars();
 extract($vars);
 
 // Create image
-// while (@ob_end_clean());
-// Header("Content-type: image/jpeg");
+while (@ob_end_clean());
+Header("Content-type: image/jpeg");
 
 if($image_type == "stereo") {
     $image = ImageCreate($image_size,$image_size);
@@ -28,7 +28,7 @@ list($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $li
 // Fill background
 ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
-/* ---------- build bbox in pc ---------- */
+// build bbox in pc
 $xy_zoom_pc = to_pc($xy_zoom, $unit);
 $z_zoom_pc  = to_pc($z_zoom , $unit);
 
@@ -41,11 +41,11 @@ $bbox = [
     to_pc($z_c, $unit) + $z_zoom_pc,
 ];
 
-/* same for connecting-line limit */
+// same for connecting-line limit
 $max_line_pc = to_pc($max_line, $unit);
 
-/* query */
-$rows = Database::queryAll($bbox, $m_limit, 'absmag desc');
+// query
+$rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag desc');
 
 // Draw grid
 drawGrid($grid, $unit);
@@ -193,7 +193,7 @@ function screenCoords3d($x, $y, $z) {
 function getLabel($fic_names) {
     global $row, $yellow, $white, $black, $grey, $darkgrey, $image_type, $mag;
 
-    if($fic_names == "1" && !empty($row["name"])) {
+    if($fic_names > 0 && !empty($row["name"])) {
         $name = $row["name"];
         $labelcolor = $yellow;
         $printcolor = $black;
@@ -272,13 +272,13 @@ function drawGrid($distance) {
 
     for($g = $gxs_first; $g < $image_size * 2; $g += $gxs_int) {
         ImageLine($image, (int)$g, 0, (int)$g, $image_size, $gx_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, (int)$g + 5, 5, round(from_pc($gx_label, $unit), 2), $grey);
+        ImageString($image, 1, (int)$g + 5, 5, round($gx_label, 2), $grey);
         $gx_label -= $distance;
     }
 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size * 2, (int)$g, $gy_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, round(from_pc($gx_label, $unit), 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, round($gx_label, 2), $grey);
         $gy_label -= $distance;
     }
 }

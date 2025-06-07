@@ -4,7 +4,7 @@ DROP TABLE IF EXISTS fic_worlds CASCADE;
 -- Fictional worlds/universes table
 CREATE TABLE fic_worlds (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL
+    name TEXT NOT NULL
 );
 
 -- Fictional star names table
@@ -13,6 +13,7 @@ CREATE TABLE fic (
     star_id INTEGER NOT NULL,     -- References athyg.id
     world_id INTEGER NOT NULL,    -- References fic_worlds.id
     name TEXT NOT NULL,           -- Fictional name
+    notes TEXT,
     FOREIGN KEY (world_id) REFERENCES fic_worlds(id)
 );
 
@@ -24,15 +25,33 @@ INSERT INTO fic_worlds (id, name) VALUES
 -- Import Trek data
 CREATE TEMP TABLE temp_trek_import (
     tyc_id TEXT,
-    trek_name TEXT
+    name TEXT,
+    notes TEXT
 );
 
-\COPY temp_trek_import(tyc_id, trek_name) FROM '/data/athyg_tycho_fic.csv' WITH (FORMAT csv, HEADER false, DELIMITER ',', NULL '');
+\COPY temp_trek_import(tyc_id, name, notes) FROM '/data/athyg_tycho_trek.csv' WITH (FORMAT csv, HEADER false, DELIMITER ',', NULL '');
 
-INSERT INTO fic (star_id, world_id, name)
-SELECT athyg.id, 1, temp_trek_import.trek_name
+INSERT INTO fic (star_id, world_id, name, notes)
+SELECT athyg.id, 1, temp_trek_import.name, temp_trek_import.notes
 FROM temp_trek_import
 JOIN athyg ON athyg.tyc = temp_trek_import.tyc_id
 WHERE athyg.tyc IS NOT NULL;
 
 DROP TABLE temp_trek_import;
+
+-- Import Babylon 5 data
+CREATE TEMP TABLE temp_b5_import (
+    tyc_id TEXT,
+    name TEXT,
+    notes TEXT
+);
+
+\COPY temp_b5_import(tyc_id, name, notes) FROM '/data/athyg_tycho_b5.csv' WITH (FORMAT csv, HEADER false, DELIMITER ',', NULL '');
+
+INSERT INTO fic (star_id, world_id, name, notes)
+SELECT athyg.id, 2, temp_b5_import.name, temp_b5_import.notes
+FROM temp_b5_import
+JOIN athyg ON athyg.tyc = temp_b5_import.tyc_id
+WHERE athyg.tyc IS NOT NULL;
+
+DROP TABLE temp_b5_import;
