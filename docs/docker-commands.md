@@ -13,7 +13,8 @@ cp .env.example .env
 vi .env
 # Download AT-HYG CSV files to db/data directory
 cd db/data
-curl -L -O https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-{1..2}.csv.gz
+wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-2.csv.gz
 gunzip *.csv.gz
 # Now you are ready to build and start the application and database containers
 docker compose up -d --build
@@ -42,7 +43,7 @@ docker compose logs -f
 docker compose down --volumes
 
 # Reset database if the container is already down
-docker volume rm hygmap_hygmap_data
+docker volume rm hygmap_db_data
 
 # Backup database
 docker compose exec -T hygmap-db pg_dump -U hygmap_user hygmap > backup.sql

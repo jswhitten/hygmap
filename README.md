@@ -24,7 +24,8 @@ cp .env.example .env
 vi .env
 # Download AT-HYG CSV files to db/data directory
 cd db/data
-curl -L -O https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-{1..2}.csv.gz
+wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-2.csv.gz
 gunzip *.csv.gz
 # Build and start the containers. If the database doesn't exist it will automatically be created by the scripts in the db/sql directory.
 docker compose up -d --build
@@ -42,6 +43,16 @@ HYGMap displays stars in **galactic coordinates** centered on our solar system:
 - **Origin (0,0,0):** Our Sun's position
 
 The interface shows an overhead view of the galactic plane, with stars colored by spectral type and sized by brightness.
+
+### Features
+
+- 2.5M+ stars from the AT-HYG 3.2 catalog with accurate spatial coordinates
+- Multi-fiction layers: toggle between real star names and those from Star Trek, Babylon 5, and more coming soon
+- Interactive 2D/3D visualizations with zoom, pan, and stereoscopic or printable modes
+- Search by catalog ID (HD, HIP, Gaia, Gl/GJ, TYC), Bayer/Flamsteed name, or proper name
+- Sortable data table of stars in view
+- Configurable map settings (units, magnitude limits, layer selection) stored in session
+- Dockerized deployment with PostgreSQL backend and GD-rendered PNG maps
 
 ## Data Sources
 

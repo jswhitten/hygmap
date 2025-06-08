@@ -97,7 +97,6 @@ final class Database
     /** Return one star by ATHYG id, or null */
     public static function queryStar(int $id, int $world_id): ?array
     {
-        echo 'queryStar('.$id.','.$world_id.')<br>';
         if($world_id) {
             $sql = "SELECT a.*, f.name
                     FROM athyg a
