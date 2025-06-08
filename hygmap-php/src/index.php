@@ -137,7 +137,7 @@ $star_table = "";
 foreach ($rows as $row) {
    $star_count++;
    $display_name = getDisplayName($row, 0);
-   $distance_from_center = number_format(from_pc(sqrt(pow($row["x"] - $x_c, 2) + pow($row["y"] - $y_c, 2) + pow($row["z"] - $z_c, 2)), $unit), 3);
+   $distance_from_center = number_format(sqrt(pow(from_pc($row["x"], $unit) - $x_c, 2) + pow(from_pc($row["y"], $unit) - $y_c, 2) + pow(from_pc($row["z"], $unit) - $z_c, 2)), 3);
    $distance_ui = number_format(from_pc($row["dist"], $unit), 3);
    $x_ui = number_format(from_pc($row["x"], $unit), 3);
    $y_ui = number_format(from_pc($row["y"], $unit), 3); 
