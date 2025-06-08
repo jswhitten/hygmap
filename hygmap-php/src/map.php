@@ -130,6 +130,7 @@ foreach($rows as $row) {
         }
     }
 }
+
 // draw it
 ImageJPEG($image);
 ImageDestroy($image);

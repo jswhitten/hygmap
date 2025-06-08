@@ -31,6 +31,15 @@ git clone https://github.com/jswhitten/hygmap.git
 cd hygmap
 ```
 
+### 2. Download HYG CSV files
+
+```bash
+cd db/data
+wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-2.csv.gz
+gunzip *.csv.gz
+```
+
 ### 3. Configure Environment
 
 ```bash
@@ -94,7 +103,7 @@ docker compose exec hygmap-db psql -U hygmap_user -d hygmap
 # Check star count
 SELECT COUNT(*) FROM athyg;
 
-# Should return ~119,000 stars
+# Should count ~2.5M stars
 ```
 
 ### Test the Application
@@ -163,6 +172,7 @@ If you want to modify the code:
 ```bash
 # Make changes to PHP files in hygmap-php/src/
 # Rebuild and restart
+docker compose down
 docker compose up -d --build
 
 # Or mount source for live editing:
