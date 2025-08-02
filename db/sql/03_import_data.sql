@@ -48,6 +48,18 @@ BEGIN
   RAISE NOTICE 'Loaded CSV files into staging table.';
 END $$;
 
+--
+-- Import custom star data from the supplemental file into the staging table
+--
+COPY athyg_stage (id,tyc,gaia,hyg,hip,hd,hr,gl,bayer,flam,con,proper,ra,dec,pos_src,dist,x_eq,y_eq,z_eq,dist_src,mag,absmag,ci,mag_src,rv,rv_src,pm_ra,pm_dec,pm_src,vx,vy,vz,spect,spect_src)
+FROM '/data/athyg_supplement.csv'
+WITH (FORMAT CSV, HEADER, NULL '', DELIMITER ',');
+
+DO $$
+BEGIN
+  RAISE NOTICE 'Loaded supplemental CSV file into staging table.';
+END $$;
+
 -- Strip the leading “Gl ” / “GJ ” (any case, any spaces) from the gl column
 UPDATE athyg_stage
 SET    gl =
@@ -81,6 +93,20 @@ DO $$
 BEGIN
   RAISE NOTICE 'Copied % rows into athyg.', (SELECT COUNT(*) FROM athyg);
 END $$;
+
+--
+-- Calculate equatorial coordinates for stars missing them (e.g., from addendum file)
+--
+UPDATE athyg
+SET
+  x_eq = dist * cos(radians(dec)) * cos(radians(ra * 15)),
+  y_eq = dist * cos(radians(dec)) * sin(radians(ra * 15)),
+  z_eq = dist * sin(radians(dec))
+WHERE x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL;
+
+--
+-- Calculate galactic coordinates for all stars
+--
 
 UPDATE athyg
 SET

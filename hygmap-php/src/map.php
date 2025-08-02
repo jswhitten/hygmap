@@ -279,7 +279,7 @@ function drawGrid($distance) {
 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size * 2, (int)$g, $gy_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, round($gx_label, 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, round($gy_label, 2), $grey);
         $gy_label -= $distance;
     }
 }
