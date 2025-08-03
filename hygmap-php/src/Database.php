@@ -115,6 +115,37 @@ final class Database
         return $stmt->fetch() ?: null;
     }
 
+    // Query all signals in a bounding box
+    public static function querySignals(
+        array  $bbox,
+        string $order = 'time desc'
+    ): array {
+        [$xmin, $xmax, $ymin, $ymax, $zmin, $zmax] = $bbox;
+
+        // Security whitelist for the ORDER BY clause
+        $allowed = ['time', 'time asc', 'time desc', 'name', 'name asc', 'name desc', 'frequency'];
+        if (!in_array(strtolower($order), $allowed, true)) {
+            $order = 'time desc';
+        }
+
+        $MAX_ROWS = 10000;
+
+        $sql = "
+            SELECT *
+            FROM   signals
+            WHERE  x BETWEEN ? AND ?
+            AND    y BETWEEN ? AND ?
+            AND    z BETWEEN ? AND ?
+            ORDER  BY $order
+            LIMIT  $MAX_ROWS
+        ";
+
+        $stmt = self::connection()->prepare($sql);
+        $stmt->execute([$xmin, $xmax, $ymin, $ymax, $zmin, $zmax]);
+
+        return $stmt->fetchAll();
+    }
+
     /* -------------------------------------------------
        Search by proper / Bayer / Flamsteed / catalog
        -------------------------------------------------*/

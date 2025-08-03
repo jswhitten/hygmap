@@ -47,6 +47,9 @@ $max_line_pc = to_pc($max_line, $unit);
 // query
 $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag desc');
 
+// query for signals
+$signal_rows = Database::querySignals($bbox);
+
 // Draw grid
 drawGrid($grid, $unit);
 
@@ -85,6 +88,9 @@ if($max_line > 0) {
         }
     }
 }
+
+// Calculate the Sun's 2D screen position once
+list($sun_sx, $sun_sy) = screenCoords(0, 0, 0);
 
 // Plot each star
 foreach($rows as $row) {
@@ -129,6 +135,21 @@ foreach($rows as $row) {
             labelStar($name, $labelsize, $labelcolor);
         }
     }
+}
+
+// Plot each signal
+foreach ($signal_rows as $signal) {
+    list ($screen_x, $screen_y) = screenCoords(
+        from_pc($signal['x'], $unit),
+        from_pc($signal['y'], $unit),
+        from_pc($signal['z'], $unit)
+    );
+
+    // Plot the signal's arcs, passing in the Sun's screen coordinates
+    plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy);
+
+    // Add its label
+    labelSignal($signal['name'], $screen_x, $screen_y);
 }
 
 // draw it
@@ -378,6 +399,47 @@ function labelStar($name, $labelsize, $labelcolor) {
     global $image, $screen_x, $screen_y;
 
     ImageString($image,$labelsize,(int)$screen_x + 5,(int)$screen_y + 5,$name,$labelcolor);
+}
+
+/**
+ * Plots a signal on the map as three directional, concentric arcs.
+ * The arcs will "point" away from the Sun's projected position on the screen.
+ */
+function plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy) {
+    global $image, $lightblue, $blue, $darkblue, $red, $orange;
+
+    // --- Calculate the direction away from the Sun's projected screen position ---
+    $angle_rad = atan2($screen_y - $sun_sy, $screen_x - $sun_sx);
+    $angle_deg = rad2deg($angle_rad);
+
+    // Define the arc shape (90 degrees) centered on the new angle
+    $startAngle = $angle_deg - 45;
+    $endAngle   = $angle_deg + 45;
+
+    // --- Select colors based on signal type ---
+    if ($signal['type'] === 'transmit') {
+        $c1 = $orange;
+        $c2 = $red;
+        $c3 = $darkblue;
+    } else {
+        $c1 = $lightblue;
+        $c2 = $blue;
+        $c3 = $darkblue;
+    }
+
+    // --- Draw the three concentric arcs ---
+    ImageArc($image, (int)$screen_x, (int)$screen_y, 18, 18, (int)$startAngle, (int)$endAngle, $c3);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, 14, 14, (int)$startAngle, (int)$endAngle, $c2);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, 10, 10, (int)$startAngle, (int)$endAngle, $c1);
+}
+
+/**
+ * Labels a signal on the map.
+ */
+function labelSignal($name, $screen_x, $screen_y) {
+    global $image, $lightblue;
+    // Position the label slightly offset from the signal arcs.
+    ImageString($image, 2, (int)$screen_x + 12, (int)$screen_y - 8, $name, $lightblue);
 }
 
 ?>
