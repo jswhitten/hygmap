@@ -1,0 +1,3 @@
+id,name,type,time,ra,dec,frequency,notes
+1,"Wow! Signal",receive,1977-08-16T02:16:00Z,19.4253,-26.95,1420.4556,"A strong narrowband radio signal detected by Jerry R. Ehman while working on a SETI project at Ohio State University. The signal lasted for 72 seconds and has not been explained or detected again."
+2,"Arecibo Message",transmit,1974-11-16T20:00:00Z,16.7,36.5,2380.0,"A binary-encoded message sent from the Arecibo Observatory in Puerto Rico towards the M13 globular star cluster. It contained information about humanity and Earth."

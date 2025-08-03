@@ -55,3 +55,8 @@ JOIN athyg ON athyg.tyc = temp_b5_import.tyc_id
 WHERE athyg.tyc IS NOT NULL;
 
 DROP TABLE temp_b5_import;
+
+DO $$
+BEGIN
+  RAISE NOTICE 'Imported fictional labels.';
+END $$;
