@@ -29,6 +29,9 @@ docker compose up -d --build
 # Start application (prod)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
+# Start just the application without rebuilding the database (if there are only code changes, for example)
+docker compose up -d --build hygmap-php
+
 # Stop application  
 docker compose down
 

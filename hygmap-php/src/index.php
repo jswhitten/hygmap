@@ -116,18 +116,7 @@ if ($image_type === 'stereo') {
 
 // Get data for star table
 prof_flag("Querying all stars in map");
-$xy_zoom_pc = to_pc($xy_zoom, $unit);
-$z_zoom_pc  = to_pc($z_zoom , $unit);
-
-$bbox = [
-    to_pc($x_c, $unit) - $xy_zoom_pc,
-    to_pc($x_c, $unit) + $xy_zoom_pc,
-    to_pc($y_c, $unit) - ($image_type==='stereo' ? $xy_zoom_pc : 2*$xy_zoom_pc),
-    to_pc($y_c, $unit) + ($image_type==='stereo' ? $xy_zoom_pc : 2*$xy_zoom_pc),
-    to_pc($z_c, $unit) - $z_zoom_pc,
-    to_pc($z_c, $unit) + $z_zoom_pc,
-];
-
+$bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
 
 $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
 prof_flag("Query complete");

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 error_reporting(E_ERROR | E_WARNING | E_PARSE);
 
 require_once __DIR__ . '/Database.php';
@@ -14,7 +15,12 @@ extract($vars);
 
 // Create image
 while (@ob_end_clean());
-Header("Content-type: image/jpeg");
+ob_start(); 
+header("Content-type: image/jpeg");
+// header("Content-type: text/plain");
+// error_reporting(E_ALL);
+// ini_set('display_errors', '1');
+// Don't output the image, just show any errors
 
 if($image_type == "stereo") {
     $image = ImageCreate($image_size,$image_size);
@@ -29,29 +35,19 @@ list($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $li
 ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
 
 // build bbox in pc
-$xy_zoom_pc = to_pc($xy_zoom, $unit);
-$z_zoom_pc  = to_pc($z_zoom , $unit);
-
-$bbox = [
-    to_pc($x_c, $unit) - $xy_zoom_pc,
-    to_pc($x_c, $unit) + $xy_zoom_pc,
-    to_pc($y_c, $unit) - ($image_type==='left'||$image_type==='right' ? $xy_zoom_pc : 2*$xy_zoom_pc),
-    to_pc($y_c, $unit) + ($image_type==='left'||$image_type==='right' ? $xy_zoom_pc : 2*$xy_zoom_pc),
-    to_pc($z_c, $unit) - $z_zoom_pc,
-    to_pc($z_c, $unit) + $z_zoom_pc,
-];
+$bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
 
 // same for connecting-line limit
 $max_line_pc = to_pc($max_line, $unit);
 
 // query
-$rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag desc');
+$rows = Database::queryAll($bbox, $m_limit, (int)$fic_names, 'absmag desc');
 
-// query for signals
-$signal_rows = Database::querySignals($bbox);
+// query for signals (if enabled)
+$signal_rows = $show_signals ? Database::querySignals($bbox) : [];
 
 // Draw grid
-drawGrid($grid, $unit);
+drawGrid($grid);
 
 // Plot connecting lines
 if($max_line > 0) {
@@ -59,9 +55,9 @@ if($max_line > 0) {
     $eligible_stars = [];
     foreach($rows as $idx => $row) {
         if($row["absmag"] < $m_limit) {
-            $x_ui = from_pc($row["x"], $unit);
-            $y_ui = from_pc($row["y"], $unit);
-            $z_ui = from_pc($row["z"], $unit);
+            $x_ui = from_pc((float)$row["x"], $unit);
+            $y_ui = from_pc((float)$row["y"], $unit);
+            $z_ui = from_pc((float)$row["z"], $unit);
             
             list($screen_x, $screen_y) = screenCoords($x_ui, $y_ui, $z_ui);
             
@@ -121,12 +117,11 @@ list($sun_sx, $sun_sy) = screenCoords(0, 0, 0);
 
 // Plot each star
 foreach($rows as $row) {
-
     $id = $row["id"];
-    $x = $row["x"];
-    $y = $row["y"];
-    $z = $row["z"];
-    $mag = $row["absmag"];
+    $x = (float)$row["x"];
+    $y = (float)$row["y"];
+    $z = (float)$row["z"];
+    $mag = (float)$row["absmag"];
 
     if($mag < $m_limit) {
         list ($screen_x, $screen_y) = screenCoords(from_pc($x, $unit), from_pc($y, $unit), from_pc($z, $unit));
@@ -139,7 +134,7 @@ foreach($rows as $row) {
         // label
 	    $skiplabel = false;
 	    if($select_star != $id) {
-            if($mag > $m_limit_label) {
+            if($mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
                 $skiplabel = true;
             } elseif(sizeof($rows) > 1000) {
                 if($mag > 5 && $id > 0) {
@@ -147,63 +142,69 @@ foreach($rows as $row) {
                 }
             } else {
                 foreach($rows as $checkrow) {
-                     // if a brighter star is at the same location don't label this one
-                    if($checkrow['absmag'] < $mag) {
-                        if(abs($checkrow['x']-$x) < $xy_zoom / 50 && abs($checkrow['y']-$y) < $xy_zoom / 20) {
+                    // if a brighter star is at the same location don't label this one
+                    if((float)$checkrow['absmag'] < $mag) {  // Only check brighter stars
+                        if(abs($checkrow['x']-$x) < $xy_zoom / LABEL_OVERLAP_X_DIVISOR && 
+                            abs($checkrow['y']-$y) < $xy_zoom / LABEL_OVERLAP_Y_DIVISOR) {
                             $skiplabel = true;
                             break;
                         }
                     }
                 }
+	        }
 	    }
-	}
         if(!$skiplabel) {
-            list ($name, $labelcolor) = getLabel($fic_names);
-            labelStar($name, $labelsize, $labelcolor);
+            list ($name, $labelcolor) = getLabel((int)$fic_names);
+            labelStar($name, $labelsize, $labelcolor, $screen_x, $screen_y);
         }
     }
 }
 
 // Plot each signal
-foreach ($signal_rows as $signal) {
-    list ($screen_x, $screen_y) = screenCoords(
-        from_pc($signal['x'], $unit),
-        from_pc($signal['y'], $unit),
-        from_pc($signal['z'], $unit)
-    );
+if($show_signals) {
+    foreach ($signal_rows as $signal) {
+        list ($screen_x, $screen_y) = screenCoords(
+            from_pc((float)$signal['x'], $unit),
+            from_pc((float)$signal['y'], $unit),
+            from_pc((float)$signal['z'], $unit)
+        );
 
-    // Plot the signal's arcs, passing in the Sun's screen coordinates
-    plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy);
+        // Plot the signal's arcs, passing in the Sun's screen coordinates
+        plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy);
 
-    // Add its label
-    labelSignal($signal['name'], $screen_x, $screen_y);
+        // Add its label
+        labelSignal($signal['name'], $screen_x, $screen_y);
+    }
 }
 
 // draw it
+ob_end_clean();  // Clear any stray output
+
 ImageJPEG($image);
 ImageDestroy($image);
 
-function allocateColors() {
+function allocateColors(): array {
+
     global $image;
 
-    $white = ImageColorAllocate($image,255,255,255);
-    $grey = ImageColorAllocate($image,204,204,204);
-    $darkgrey = ImageColorAllocate($image,102,102,102);
-    $green = ImageColorAllocate($image,0,150,50);
-    $red = ImageColorAllocate($image,255,64,0);
-    $orange = ImageColorAllocate($image,255,128,0);
-    $lightyellow = ImageColorAllocate($image,255,255,160);
-    $yellow = ImageColorAllocate($image,255,255,0);
-    $lightblue = ImageColorAllocate($image,128,204,255);
-    $blue = ImageColorAllocate($image,64,128,255);
-    $darkblue = ImageColorAllocate($image,0,64,128);
-    $black = ImageColorAllocate($image,0,0,0);
+    $white = ImageColorAllocate($image, ...COLOR_WHITE);
+    $grey = ImageColorAllocate($image, ...COLOR_GREY);
+    $darkgrey = ImageColorAllocate($image, ...COLOR_DARK_GREY);
+    $green = ImageColorAllocate($image, ...COLOR_GREEN);
+    $red = ImageColorAllocate($image, ...COLOR_RED);
+    $orange = ImageColorAllocate($image, ...COLOR_ORANGE);
+    $lightyellow = ImageColorAllocate($image, ...COLOR_LIGHT_YELLOW);
+    $yellow = ImageColorAllocate($image, ...COLOR_YELLOW);
+    $lightblue = ImageColorAllocate($image, ...COLOR_LIGHT_BLUE);
+    $blue = ImageColorAllocate($image, ...COLOR_BLUE);
+    $darkblue = ImageColorAllocate($image, ...COLOR_DARK_BLUE);
+    $black = ImageColorAllocate($image, ...COLOR_BLACK);
 
     return array($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $lightblue, $blue, $darkblue, $black);
-
 }
 
-function screenCoords($x, $y, $z) {
+
+function screenCoords(float $x, float $y, float $z): array {
     global $xy_zoom, $z_zoom, $x_c, $y_c, $z_c, $image_size, $image_side, $unit;
 
     if($image_side == "left" || $image_side == "right") {
@@ -213,38 +214,31 @@ function screenCoords($x, $y, $z) {
     $screen_x = ($image_size) - (($image_size / (2 * $xy_zoom)) * ($y-$y_c));
     $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x-$x_c));
 
-    if($image_side == "left") {
-        $screen_x += 4 * (($z - $z_c) / $z_zoom);
-    }
-    if($image_side == "right") {
-        $screen_x -= 4 * (($z - $z_c) / $z_zoom);
-    }
-
     return array($screen_x, $screen_y);
 }
 
-function screenCoords3d($x, $y, $z) {
+function screenCoords3d(float $x, float $y, float $z): array {
     global $xy_zoom, $z_zoom, $x_c, $y_c, $z_c, $image_size, $image_side;
 
     $screen_x = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($y-$y_c));
     $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x-$x_c));
 
     if($image_side == "left") {
-        $screen_x += 4 * (($z - $z_c) / $z_zoom);
+        $screen_x += STEREO_OFFSET_MULTIPLIER * (($z - $z_c) / $z_zoom);
     }
     if($image_side == "right") {
-        $screen_x -= 4 * (($z - $z_c) / $z_zoom);
+        $screen_x -= STEREO_OFFSET_MULTIPLIER * (($z - $z_c) / $z_zoom);
     }
 
     return array($screen_x, $screen_y);
 }
 
-function getLabel($fic_names) {
+function getLabel(int $fic_names): array {
     global $row, $image_type, $mag;
     return getStarDisplayName($row, $fic_names, true, $image_type, $mag);
 }
 
-function getSpecClass($specdata) {
+function getSpecClass(?string $specdata): string {
     if(empty($specdata)) {
         return "";
     }
@@ -256,7 +250,7 @@ function getSpecClass($specdata) {
     return $spec;
 }
 
-function drawGrid($distance) {
+function drawGrid(float $distance = 20): void {
 
     global $y_c, $x_c, $xy_zoom, $image, $green, $grey, $blue, $darkblue, $darkgrey, $image_size, $image_type, $unit;
 
@@ -267,7 +261,8 @@ function drawGrid($distance) {
         $linecolor = $green;
         $zerolinecolor = $blue;
         if($image_type == "stereo") {
-            return drawGrid3d($distance); // Modify the drawGrid3d function to also accept $distance if needed
+            drawGrid3d($distance);
+            return;
         }
     }
 
@@ -282,18 +277,18 @@ function drawGrid($distance) {
 
     for($g = $gxs_first; $g < $image_size * 2; $g += $gxs_int) {
         ImageLine($image, (int)$g, 0, (int)$g, $image_size, $gx_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, (int)$g + 5, 5, round($gx_label, 2), $grey);
+        ImageString($image, 1, (int)$g + 5, 5, (string)round($gx_label, 2), $grey);
         $gx_label -= $distance;
     }
 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size * 2, (int)$g, $gy_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, round($gy_label, 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, (string)round($gy_label, 2), $grey);
         $gy_label -= $distance;
     }
 }
 
-function drawGrid3d($distance = 20) {
+function drawGrid3d(float $distance = 20) : void {
 
     global $y_c, $x_c, $xy_zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type, $unit;
 
@@ -314,19 +309,19 @@ function drawGrid3d($distance = 20) {
 
     for($g = $gxs_first; $g < $image_size; $g += $gxs_int) {
         ImageLine($image, (int)$g, 0, (int)$g, $image_size, $linecolor);
-        ImageString($image, 1, (int)$g + 5, 5, round(from_pc($gx_label, $unit), 2), $grey);
+        ImageString($image, 1, (int)$g + 5, 5, (string)round(from_pc($gx_label, $unit), 2), $grey);
         $gx_label -= $distance;
     }
 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size, (int)$g, $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, round(from_pc($gy_label, $unit), 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, (string)round(from_pc($gy_label, $unit), 2), $grey);
         $gy_label -= $distance;
     }
 }
 
 
-function specColor($spec) {
+function specColor(string $spec): int {
     global $lightblue, $blue, $lightyellow, $yellow, $orange, $red, $white;
 
     if($spec == "O") {
@@ -347,25 +342,25 @@ function specColor($spec) {
     return $color;
 }
 
-function starSize($mag) {
-    if($mag > 8) {
-        $size = 2;
-        $labelsize = 1;
-    } elseif($mag > 6) {
-        $size = 20 - 2 * $mag;
-        $labelsize = 1;
-    } elseif($mag > 3) {
-        $size = 20 - 2 * $mag;
-        $labelsize = 2;        
+function starSize(float $mag): array {
+    if($mag > MAG_THRESHOLD_DIM) {
+        $size = STAR_SIZE_MIN;
+        $labelsize = LABEL_SIZE_SMALL;
+    } elseif($mag > MAG_THRESHOLD_MEDIUM) {
+        $size = (int)(STAR_SIZE_BASE - STAR_SIZE_FACTOR * $mag);
+        $labelsize = LABEL_SIZE_SMALL;
+    } elseif($mag > MAG_THRESHOLD_BRIGHT) {
+        $size = (int)(STAR_SIZE_BASE - STAR_SIZE_FACTOR * $mag);
+        $labelsize = LABEL_SIZE_MEDIUM;        
     } else {
-        $size = 20 - 2 * $mag;
-        $labelsize = 4;
+        $size = (int)(STAR_SIZE_BASE - STAR_SIZE_FACTOR * $mag);
+        $labelsize = LABEL_SIZE_LARGE;
     }
 
     return array($size, $labelsize);
 }
 
-function plotStar($screen_x, $screen_y, $size, $starcolor, $selected) {
+function plotStar(float $screen_x, float $screen_y, int $size, int $starcolor, bool $selected): void {
     global $image, $black, $darkgrey, $red, $blue, $image_type;
 
     if($image_type == "printable") {
@@ -379,12 +374,18 @@ function plotStar($screen_x, $screen_y, $size, $starcolor, $selected) {
 
     // selected star
     if($selected) {
-        ImageRectangle($image,(int)$screen_x-20,(int)$screen_y-20,(int)$screen_x+20,(int)$screen_y+20,$boxcolor);
+        ImageRectangle($image,
+            (int)$screen_x - SELECTED_STAR_BOX_SIZE,
+            (int)$screen_y - SELECTED_STAR_BOX_SIZE,
+            (int)$screen_x + SELECTED_STAR_BOX_SIZE,
+            (int)$screen_y + SELECTED_STAR_BOX_SIZE,
+            $boxcolor);
     }
+
 }
 
-function labelStar($name, $labelsize, $labelcolor) {
-    global $image, $screen_x, $screen_y;
+function labelStar(string $name, int $labelsize, int $labelcolor, float $screen_x, float $screen_y): void {
+    global $image;
 
     ImageString($image,$labelsize,(int)$screen_x + 5,(int)$screen_y + 5,$name,$labelcolor);
 }
@@ -393,7 +394,7 @@ function labelStar($name, $labelsize, $labelcolor) {
  * Plots a signal on the map as three directional, concentric arcs.
  * The arcs will "point" away from the Sun's projected position on the screen.
  */
-function plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy) {
+function plotSignal(float $screen_x, float $screen_y, array $signal, float $sun_sx, float $sun_sy): void {
     global $image, $lightblue, $blue, $darkblue, $red, $orange;
 
     // --- Calculate the direction away from the Sun's projected screen position ---
@@ -401,8 +402,8 @@ function plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy) {
     $angle_deg = rad2deg($angle_rad);
 
     // Define the arc shape (90 degrees) centered on the new angle
-    $startAngle = $angle_deg - 45;
-    $endAngle   = $angle_deg + 45;
+    $startAngle = $angle_deg - SIGNAL_ARC_ANGLE;
+    $endAngle   = $angle_deg + SIGNAL_ARC_ANGLE;
 
     // --- Select colors based on signal type ---
     if ($signal['type'] === 'transmit') {
@@ -416,15 +417,22 @@ function plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy) {
     }
 
     // --- Draw the three concentric arcs ---
-    ImageArc($image, (int)$screen_x, (int)$screen_y, 18, 18, (int)$startAngle, (int)$endAngle, $c3);
-    ImageArc($image, (int)$screen_x, (int)$screen_y, 14, 14, (int)$startAngle, (int)$endAngle, $c2);
-    ImageArc($image, (int)$screen_x, (int)$screen_y, 10, 10, (int)$startAngle, (int)$endAngle, $c1);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, 
+        SIGNAL_ARC_OUTER, SIGNAL_ARC_OUTER, 
+        (int)$startAngle, (int)$endAngle, $c3);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, 
+        SIGNAL_ARC_MIDDLE, SIGNAL_ARC_MIDDLE, 
+        (int)$startAngle, (int)$endAngle, $c2);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, 
+        SIGNAL_ARC_INNER, SIGNAL_ARC_INNER, 
+        (int)$startAngle, (int)$endAngle, $c1);
+
 }
 
 /**
  * Labels a signal on the map.
  */
-function labelSignal($name, $screen_x, $screen_y) {
+function labelSignal(string $name, float $screen_x, float $screen_y): void {
     global $image, $lightblue;
     // Position the label slightly offset from the signal arcs.
     ImageString($image, 2, (int)$screen_x + 12, (int)$screen_y - 8, $name, $lightblue);

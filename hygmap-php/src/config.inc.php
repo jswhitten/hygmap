@@ -14,7 +14,9 @@ function cfg_load(): array
         'max_line'      => 0,
         'm_limit'       => 20.0,
         'm_limit_label' => 8.0,
+        'show_signals'  => true,
     ];
+
 }
 
 // save prefs

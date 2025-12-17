@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once 'config.inc.php';
+require_once __DIR__ . '/Database.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -10,9 +11,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $maxLine = max(0, min((int)($_POST['max_line'] ?? 0), 100));
 
-    $allowedLayers = ['0','1','2'];
+    // Build allowed layers: '0' (None) plus all world IDs from database
+    $allowedLayers = array_merge(
+        ['0'],
+        array_map(fn($w) => (string)$w['id'], Database::queryWorlds())
+    );
     $fic_names = in_array($_POST['fic_names'] ?? '0', $allowedLayers, true)
-           ? $_POST['fic_names'] : '0';
+        ? $_POST['fic_names'] : '0';
+
 
     $allowedImg = ['normal','stereo','printable'];
     $imageType  = in_array($_POST['image_type'] ?? 'normal', $allowedImg, true)
@@ -22,6 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $mLimit       = max(0, min((float)($_POST['m_limit'] ?? 20), 30));
     $mLimitLabel  = max(0, min((float)($_POST['m_limit_label'] ?? 8), 30));
+
+    $showSignals  = isset($_POST['show_signals']);  // checkbox: present = true, absent = false
 
     // save
     cfg_set([
@@ -33,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'max_line'        => $maxLine,
         'm_limit'         => $mLimit,
         'm_limit_label'   => $mLimitLabel,
+        'show_signals'    => $showSignals,
     ]);
 
     // redirect back
@@ -106,10 +115,19 @@ $back = $_SERVER['HTTP_REFERER'] ?? ($_SESSION['last_map'] ?? 'index.php');
 <!---------------- Fiction layer ---------------->
 <fieldset><legend>Fictional names</legend>
 <select name="fic_names">
- <?php foreach(['0'=>'None','1'=>'Star Trek','2'=>'Babylon 5'] as $val=>$label): ?>
-  <option value="<?= $val ?>" <?= (string)$cfg['fic_names']===(string)$val?'selected':'' ?>><?= $label ?></option>
+ <option value="0" <?= $cfg['fic_names']==='0'?'selected':'' ?>>None</option>
+ <?php foreach(Database::queryWorlds() as $world): ?>
+  <option value="<?= $world['id'] ?>" <?= (string)$cfg['fic_names']===(string)$world['id']?'selected':'' ?>><?= htmlspecialchars($world['name']) ?></option>
  <?php endforeach; ?>
 </select>
+</fieldset>
+
+<!---------------- Signals ---------------->
+<fieldset><legend>Signals</legend>
+<label>
+  <input type="checkbox" name="show_signals" <?= !empty($cfg['show_signals']) ? 'checked' : '' ?>>
+  Show SETI signals
+</label>
 </fieldset>
 
 <!---------------- Image render ---------------->
