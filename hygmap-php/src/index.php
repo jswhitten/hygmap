@@ -152,19 +152,19 @@ prof_flag("Query complete");
 
 $star_count = 0;
 $star_count_displayed = 0;
-$star_table = "";
+$star_rows = [];
 foreach ($rows as $row) {
    $star_count++;
    $display_name = getStarDisplayName($row, 0);
    $distance_from_center = number_format(sqrt(pow(from_pc($row["x"], $unit) - $x_c, 2) + pow(from_pc($row["y"], $unit) - $y_c, 2) + pow(from_pc($row["z"], $unit) - $z_c, 2)), 3);
    $distance_ui = number_format(from_pc($row["dist"], $unit), 3);
    $x_ui = number_format(from_pc($row["x"], $unit), 3);
-   $y_ui = number_format(from_pc($row["y"], $unit), 3); 
+   $y_ui = number_format(from_pc($row["y"], $unit), 3);
    $z_ui = number_format(from_pc($row["z"], $unit), 3);
 
    if($row['absmag'] < $m_limit_label) {
       $star_count_displayed++;
-      $star_table .= '<tr>' .
+      $star_rows[] = '<tr>' .
          '<td><a href="?select_star=' . (int)$row['id'] . '&select_center=1">' . htmlspecialchars($display_name, ENT_QUOTES) . '</a></td>' .
          '<td>' . htmlspecialchars($row["con"] ?? '', ENT_QUOTES) . '</td>' .
          '<td>' . htmlspecialchars($row["spect"] ?? '', ENT_QUOTES) . '</td>' .
@@ -174,9 +174,10 @@ foreach ($rows as $row) {
          '<td>' . htmlspecialchars($x_ui, ENT_QUOTES) . '</td>' .
          '<td>' . htmlspecialchars($y_ui, ENT_QUOTES) . '</td>' .
          '<td>' . htmlspecialchars($z_ui, ENT_QUOTES) . '</td>' .
-         '</tr>' . "\n";
+         '</tr>';
    }
 }
+$star_table = implode("\n", $star_rows);
 
 // Build details for selected star
 $selected_data = '';

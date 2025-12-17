@@ -6,11 +6,12 @@ require_once __DIR__ . '/Database.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // validate
-    $unit  = ($_POST['unit'] ?? 'pc') === 'ly' ? 'ly' : 'pc';
-    $grid  = max(1, min((int)($_POST['grid'] ?? 20), 100));
+    // validate using filter_input
+    $unit_input = filter_input(INPUT_POST, 'unit', FILTER_SANITIZE_SPECIAL_CHARS) ?? 'pc';
+    $unit = $unit_input === 'ly' ? 'ly' : 'pc';
 
-    $maxLine = max(0, min((int)($_POST['max_line'] ?? 0), 100));
+    $grid = max(1, min(filter_input(INPUT_POST, 'grid', FILTER_VALIDATE_INT) ?? 20, 100));
+    $maxLine = max(0, min(filter_input(INPUT_POST, 'max_line', FILTER_VALIDATE_INT) ?? 0, 100));
 
     // Build allowed layers: '0' (None) plus all world IDs from database
     try {
@@ -22,20 +23,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log("Configure error: " . $e->getMessage());
         $allowedLayers = ['0']; // Fallback to None only when DB unavailable
     }
-    $fic_names = in_array($_POST['fic_names'] ?? '0', $allowedLayers, true)
-        ? $_POST['fic_names'] : '0';
-
+    $fic_input = filter_input(INPUT_POST, 'fic_names', FILTER_SANITIZE_SPECIAL_CHARS) ?? '0';
+    $fic_names = in_array($fic_input, $allowedLayers, true) ? $fic_input : '0';
 
     $allowedImg = ['normal','stereo','printable'];
-    $imageType  = in_array($_POST['image_type'] ?? 'normal', $allowedImg, true)
-                ? $_POST['image_type'] : 'normal';
+    $img_input = filter_input(INPUT_POST, 'image_type', FILTER_SANITIZE_SPECIAL_CHARS) ?? 'normal';
+    $imageType = in_array($img_input, $allowedImg, true) ? $img_input : 'normal';
 
-    $imageSize  = max(64, min((int)($_POST['image_size'] ?? 600), 4096));
+    $imageSize = max(64, min(filter_input(INPUT_POST, 'image_size', FILTER_VALIDATE_INT) ?? 600, 4096));
 
-    $mLimit       = max(0, min((float)($_POST['m_limit'] ?? 20), 30));
-    $mLimitLabel  = max(0, min((float)($_POST['m_limit_label'] ?? 8), 30));
+    $mLimit = max(0, min(filter_input(INPUT_POST, 'm_limit', FILTER_VALIDATE_FLOAT) ?? 20, 30));
+    $mLimitLabel = max(0, min(filter_input(INPUT_POST, 'm_limit_label', FILTER_VALIDATE_FLOAT) ?? 8, 30));
 
-    $showSignals  = isset($_POST['show_signals']);  // checkbox: present = true, absent = false
+    $showSignals = filter_input(INPUT_POST, 'show_signals', FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 
     // save
     cfg_set([
@@ -51,12 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
 
     // redirect back
-    $prevUnit = $_POST['unit_prev'] ?? 'pc';   // what the map was using
+    $prevUnit = filter_input(INPUT_POST, 'unit_prev', FILTER_SANITIZE_SPECIAL_CHARS) ?? 'pc';
     if ($prevUnit !== 'pc' && $prevUnit !== 'ly') {
         $prevUnit = 'pc'; // fallback
     }
 
-    $dest = $_POST['back'] ?? ($_SESSION['last_map'] ?? 'index.php');
+    $dest = filter_input(INPUT_POST, 'back', FILTER_SANITIZE_URL) ?? ($_SESSION['last_map'] ?? 'index.php');
 
     // inject / convert params
     $parts = parse_url($dest);
@@ -92,7 +92,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $cfg  = cfg_load();
 
-$back = $_SERVER['HTTP_REFERER'] ?? ($_SESSION['last_map'] ?? 'index.php');
+// Validate referer is from same domain before using it
+$referer = $_SERVER['HTTP_REFERER'] ?? '';
+$referer_host = $referer ? parse_url($referer, PHP_URL_HOST) : '';
+$current_host = $_SERVER['HTTP_HOST'] ?? '';
+$is_valid_referer = $referer_host && $referer_host === $current_host;
+$back = $is_valid_referer ? $referer : ($_SESSION['last_map'] ?? 'index.php');
 ?>
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <title>HYGMap – Settings</title>
@@ -143,7 +148,7 @@ try {
 <!---------------- Image render ---------------->
 <fieldset><legend>Image render</legend>
 <label>Type:
- <select name="image_type" onclick="if(this.value === 'stereo') { document.getElementById('image_size').value = '300'; } else { document.getElementById('image_size').value = '600'; }">
+ <select name="image_type" id="image_type">
   <?php foreach(['normal','stereo','printable'] as $it): ?>
    <option value="<?= $it ?>" <?= $cfg['image_type']===$it?'selected':'' ?>><?= ucfirst($it) ?></option>
   <?php endforeach; ?>
@@ -173,6 +178,16 @@ document.querySelectorAll('input[name="unit"]').forEach(r=>{
       label.textContent=r.value;
     });
   });
+});
+
+/* auto-adjust image size when changing image type */
+document.getElementById('image_type').addEventListener('change', function() {
+  const imageSize = document.getElementById('image_size');
+  if (this.value === 'stereo') {
+    imageSize.value = '300';
+  } else {
+    imageSize.value = '600';
+  }
 });
 </script>
 </body></html>

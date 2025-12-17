@@ -1,5 +1,21 @@
 <?php declare(strict_types=1); error_reporting(E_ALL); ini_set('display_errors','1');
 
+/**
+ * Extract and validate query parameters from GET request
+ *
+ * Applies strict type validation and bounds checking to all map parameters.
+ *
+ * @return array{
+ *   select_star: int,
+ *   select_center: int,
+ *   x_c: float (Range: -100000 to 100000),
+ *   y_c: float (Range: -100000 to 100000),
+ *   z_c: float (Range: -100000 to 100000),
+ *   xy_zoom: float (Min: 0.1),
+ *   z_zoom: float (Min: 0.1),
+ *   image_side: string ('left', 'right', or '')
+ * }
+ */
 function getVars(): array
 {
     // Default values
@@ -90,6 +106,10 @@ const LABEL_SIZE_LARGE = 4;
 // Label overlap detection thresholds
 const LABEL_OVERLAP_X_DIVISOR = 50;   // xy_zoom / 50
 const LABEL_OVERLAP_Y_DIVISOR = 20;   // xy_zoom / 20
+
+// Connecting line distance thresholds (multipliers for max_line)
+const CONNECTING_LINE_CLOSE_FACTOR = 0.5;   // Very close stars
+const CONNECTING_LINE_MID_FACTOR = 0.75;    // Medium distance stars
 
 // Stereoscopic 3D rendering
 const STEREO_OFFSET_MULTIPLIER = 4;   // Horizontal offset for 3D effect
