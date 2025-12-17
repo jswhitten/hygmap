@@ -4,15 +4,31 @@ require_once __DIR__ . '/Database.php';
 require_once 'config.inc.php';
 
 $cfg = cfg_load();
-extract($cfg);               // gives $unit, $grid, $fic_names, $image_type, etc.
+$unit = $cfg['unit'];
+$grid = (float)$cfg['grid'];
+$fic_names = (int)$cfg['fic_names'];
+$image_type = $cfg['image_type'];
+$image_size = (int)$cfg['image_size'];
+$max_line = (float)$cfg['max_line'];
+$m_limit = (float)$cfg['m_limit'];
+$m_limit_label = (float)$cfg['m_limit_label'];
+$show_signals = (bool)$cfg['show_signals'];
+
+// Extract variables from query string
+$vars = getVars();
+$select_star = $vars['select_star'];
+$select_center = $vars['select_center'];
+$x_c = $vars['x_c'];
+$y_c = $vars['y_c'];
+$z_c = $vars['z_c'];
+$xy_zoom = $vars['xy_zoom'];
+$z_zoom = $vars['z_zoom'];
+$image_side = $vars['image_side'];
 
 prof_flag("START");
 
 header("X-Robots-Tag: noindex");
 
-// Extract variables from query string
-$vars = getVars();
-extract($vars);
 $select_center_checked = "";
 
 $profiling = true;

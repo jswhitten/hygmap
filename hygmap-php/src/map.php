@@ -7,11 +7,26 @@ require 'common_inc.php';
 require_once 'config.inc.php';
 
 $cfg = cfg_load();
-extract($cfg);               // gives $unit, $grid, $fic_names, $image_type, etc.
+$unit = $cfg['unit'];
+$grid = (float)$cfg['grid'];
+$fic_names = (int)$cfg['fic_names'];
+$image_type = $cfg['image_type'];
+$image_size = (int)$cfg['image_size'];
+$max_line = (float)$cfg['max_line'];
+$m_limit = (float)$cfg['m_limit'];
+$m_limit_label = (float)$cfg['m_limit_label'];
+$show_signals = (bool)$cfg['show_signals'];
 
 // Extract variables from query string
 $vars = getVars();
-extract($vars);
+$select_star = $vars['select_star'];
+$select_center = $vars['select_center'];
+$x_c = $vars['x_c'];
+$y_c = $vars['y_c'];
+$z_c = $vars['z_c'];
+$xy_zoom = $vars['xy_zoom'];
+$z_zoom = $vars['z_zoom'];
+$image_side = $vars['image_side'];
 
 // Create image
 while (@ob_end_clean());
@@ -30,6 +45,10 @@ if($image_type == "stereo") {
 
 // Allocate colors
 list($white, $grey, $darkgrey, $green, $red, $orange, $lightyellow, $yellow, $lightblue, $blue, $darkblue, $black) = allocateColors();
+
+// Store colors in array for easy passing
+$colors = compact('white', 'grey', 'darkgrey', 'green', 'red', 'orange', 'lightyellow', 'yellow', 'lightblue', 'blue', 'darkblue', 'black');
+
 
 // Fill background
 ImageFill($image,50,50,($image_type == "printable") ? $white : $black);
@@ -137,7 +156,7 @@ foreach($rows as $row) {
 
     if($mag < $m_limit) {
         list ($screen_x, $screen_y) = screenCoords(from_pc($x, $unit), from_pc($y, $unit), from_pc($z, $unit));
-        $starcolor = specColor(getSpecClass($row["spect"]));
+        $starcolor = specColor(getSpecClass($row["spect"]), $colors);
         list ($size, $labelsize) = starSize($mag);
 
         // plot star
@@ -182,10 +201,11 @@ if($show_signals) {
         );
 
         // Plot the signal's arcs, passing in the Sun's screen coordinates
-        plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy);
+        plotSignal($screen_x, $screen_y, $signal, $sun_sx, $sun_sy, $colors);
+
 
         // Add its label
-        labelSignal($signal['name'], $screen_x, $screen_y);
+        labelSignal($signal['name'], $screen_x, $screen_y, $colors);
     }
 }
 
@@ -332,24 +352,21 @@ function drawGrid3d(float $distance = 20) : void {
     }
 }
 
-
-function specColor(string $spec): int {
-    global $lightblue, $blue, $lightyellow, $yellow, $orange, $red, $white;
-
+function specColor(string $spec, array $colors): int {
     if($spec == "O") {
-        $color = $blue;
+        $color = $colors['blue'];
     } elseif($spec == "B") {
-        $color = $lightblue;
+        $color = $colors['lightblue'];
     } elseif($spec == "F") {
-        $color = $lightyellow;
+        $color = $colors['lightyellow'];
     } elseif($spec == "G") {
-        $color = $yellow;
+        $color = $colors['yellow'];
     } elseif($spec == "K" || $spec == "R") {
-        $color = $orange;
+        $color = $colors['orange'];
     } elseif($spec == "M" || $spec == "C" || $spec == "N" || $spec == "S") {
-        $color = $red;
+        $color = $colors['red'];
     } else {
-        $color = $white;
+        $color = $colors['white'];
     }
     return $color;
 }
@@ -406,48 +423,39 @@ function labelStar(string $name, int $labelsize, int $labelcolor, float $screen_
  * Plots a signal on the map as three directional, concentric arcs.
  * The arcs will "point" away from the Sun's projected position on the screen.
  */
-function plotSignal(float $screen_x, float $screen_y, array $signal, float $sun_sx, float $sun_sy): void {
-    global $image, $lightblue, $blue, $darkblue, $red, $orange;
+function plotSignal(float $screen_x, float $screen_y, array $signal, float $sun_sx, float $sun_sy, array $colors): void {
+    global $image;
 
-    // --- Calculate the direction away from the Sun's projected screen position ---
+    // Calculate direction
     $angle_rad = atan2($screen_y - $sun_sy, $screen_x - $sun_sx);
     $angle_deg = rad2deg($angle_rad);
-
-    // Define the arc shape (90 degrees) centered on the new angle
     $startAngle = $angle_deg - SIGNAL_ARC_ANGLE;
     $endAngle   = $angle_deg + SIGNAL_ARC_ANGLE;
 
-    // --- Select colors based on signal type ---
+    // Select colors based on signal type
     if ($signal['type'] === 'transmit') {
-        $c1 = $orange;
-        $c2 = $red;
-        $c3 = $darkblue;
+        $c1 = $colors['orange'];
+        $c2 = $colors['red'];
+        $c3 = $colors['darkblue'];
     } else {
-        $c1 = $lightblue;
-        $c2 = $blue;
-        $c3 = $darkblue;
+        $c1 = $colors['lightblue'];
+        $c2 = $colors['blue'];
+        $c3 = $colors['darkblue'];
     }
 
-    // --- Draw the three concentric arcs ---
-    ImageArc($image, (int)$screen_x, (int)$screen_y, 
-        SIGNAL_ARC_OUTER, SIGNAL_ARC_OUTER, 
-        (int)$startAngle, (int)$endAngle, $c3);
-    ImageArc($image, (int)$screen_x, (int)$screen_y, 
-        SIGNAL_ARC_MIDDLE, SIGNAL_ARC_MIDDLE, 
-        (int)$startAngle, (int)$endAngle, $c2);
-    ImageArc($image, (int)$screen_x, (int)$screen_y, 
-        SIGNAL_ARC_INNER, SIGNAL_ARC_INNER, 
-        (int)$startAngle, (int)$endAngle, $c1);
-
+    // Draw arcs (unchanged)
+    ImageArc($image, (int)$screen_x, (int)$screen_y, SIGNAL_ARC_OUTER, SIGNAL_ARC_OUTER, (int)$startAngle, (int)$endAngle, $c3);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, SIGNAL_ARC_MIDDLE, SIGNAL_ARC_MIDDLE, (int)$startAngle, (int)$endAngle, $c2);
+    ImageArc($image, (int)$screen_x, (int)$screen_y, SIGNAL_ARC_INNER, SIGNAL_ARC_INNER, (int)$startAngle, (int)$endAngle, $c1);
 }
+
 
 /**
  * Labels a signal on the map.
  */
-function labelSignal(string $name, float $screen_x, float $screen_y): void {
-    global $image, $lightblue;
-    // Position the label slightly offset from the signal arcs.
-    ImageString($image, 2, (int)$screen_x + 12, (int)$screen_y - 8, $name, $lightblue);
+function labelSignal(string $name, float $screen_x, float $screen_y, array $colors): void {
+    global $image;
+    ImageString($image, 2, (int)$screen_x + 12, (int)$screen_y - 8, $name, $colors['lightblue']);
 }
 
 ?>
