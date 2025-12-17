@@ -328,12 +328,12 @@ final class Database
     }
 
     /** All fiction names (optionally filter by universe) */
-    public static function queryFiction(?string $universe = null): array
+    public static function queryFiction(?int $world_id = null): array
     {
-        if ($universe) {
+        if ($world_id) {
             $sql = "SELECT * FROM fic WHERE world_id = ? ORDER BY name";
             $stmt = self::connection()->prepare($sql);
-            $stmt->execute([$universe]);
+            $stmt->execute([$world_id]);
         } else {
             $sql = "SELECT * FROM fic ORDER BY name";
             $stmt = self::connection()->prepare($sql);

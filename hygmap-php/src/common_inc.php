@@ -17,7 +17,7 @@ function getVars(): array
     // Filter specification
     $spec = [
         'select_star'   => ['filter'=>FILTER_VALIDATE_INT,   'flags'=>FILTER_NULL_ON_FAILURE],
-        'select_center' => ['filter'=>FILTER_VALIDATE_BOOLEAN, 'flags'=>FILTER_NULL_ON_FAILURE],
+        'select_center' => ['filter'=>FILTER_VALIDATE_INT,   'flags'=>FILTER_NULL_ON_FAILURE],
         'x_c'           => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
         'y_c'           => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
         'z_c'           => ['filter'=>FILTER_VALIDATE_FLOAT, 'flags'=>FILTER_NULL_ON_FAILURE],
@@ -37,6 +37,11 @@ function getVars(): array
     // Post-validation / clamping
     $vars['xy_zoom']  = max(0.1, $vars['xy_zoom']);
     $vars['z_zoom']   = max(0.1, $vars['z_zoom']);
+
+    // Coordinate bounds (reasonable limits to prevent extreme values)
+    $vars['x_c'] = max(-100000.0, min(100000.0, $vars['x_c']));
+    $vars['y_c'] = max(-100000.0, min(100000.0, $vars['y_c']));
+    $vars['z_c'] = max(-100000.0, min(100000.0, $vars['z_c']));
 
     return $vars;
 }
