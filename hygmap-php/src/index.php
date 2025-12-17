@@ -1,9 +1,7 @@
 <?php
-require('common_inc.php');
-require_once __DIR__ . '/Database.php';
-require_once 'config.inc.php';
+require 'bootstrap.php';
 
-$cfg = cfg_load();
+// Extract config values
 $unit = $cfg['unit'];
 $grid = (float)$cfg['grid'];
 $fic_names = (int)$cfg['fic_names'];
@@ -13,9 +11,9 @@ $max_line = (float)$cfg['max_line'];
 $m_limit = (float)$cfg['m_limit'];
 $m_limit_label = (float)$cfg['m_limit_label'];
 $show_signals = (bool)$cfg['show_signals'];
+$profiling = (bool)$cfg['profiling'];
 
-// Extract variables from query string
-$vars = getVars();
+// Extract query parameters
 $select_star = $vars['select_star'];
 $select_center = $vars['select_center'];
 $x_c = $vars['x_c'];
@@ -30,8 +28,6 @@ prof_flag("START");
 header("X-Robots-Tag: noindex");
 
 $select_center_checked = "";
-
-$profiling = true;
 
 if($select_star > 0) {
    prof_flag("Querying selected star");
@@ -71,7 +67,7 @@ if($select_star > 0) {
       $selected_dec_ns = 'South';
       $selected_dec_simbad = $selected_star["dec"];
    }
-   $select_star_name = getDisplayName($selected_star, 0);
+   $select_star_name = getStarDisplayName($selected_star, 0);
    $selected_display_name = urlencode($select_star_name);
    if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
       $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . urlencode($select_star_name) . '">' . htmlspecialchars($select_star_name, ENT_QUOTES) . '</a>';
@@ -159,7 +155,7 @@ $star_count_displayed = 0;
 $star_table = "";
 foreach ($rows as $row) {
    $star_count++;
-   $display_name = getDisplayName($row, 0);
+   $display_name = getStarDisplayName($row, 0);
    $distance_from_center = number_format(sqrt(pow(from_pc($row["x"], $unit) - $x_c, 2) + pow(from_pc($row["y"], $unit) - $y_c, 2) + pow(from_pc($row["z"], $unit) - $z_c, 2)), 3);
    $distance_ui = number_format(from_pc($row["dist"], $unit), 3);
    $x_ui = number_format(from_pc($row["x"], $unit), 3);
@@ -393,10 +389,3 @@ document.addEventListener("DOMContentLoaded", function () {
 
 </body>
 </html>
-
-<?php
-
-function getDisplayName($row, $fic_names) {
-    return getStarDisplayName($row, $fic_names, false);
-}
-

@@ -7,7 +7,18 @@ session_start();
 $q = trim($_GET['q'] ?? '');
 if ($q === '') { header('Location: index.php'); exit; }
 
-$row = Database::searchStar($q);
+try {
+    $row = Database::searchStar($q);
+} catch (PDOException $e) {
+    error_log("Search error: " . $e->getMessage());
+    echo '<!DOCTYPE html><html><head><title>Search Error</title></head>';
+    echo '<body style="font-family:sans-serif;margin:2rem;">';
+    echo '<h3>⚠️ Search Error</h3>';
+    echo '<p>Unable to search the star database at this time.</p>';
+    echo '<p><a href="index.php">Back to map</a></p>';
+    echo '</body></html>';
+    exit;
+}
 
 if ($row) {
     $id = (int)$row['id'];

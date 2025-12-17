@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
     } catch (PDOException $e) {
         error_log("Configure error: " . $e->getMessage());
-        $allowedLayers = ['0', '1', '2']; // Fallback to defaults
+        $allowedLayers = ['0']; // Fallback to None only when DB unavailable
     }
     $fic_names = in_array($_POST['fic_names'] ?? '0', $allowedLayers, true)
         ? $_POST['fic_names'] : '0';
@@ -130,7 +130,7 @@ try {
     }
 } catch (PDOException $e) {
     error_log("Configure worlds error: " . $e->getMessage());
-    echo '<option value="1">Star Trek</option><option value="2">Babylon 5</option>';
+    echo '<option disabled>(Database unavailable)</option>';
 }
 ?>
 </select>
