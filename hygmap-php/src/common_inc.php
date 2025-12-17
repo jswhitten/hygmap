@@ -127,69 +127,68 @@ function to_ly(float $v, string $unit): float {
 
 /**
  * Get the display name for a star based on available identifiers
- * 
+ *
  * @param array $row Star data from database
  * @param int $fic_names Fiction world ID (0 = none, 1 = Star Trek, 2 = Babylon 5)
  * @param bool $with_color Whether to return color information (for map rendering)
  * @param string $image_type Image type ('printable', 'normal', etc.)
  * @param float $mag Star magnitude (for color determination)
+ * @param array $colors Color palette array (required when $with_color is true)
  * @return string|array Returns name string, or [name, color] if $with_color is true
  */
-function getStarDisplayName(array $row, int $fic_names = 0, bool $with_color = false, string $image_type = 'normal', float $mag = 99.0): string|array {
-    global $yellow, $white, $black, $grey, $darkgrey;
-    
+function getStarDisplayName(array $row, int $fic_names = 0, bool $with_color = false, string $image_type = 'normal', float $mag = 99.0, array $colors = []): string|array {
     $name = '';
-    $labelcolor = $darkgrey;
-    $printcolor = $darkgrey;
-    
+    $labelcolor = $colors['darkgrey'] ?? 0;
+    $printcolor = $colors['darkgrey'] ?? 0;
+
     // Priority order for name selection
     if($fic_names > 0 && !empty($row["name"])) {
         $name = $row["name"];
-        $labelcolor = $yellow;
-        $printcolor = $black;
+        $labelcolor = $colors['yellow'] ?? 0;
+        $printcolor = $colors['black'] ?? 0;
     } elseif(!empty($row["proper"])) {
         $name = $row["proper"];
-        $labelcolor = $white;
-        $printcolor = $black;
+        $labelcolor = $colors['white'] ?? 0;
+        $printcolor = $colors['black'] ?? 0;
     } elseif(!empty($row["bayer"])) {
         $name = ltrim($row["bayer"]) . " " . $row["con"];
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
+        $labelcolor = $colors['grey'] ?? 0;
+        $printcolor = $colors['darkgrey'] ?? 0;
     } elseif(!empty($row["flam"])) {
         $name = ltrim($row["flam"]) . " " . $row["con"];
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
+        $labelcolor = $colors['grey'] ?? 0;
+        $printcolor = $colors['darkgrey'] ?? 0;
     } elseif(!empty($row["gj"])) {
         $name = "GJ " . $row["gj"];
-        $labelcolor = $mag < MAG_THRESHOLD_FADE ? $grey : $darkgrey;
-        $printcolor = $darkgrey;
+        $labelcolor = $mag < MAG_THRESHOLD_FADE ? ($colors['grey'] ?? 0) : ($colors['darkgrey'] ?? 0);
+        $printcolor = $colors['darkgrey'] ?? 0;
     } elseif(!empty($row["hd"])) {
         $name = "HD " . $row["hd"];
-        $labelcolor = $mag < MAG_THRESHOLD_FADE ? $grey : $darkgrey;
-        $printcolor = $darkgrey;
+        $labelcolor = $mag < MAG_THRESHOLD_FADE ? ($colors['grey'] ?? 0) : ($colors['darkgrey'] ?? 0);
+        $printcolor = $colors['darkgrey'] ?? 0;
     } elseif(!empty($row["hip"])) {
         $name = "HIP " . $row["hip"];
-        $labelcolor = $mag < MAG_THRESHOLD_FADE ? $grey : $darkgrey;
-        $printcolor = $darkgrey;
+        $labelcolor = $mag < MAG_THRESHOLD_FADE ? ($colors['grey'] ?? 0) : ($colors['darkgrey'] ?? 0);
+        $printcolor = $colors['darkgrey'] ?? 0;
     } elseif(!empty($row["gaia"])) {
         $name = "Gaia " . $row["gaia"];
-        $labelcolor = $darkgrey;
-        $printcolor = $darkgrey;
+        $labelcolor = $colors['darkgrey'] ?? 0;
+        $printcolor = $colors['darkgrey'] ?? 0;
     } elseif(!empty($row["spect"])) {
         $name = $row["spect"];
-        $labelcolor = $darkgrey;
-        $printcolor = $darkgrey;
+        $labelcolor = $colors['darkgrey'] ?? 0;
+        $printcolor = $colors['darkgrey'] ?? 0;
     }
-    
+
     if(!$with_color) {
         return $name;
     }
-    
+
     // Apply printable mode color override
     if($image_type == "printable") {
         $labelcolor = $printcolor;
     }
-    
+
     return [$name, $labelcolor];
 }
 
