@@ -18,10 +18,18 @@ $select_center_checked = "";
 $profiling = true;
 
 if($select_star > 0) {
-   // Find the center from the selected star
    prof_flag("Querying selected star");
-   $selected_star = Database::queryStar((int)$select_star, (int)$fic_names);
-
+   try {
+       $selected_star = Database::queryStar((int)$select_star, (int)$fic_names);
+       if (!$selected_star) {
+           // Star not found - reset selection
+           $select_star = 0;
+           $selected_star = null;
+       }
+   } catch (PDOException $e) {
+       handleError("Unable to retrieve star information from database.", $e);
+   }
+   
    if($select_center == "1") {
       $x_c = from_pc($selected_star["x"], $unit); 
       $y_c = from_pc($selected_star["y"], $unit); 
@@ -48,34 +56,39 @@ if($select_star > 0) {
       $selected_dec_simbad = $selected_star["dec"];
    }
    $select_star_name = getDisplayName($selected_star, 0);
-   $selected_display_name = $select_star_name;
+   $selected_display_name = urlencode($select_star_name);
    if(!empty($selected_star["proper"]) || !empty($selected_star["bf"])) {
-      $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . $selected_display_name . '">' . $selected_display_name . '</a>';
+      $selected_display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' . urlencode($select_star_name) . '">' . htmlspecialchars($select_star_name, ENT_QUOTES) . '</a>';
    }
    if($fic_names && $selected_star["name"] != "" && $selected_display_name != $selected_star["name"]) {
-      $selected_display_name .= " (" . $selected_star["name"] . ")";
-      $memory_alpha = <<<END
-<br/>
-[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query={$selected_star["name"]}&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>
-END;
+      $selected_display_name .= " (" . htmlspecialchars($selected_star["name"], ENT_QUOTES) . ")";
+      $memory_alpha = '<br/>[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query=' . urlencode($selected_star["name"]) . '&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>';
    }
 }
 
 // Retrieve list of stars with fictional names
 prof_flag("Querying fictional star names");
 $fic_checked = ((int)$fic_names > 0) ? "CHECKED" : "";
-$fic_rows = Database::queryFiction($fic_names);
+try {
+   $fic_rows = Database::queryFiction($fic_names);
+} catch (PDOException $e) {
+   handleError("Unable to load fictional star names.", $e);
+}
 $fic_options = "";
 foreach ($fic_rows as $fic_row) {
-      $fic_options .= "<option value=\"$fic_row[star_id]\">$fic_row[name]\n";
+   $fic_options .= "<option value=\"$fic_row[star_id]\">" . htmlspecialchars($fic_row['name'], ENT_QUOTES). "\n";
 }
 
+// Retrieve list of stars with proper names
 prof_flag("Querying star proper names");
 $proper_options = '';
-foreach (Database::queryProperNames() as $p) {   // small helper returning id,proper
-    $proper_options .= "<option value=\"{$p['id']}\">{$p['proper']}</option>\n";
+try {
+   foreach (Database::queryProperNames() as $p) {
+      $proper_options .= "<option value=\"{$p['id']}\">" . htmlspecialchars($p['proper'], ENT_QUOTES) . "</option>\n";
+   }
+} catch (PDOException $e) {
+   handleError("Unable to load star catalog.", $e);
 }
-
 
 // Generate html for map
 // ------------------------------------------------------------------
@@ -117,9 +130,14 @@ if ($image_type === 'stereo') {
 // Get data for star table
 prof_flag("Querying all stars in map");
 $bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
-
-$rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+// Around line 121 - Query all stars
+try {
+    $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+} catch (PDOException $e) {
+    handleError("Unable to query stars in the current map area.", $e);
+}
 prof_flag("Query complete");
+
 $star_count = 0;
 $star_count_displayed = 0;
 $star_table = "";
@@ -134,11 +152,17 @@ foreach ($rows as $row) {
 
    if($row['absmag'] < $m_limit_label) {
       $star_count_displayed++;
-      $star_table .= <<<END
-         <tr>
-		 <td><a href="?select_star={$row['id']}&select_center=1">$display_name</a></td><td>{$row["con"]}</td><td>{$row["spect"]}</td><td>{$row["absmag"]}</td><td>{$distance_ui}</td><td>$distance_from_center</td><td>{$x_ui}</td><td>{$y_ui}</td><td>{$z_ui}</td>
-         </tr>\n
-END;
+      $star_table .= '<tr>' .
+         '<td><a href="?select_star=' . (int)$row['id'] . '&select_center=1">' . htmlspecialchars($display_name, ENT_QUOTES) . '</a></td>' .
+         '<td>' . htmlspecialchars($row["con"] ?? '', ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars($row["spect"] ?? '', ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars((string)$row["absmag"], ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars($distance_ui, ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars($distance_from_center, ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars($x_ui, ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars($y_ui, ENT_QUOTES) . '</td>' .
+         '<td>' . htmlspecialchars($z_ui, ENT_QUOTES) . '</td>' .
+         '</tr>' . "\n";
    }
 }
 

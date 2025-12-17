@@ -34,8 +34,10 @@ final class Database
             );
             return self::$pdo;
         } catch (PDOException $e) {
-            die('❌ DB connect failed: ' . $e->getMessage());
+            error_log("Database connection failed: " . $e->getMessage());
+            die('<!DOCTYPE html><html><head><title>Database Error</title></head><body style="font-family:sans-serif;margin:2rem;"><h1>⚠️ Database Connection Error</h1><p>Unable to connect to the star database. Please check that the database service is running.</p><p>Technical details have been logged.</p></body></html>');
         }
+
     }
 
     // --------------------------------------------------

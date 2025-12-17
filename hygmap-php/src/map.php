@@ -40,11 +40,23 @@ $bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type
 // same for connecting-line limit
 $max_line_pc = to_pc($max_line, $unit);
 
-// query
-$rows = Database::queryAll($bbox, $m_limit, (int)$fic_names, 'absmag desc');
+// Query all stars
+try {
+    $rows = Database::queryAll($bbox, $m_limit, (int)$fic_names, 'absmag desc');
+} catch (PDOException $e) {
+    error_log("Map generation error: " . $e->getMessage());
+    createErrorImage("Database error - unable to load stars");
+}
+
 
 // query for signals (if enabled)
-$signal_rows = $show_signals ? Database::querySignals($bbox) : [];
+try {
+    $signal_rows = $show_signals ? Database::querySignals($bbox) : [];
+} catch (PDOException $e) {
+    error_log("Signal query error: " . $e->getMessage());
+    $signal_rows = []; // Continue without signals rather than failing completely
+}
+
 
 // Draw grid
 drawGrid($grid);
