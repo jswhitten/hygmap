@@ -366,21 +366,8 @@ document.addEventListener("DOMContentLoaded", function () {
 </html>
 
 <?php
+
 function getDisplayName($row, $fic_names) {
-   $fields = array("proper","bayer","flam","gj","hd","hip","gaia");
-   if($fic_names == "1" && isset($row["name"]) && !empty($row["name"])) {
-      array_unshift($fields, "name");
-   }
-   foreach($fields as $field) {
-      if(isset($row[$field]) && !empty($row[$field])) {
-         $name = $row[$field];
-         if(in_array($field, array("bayer", "flam"))) {
-            $name .= " " . $row["con"];
-         } elseif(in_array($field, array("gj", "hd", "hip"))) {
-            $name = strtoupper($field) . " " . $name;
-         }
-         return $name;
-      }
-   }
-   return $row["spect"];
+    return getStarDisplayName($row, $fic_names, false);
 }
+
