@@ -78,7 +78,7 @@ try {
 
 
 // Draw grid
-drawGrid($grid);
+drawGrid($grid, $colors);
 
 // Plot connecting lines
 if($max_line > 0) {
@@ -160,7 +160,7 @@ foreach($rows as $row) {
         list ($size, $labelsize) = starSize($mag);
 
         // plot star
-        plotStar($screen_x, $screen_y, $size, $starcolor, $select_star == $id);
+        plotStar($screen_x, $screen_y, $size, $starcolor, $select_star == $id, $image_type, $colors);
 
         // label
 	    $skiplabel = false;
@@ -185,7 +185,7 @@ foreach($rows as $row) {
 	        }
 	    }
         if(!$skiplabel) {
-            list ($name, $labelcolor) = getLabel((int)$fic_names);
+            list ($name, $labelcolor) = getLabel((int)$fic_names, $row, $image_type, $mag, $colors);
             labelStar($name, $labelsize, $labelcolor, $screen_x, $screen_y);
         }
     }
@@ -265,9 +265,8 @@ function screenCoords3d(float $x, float $y, float $z): array {
     return array($screen_x, $screen_y);
 }
 
-function getLabel(int $fic_names): array {
-    global $row, $image_type, $mag;
-    return getStarDisplayName($row, $fic_names, true, $image_type, $mag);
+function getLabel(int $fic_names, array $row, string $image_type, float $mag, array $colors): array {
+    return getStarDisplayName($row, $fic_names, true, $image_type, $mag, $colors);
 }
 
 function getSpecClass(?string $specdata): string {
@@ -282,22 +281,22 @@ function getSpecClass(?string $specdata): string {
     return $spec;
 }
 
-function drawGrid(float $distance = 20): void {
-
-    global $y_c, $x_c, $xy_zoom, $image, $green, $grey, $blue, $darkblue, $darkgrey, $image_size, $image_type, $unit;
-
+function drawGrid(float $distance, array $colors): void {
+ 
+    global $y_c, $x_c, $xy_zoom, $image, $image_size, $image_type, $unit;
+ 
     if($image_type == "printable") {
-        $linecolor = $darkgrey;
-        $zerolinecolor = $darkblue;
+        $linecolor = $colors['darkgrey'];
+        $zerolinecolor = $colors['darkblue'];
     } else {
-        $linecolor = $green;
-        $zerolinecolor = $blue;
+        $linecolor = $colors['green'];
+        $zerolinecolor = $colors['blue'];
         if($image_type == "stereo") {
-            drawGrid3d($distance);
+            drawGrid3d($distance, $colors);
             return;
         }
     }
-
+ 
     $gx_first = fmod(($y_c + $xy_zoom * 2), $distance);
     $gx_label = ($y_c + $xy_zoom * 2) - $gx_first;
     $gxs_int = ($image_size / 2) * ($distance / $xy_zoom);
@@ -306,30 +305,30 @@ function drawGrid(float $distance = 20): void {
     $gy_label = ($x_c + $xy_zoom) - $gy_first;
     $gys_int = ($image_size / 2) * ($distance / $xy_zoom);
     $gys_first = ($gy_first / $distance) * $gxs_int;
-
+ 
     for($g = $gxs_first; $g < $image_size * 2; $g += $gxs_int) {
         ImageLine($image, (int)$g, 0, (int)$g, $image_size, $gx_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, (int)$g + 5, 5, (string)round($gx_label, 2), $grey);
+        ImageString($image, 1, (int)$g + 5, 5, (string)round($gx_label, 2), $colors['grey']);
         $gx_label -= $distance;
     }
-
+ 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size * 2, (int)$g, $gy_label == 0 ? $zerolinecolor : $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, (string)round($gy_label, 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, (string)round($gy_label, 2), $colors['grey']);
         $gy_label -= $distance;
     }
 }
 
-function drawGrid3d(float $distance = 20) : void {
-
-    global $y_c, $x_c, $xy_zoom, $image, $green, $grey, $darkgrey, $image_size, $image_type, $unit;
-
+function drawGrid3d(float $distance, array $colors) : void {
+ 
+    global $y_c, $x_c, $xy_zoom, $image, $image_size, $image_type, $unit;
+ 
     if($image_type == "printable") {
-       $linecolor = $darkgrey;
+       $linecolor = $colors['darkgrey'];
     } else {
-       $linecolor = $green;
+       $linecolor = $colors['green'];
     }
-
+ 
     $gx_first = fmod(($y_c + $xy_zoom), $distance);
     $gx_label = ($y_c + $xy_zoom) - $gx_first;
     $gxs_int = ($image_size / 2) * ($distance / $xy_zoom);
@@ -338,16 +337,16 @@ function drawGrid3d(float $distance = 20) : void {
     $gy_label = ($x_c + $xy_zoom) - $gy_first;
     $gys_int = ($image_size / 2) * ($distance / $xy_zoom);
     $gys_first = ($gy_first / $distance) * $gxs_int;
-
+ 
     for($g = $gxs_first; $g < $image_size; $g += $gxs_int) {
         ImageLine($image, (int)$g, 0, (int)$g, $image_size, $linecolor);
-        ImageString($image, 1, (int)$g + 5, 5, (string)round(from_pc($gx_label, $unit), 2), $grey);
+        ImageString($image, 1, (int)$g + 5, 5, (string)round(from_pc($gx_label, $unit), 2), $colors['grey']);
         $gx_label -= $distance;
     }
-
+ 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size, (int)$g, $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, (string)round(from_pc($gy_label, $unit), 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, (string)round(from_pc($gy_label, $unit), 2), $colors['grey']);
         $gy_label -= $distance;
     }
 }
@@ -389,14 +388,14 @@ function starSize(float $mag): array {
     return array($size, $labelsize);
 }
 
-function plotStar(float $screen_x, float $screen_y, int $size, int $starcolor, bool $selected): void {
-    global $image, $black, $darkgrey, $red, $blue, $image_type;
-
+function plotStar(float $screen_x, float $screen_y, int $size, int $starcolor, bool $selected, string $image_type, array $colors): void {
+    global $image;
+ 
     if($image_type == "printable") {
-        $starcolor = $black;
-        $boxcolor = $darkgrey;
+        $starcolor = $colors['black'];
+        $boxcolor = $colors['darkgrey'];
     } else {
-        $boxcolor = $blue;
+        $boxcolor = $colors['blue'];
     }
     
     ImageFilledEllipse($image,(int)$screen_x,(int)$screen_y,(int)$size,(int)$size,$starcolor);
