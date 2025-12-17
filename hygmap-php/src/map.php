@@ -55,35 +55,62 @@ drawGrid($grid, $unit);
 
 // Plot connecting lines
 if($max_line > 0) {
-    foreach($rows as $row_i) {
-        $x_i = from_pc($row_i["x"], $unit);
-        $y_i = from_pc($row_i["y"], $unit);
-        $z_i = from_pc($row_i["z"], $unit);
+    // Pre-filter stars by magnitude and pre-calculate coordinates
+    $eligible_stars = [];
+    foreach($rows as $idx => $row) {
+        if($row["absmag"] < $m_limit) {
+            $x_ui = from_pc($row["x"], $unit);
+            $y_ui = from_pc($row["y"], $unit);
+            $z_ui = from_pc($row["z"], $unit);
+            
+            list($screen_x, $screen_y) = screenCoords($x_ui, $y_ui, $z_ui);
+            
+            $eligible_stars[] = [
+                'x' => $x_ui,
+                'y' => $y_ui,
+                'z' => $z_ui,
+                'screen_x' => $screen_x,
+                'screen_y' => $screen_y,
+            ];
+        }
+    }
+    
+    // Only check upper triangle to avoid duplicate pairs (A-B vs B-A)
+    $count = count($eligible_stars);
 
-        foreach($rows as $row_j) {
-            $x_j = from_pc($row_j["x"], $unit);
-            $y_j = from_pc($row_j["y"], $unit);
-            $z_j = from_pc($row_j["z"], $unit);
+    // Calculate the squared distance thresholds
+    $max_far_line2 = $max_line * $max_line;
+    $max_mid_line2 = (0.75 * $max_line) * (0.75 * $max_line);
+    $max_close_line2 = (0.5 * $max_line) * (0.5 * $max_line);
 
-            $x_diff = $x_i - $x_j;
-            $y_diff = $y_i - $y_j;
-            $z_diff = $z_i - $z_j;
-            $dist_sums = pow($x_diff,2) + pow($y_diff,2) + pow($z_diff,2);
-            $dist_sqrt = sqrt($dist_sums);
-            if(($row_i["absmag"] < $m_limit) && ($row_j["absmag"] < $m_limit)) {
-                if($dist_sqrt < $max_line/2) {
-                    list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
-                    list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
-                    ImageLine($image,(int)$screen_x_i,(int)$screen_y_i,(int)$screen_x_j,(int)$screen_y_j,$lightblue);
-                } elseif($dist_sqrt < 0.75 * $max_line) {
-                    list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
-                    list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
-                    ImageLine($image,(int)$screen_x_i,(int)$screen_y_i,(int)$screen_x_j,(int)$screen_y_j,$blue);
-                } elseif($dist_sqrt < $max_line) {
-                    list ($screen_x_i, $screen_y_i) = screenCoords($x_i, $y_i, $z_i);
-                    list ($screen_x_j, $screen_y_j) = screenCoords($x_j, $y_j, $z_j);
-                    ImageLine($image,(int)$screen_x_i,(int)$screen_y_i,(int)$screen_x_j,(int)$screen_y_j,$darkblue);
-                }
+    for($i = 0; $i < $count - 1; $i++) {
+        $star_i = $eligible_stars[$i];
+        
+        for($j = $i + 1; $j < $count; $j++) {
+            $star_j = $eligible_stars[$j];
+            
+            // Calculate 3D distance squared to compare with thresholds
+            $x_diff = $star_i['x'] - $star_j['x'];
+            $y_diff = $star_i['y'] - $star_j['y'];
+            $z_diff = $star_i['z'] - $star_j['z'];
+            $dist2 = $x_diff * $x_diff + $y_diff * $y_diff + $z_diff * $z_diff;
+            
+            // Draw line based on distance thresholds
+            if($dist2 < $max_close_line2) {
+                ImageLine($image, 
+                    (int)$star_i['screen_x'], (int)$star_i['screen_y'],
+                    (int)$star_j['screen_x'], (int)$star_j['screen_y'],
+                    $lightblue);
+            } elseif($dist2 < $max_mid_line2) {
+                ImageLine($image, 
+                    (int)$star_i['screen_x'], (int)$star_i['screen_y'],
+                    (int)$star_j['screen_x'], (int)$star_j['screen_y'],
+                    $blue);
+            } elseif($dist2 < $max_far_line2) {
+                ImageLine($image, 
+                    (int)$star_i['screen_x'], (int)$star_i['screen_y'],
+                    (int)$star_j['screen_x'], (int)$star_j['screen_y'],
+                    $darkblue);
             }
         }
     }
@@ -213,47 +240,8 @@ function screenCoords3d($x, $y, $z) {
 }
 
 function getLabel($fic_names) {
-    global $row, $yellow, $white, $black, $grey, $darkgrey, $image_type, $mag;
-
-    if($fic_names > 0 && !empty($row["name"])) {
-        $name = $row["name"];
-        $labelcolor = $yellow;
-        $printcolor = $black;
-    } elseif(!empty($row["proper"])) {
-        $name = $row["proper"];
-        $labelcolor = $white;
-        $printcolor = $black;
-    } elseif(!empty($row["bayer"])) {
-        $name = ltrim($row["bayer"]) . " " . $row["con"];
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
-    } elseif(!empty($row["flam"])) {
-        $name = ltrim($row["flam"]) . " " . $row["con"];
-        $labelcolor = $grey;
-        $printcolor = $darkgrey;
-    } elseif(!empty($row["gj"])) {
-        $name = "GJ ".$row["gj"];
-        $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
-        $printcolor = $darkgrey;
-    } elseif(!empty($row["hd"])) {
-        $name = "HD ".$row["hd"];
-        $labelcolor = $mag < 8.5 ? $grey : $darkgrey;
-        $printcolor = $darkgrey;
-    } elseif(!empty($row["spect"])) {
-        $name = $row["spect"];
-        $labelcolor = $darkgrey;
-        $printcolor = $darkgrey;
-    } else {
-	    $name = '';
-        $labelcolor = $darkgrey;
-	    $printcolor = $darkgrey;
-    }
-
-    if($image_type == "printable") {
-        $labelcolor = $printcolor;
-    }
-
-    return array($name, $labelcolor);
+    global $row, $image_type, $mag;
+    return getStarDisplayName($row, $fic_names, true, $image_type, $mag);
 }
 
 function getSpecClass($specdata) {
@@ -332,7 +320,7 @@ function drawGrid3d($distance = 20) {
 
     for($g = $gys_first; $g < $image_size; $g += $gys_int) {
         ImageLine($image, 0, (int)$g, $image_size, (int)$g, $linecolor);
-        ImageString($image, 1, 5, (int)$g + 5, round(from_pc($gx_label, $unit), 2), $grey);
+        ImageString($image, 1, 5, (int)$g + 5, round(from_pc($gy_label, $unit), 2), $grey);
         $gy_label -= $distance;
     }
 }

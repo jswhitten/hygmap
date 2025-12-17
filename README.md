@@ -24,11 +24,14 @@ cp .env.example .env
 vi .env
 # Download AT-HYG CSV files to db/data directory
 cd db/data
-wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-1.csv.gz
-wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-2.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-2.csv.gz
 gunzip *.csv.gz
 # Build and start the containers. If the database doesn't exist it will automatically be created by the scripts in the db/sql directory.
 docker compose up -d --build
+# This may take a few minutes to start up, especially when it needs to build the db. If you'd like to watch the logs:
+docker compose logs -f
+# It should be ready when you see the message "LOG:  database system is ready to accept connections"
 ```
 
 Open http://localhost to start exploring the galaxy!

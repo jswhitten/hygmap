@@ -36,11 +36,11 @@ CREATE TEMP TABLE athyg_stage (
 );
 
 COPY athyg_stage
-FROM '/data/athyg_v32-1.csv'
+FROM '/data/athyg_v33-1.csv'
 WITH (FORMAT csv, HEADER true, NULL '', DELIMITER ',');
 
 COPY athyg_stage
-FROM '/data/athyg_v32-2.csv'
+FROM '/data/athyg_v33-2.csv'
 WITH (FORMAT csv, HEADER false, NULL '', DELIMITER ',');
 
 DO $$
