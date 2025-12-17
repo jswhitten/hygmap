@@ -1,12 +1,11 @@
 <?php
 declare(strict_types=1);
-error_reporting(E_ERROR | E_WARNING | E_PARSE);
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
 
-require_once __DIR__ . '/Database.php';
-require 'common_inc.php';
-require_once 'config.inc.php';
+require 'bootstrap.php';
 
-$cfg = cfg_load();
+// Extract config values
 $unit = $cfg['unit'];
 $grid = (float)$cfg['grid'];
 $fic_names = (int)$cfg['fic_names'];
@@ -17,8 +16,7 @@ $m_limit = (float)$cfg['m_limit'];
 $m_limit_label = (float)$cfg['m_limit_label'];
 $show_signals = (bool)$cfg['show_signals'];
 
-// Extract variables from query string
-$vars = getVars();
+// Extract query parameters
 $select_star = $vars['select_star'];
 $select_center = $vars['select_center'];
 $x_c = $vars['x_c'];
@@ -29,13 +27,11 @@ $z_zoom = $vars['z_zoom'];
 $image_side = $vars['image_side'];
 
 // Create image
-while (@ob_end_clean());
-ob_start(); 
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
+ob_start();
 header("Content-type: image/jpeg");
-// header("Content-type: text/plain");
-// error_reporting(E_ALL);
-// ini_set('display_errors', '1');
-// Don't output the image, just show any errors
 
 if($image_type == "stereo") {
     $image = ImageCreate($image_size,$image_size);
