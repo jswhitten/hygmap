@@ -113,8 +113,6 @@ final class Database
             $order = 'time desc';
         }
 
-        $MAX_ROWS = 10000;
-
         $sql = "
             SELECT *
             FROM   signals
@@ -122,8 +120,7 @@ final class Database
             AND    y BETWEEN ? AND ?
             AND    z BETWEEN ? AND ?
             ORDER  BY $order
-            LIMIT  $MAX_ROWS
-        ";
+            LIMIT " . self::MAX_ROWS;
 
         $stmt = self::connection()->prepare($sql);
         $stmt->execute([$xmin, $xmax, $ymin, $ymax, $zmin, $zmax]);
