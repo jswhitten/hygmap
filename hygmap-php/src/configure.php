@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once 'config.inc.php';
+require_once 'common_inc.php';
 require_once __DIR__ . '/Database.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -63,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // convert coords if unit changed
     if ($prevUnit !== $unit) {
-        $factor = 3.26156;                     // pc → ly
+        $factor = LY_PER_PC;
         $mul = ($unit === 'ly') ? $factor : 1/$factor;
 
         foreach (['x_c','y_c','z_c','xy_zoom','z_zoom'] as $p) {

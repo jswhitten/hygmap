@@ -5,6 +5,9 @@ final class Database
 {
     /** @var PDO|null */
     private static ?PDO $pdo = null;
+    
+    /** Maximum rows to return from queries */
+    private const MAX_ROWS = 10000;
 
     /** Singleton connection */
     public static function connection(): PDO
@@ -57,8 +60,6 @@ final class Database
             $order = 'absmag asc';
         }
 
-        $MAX_ROWS = 10000;
-
         // Single query handles both cases: with or without fictional names
         $sql = "
             SELECT a.*, COALESCE(f.name, '') AS name
@@ -71,8 +72,7 @@ final class Database
             AND    z BETWEEN ? AND ?
             AND    absmag <= ?
             ORDER  BY $order
-            LIMIT  $MAX_ROWS
-        ";
+            LIMIT " . self::MAX_ROWS;
 
         $stmt = self::connection()->prepare($sql);
         $stmt->execute([$world_id, $xmin, $xmax, $ymin, $ymax, $zmin, $zmax, $magLimit]);
