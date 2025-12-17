@@ -103,8 +103,8 @@ if($max_line > 0) {
 
     // Calculate the squared distance thresholds
     $max_far_line2 = $max_line * $max_line;
-    $max_mid_line2 = (0.75 * $max_line) * (0.75 * $max_line);
-    $max_close_line2 = (0.5 * $max_line) * (0.5 * $max_line);
+    $max_mid_line2 = (CONNECTING_LINE_MID_FACTOR * $max_line) * (CONNECTING_LINE_MID_FACTOR * $max_line);
+    $max_close_line2 = (CONNECTING_LINE_CLOSE_FACTOR * $max_line) * (CONNECTING_LINE_CLOSE_FACTOR * $max_line);
 
     for($i = 0; $i < $count - 1; $i++) {
         $star_i = $eligible_stars[$i];
@@ -211,6 +211,12 @@ ob_end_clean();  // Clear any stray output
 ImageJPEG($image);
 ImageDestroy($image);
 
+/**
+ * Allocate all colors needed for rendering the star map
+ *
+ * @return array{0: int, 1: int, 2: int, 3: int, 4: int, 5: int, 6: int, 7: int, 8: int, 9: int, 10: int, 11: int}
+ *   Returns [white, grey, darkgrey, green, red, orange, lightyellow, yellow, lightblue, blue, darkblue, black]
+ */
 function allocateColors(): array {
 
     global $image;
@@ -232,6 +238,14 @@ function allocateColors(): array {
 }
 
 
+/**
+ * Convert 3D galactic coordinates to 2D screen coordinates
+ *
+ * @param float $x X coordinate in UI units
+ * @param float $y Y coordinate in UI units
+ * @param float $z Z coordinate in UI units
+ * @return array{0: float, 1: float} Returns [screen_x, screen_y]
+ */
 function screenCoords(float $x, float $y, float $z): array {
     global $xy_zoom, $z_zoom, $x_c, $y_c, $z_c, $image_size, $image_side, $unit;
 
@@ -245,6 +259,14 @@ function screenCoords(float $x, float $y, float $z): array {
     return array($screen_x, $screen_y);
 }
 
+/**
+ * Convert 3D galactic coordinates to 2D screen coordinates with stereoscopic offset
+ *
+ * @param float $x X coordinate in UI units
+ * @param float $y Y coordinate in UI units
+ * @param float $z Z coordinate in UI units
+ * @return array{0: float, 1: float} Returns [screen_x, screen_y] with stereo offset applied
+ */
 function screenCoords3d(float $x, float $y, float $z): array {
     global $xy_zoom, $z_zoom, $x_c, $y_c, $z_c, $image_size, $image_side;
 
@@ -261,6 +283,16 @@ function screenCoords3d(float $x, float $y, float $z): array {
     return array($screen_x, $screen_y);
 }
 
+/**
+ * Get star label text and color for map rendering
+ *
+ * @param int $fic_names Fiction world ID (0 for none)
+ * @param array $row Star data from database
+ * @param string $image_type Image type ('normal', 'stereo', 'printable')
+ * @param float $mag Star magnitude
+ * @param array $colors Color palette array
+ * @return array{0: string, 1: int} Returns [label_text, label_color]
+ */
 function getLabel(int $fic_names, array $row, string $image_type, float $mag, array $colors): array {
     return getStarDisplayName($row, $fic_names, true, $image_type, $mag, $colors);
 }
@@ -366,6 +398,12 @@ function specColor(string $spec, array $colors): int {
     return $color;
 }
 
+/**
+ * Calculate star size and label size based on magnitude
+ *
+ * @param float $mag Absolute magnitude of the star
+ * @return array{0: int, 1: int} Returns [star_size, label_size]
+ */
 function starSize(float $mag): array {
     if($mag > MAG_THRESHOLD_DIM) {
         $size = STAR_SIZE_MIN;
