@@ -41,11 +41,11 @@ if($select_star > 0) {
    } catch (PDOException $e) {
        handleError("Unable to retrieve star information from database.", $e);
    }
-   
-   if($select_center == "1") {
-      $x_c = from_pc($selected_star["x"], $unit); 
-      $y_c = from_pc($selected_star["y"], $unit); 
-      $z_c = from_pc($selected_star["z"], $unit); 
+
+   if($selected_star && $select_center == "1") {
+      $x_c = from_pc($selected_star["x"], $unit);
+      $y_c = from_pc($selected_star["y"], $unit);
+      $z_c = from_pc($selected_star["z"], $unit);
       $select_center_checked = "CHECKED";
    }
 }
@@ -57,7 +57,7 @@ $sel_printable = ($image_type == "printable")?"SELECTED":"";
 
 // Selected star
 $memory_alpha = '';
-if($select_star > 0) {
+if($select_star > 0 && $selected_star) {
    $selected_ra_deg = $selected_star["ra"] * 360 / 24;
    $selected_dec_av = abs($selected_star["dec"]);
    if($selected_star["dec"] >= 0) { 
@@ -290,7 +290,7 @@ END;
       <form method="GET" action="index.php">
         <input type="hidden" name="select_center" value="1">
         <select name="select_star">
-          <option value="">(Fictional names)</option>)
+          <option value="">(Fictional names)</option>
           <?= $fic_options ?>
         </select>
         <button type="submit">Go</button>
