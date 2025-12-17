@@ -12,10 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $maxLine = max(0, min((int)($_POST['max_line'] ?? 0), 100));
 
     // Build allowed layers: '0' (None) plus all world IDs from database
-    $allowedLayers = array_merge(
-        ['0'],
-        array_map(fn($w) => (string)$w['id'], Database::queryWorlds())
-    );
+    try {
+        $allowedLayers = array_merge(
+            ['0'],
+            array_map(fn($w) => (string)$w['id'], Database::queryWorlds())
+        );
+    } catch (PDOException $e) {
+        error_log("Configure error: " . $e->getMessage());
+        $allowedLayers = ['0', '1', '2']; // Fallback to defaults
+    }
     $fic_names = in_array($_POST['fic_names'] ?? '0', $allowedLayers, true)
         ? $_POST['fic_names'] : '0';
 
@@ -116,9 +121,17 @@ $back = $_SERVER['HTTP_REFERER'] ?? ($_SESSION['last_map'] ?? 'index.php');
 <fieldset><legend>Fictional names</legend>
 <select name="fic_names">
  <option value="0" <?= $cfg['fic_names']==='0'?'selected':'' ?>>None</option>
- <?php foreach(Database::queryWorlds() as $world): ?>
-  <option value="<?= $world['id'] ?>" <?= (string)$cfg['fic_names']===(string)$world['id']?'selected':'' ?>><?= htmlspecialchars($world['name']) ?></option>
- <?php endforeach; ?>
+ <?php 
+ // Query worlds for dropdown
+try {
+    foreach(Database::queryWorlds() as $world) {
+        echo '<option value="' . $world['id'] . '" ' . ((string)$cfg['fic_names']===(string)$world['id']?'selected':'') . '>' . htmlspecialchars($world['name']) . '</option>';
+    }
+} catch (PDOException $e) {
+    error_log("Configure worlds error: " . $e->getMessage());
+    echo '<option value="1">Star Trek</option><option value="2">Babylon 5</option>';
+}
+?>
 </select>
 </fieldset>
 

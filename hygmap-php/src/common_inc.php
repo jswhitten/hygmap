@@ -223,4 +223,45 @@ function buildBoundingBox(float $x_c, float $y_c, float $z_c, float $xy_zoom, fl
     ];
 }
 
+/**
+ * Display a user-friendly error message and log the technical details
+ * 
+ * @param string $userMessage User-friendly message
+ * @param Exception $e The exception that occurred
+ */
+function handleError(string $userMessage, Exception $e): void {
+    // Log the technical error
+    error_log("HYGMap Error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+    
+    // Display user-friendly message
+    echo '<!DOCTYPE html><html><head><title>Error</title>';
+    echo '<style>body{font-family:sans-serif;max-width:600px;margin:2rem auto;padding:1rem;}';
+    echo '.error{background:#fee;border:2px solid #c00;padding:1rem;border-radius:4px;}';
+    echo 'h1{color:#c00;}</style></head><body>';
+    echo '<div class="error"><h1>⚠️ Error</h1>';
+    echo '<p>' . htmlspecialchars($userMessage, ENT_QUOTES) . '</p>';
+    echo '<p><a href="index.php">← Return to map</a></p>';
+    echo '</div></body></html>';
+    exit;
+}
+
+/**
+ * Create an error image instead of crashing
+ * 
+ * @param string $message Error message to display
+ */
+function createErrorImage(string $message): void {
+    $image = ImageCreate(400, 100);
+    $bg = ImageColorAllocate($image, 255, 240, 240);
+    $text = ImageColorAllocate($image, 200, 0, 0);
+    ImageFill($image, 0, 0, $bg);
+    ImageString($image, 3, 10, 40, $message, $text);
+    
+    header("Content-type: image/png");
+    ImagePNG($image);
+    ImageDestroy($image);
+    exit;
+}
+
+
 
