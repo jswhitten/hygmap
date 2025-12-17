@@ -57,39 +57,23 @@ final class Database
 
         $MAX_ROWS = 10000;
 
-        if($world_id > 0) {
-            $sql = "
-                SELECT a.*, f.name
-                FROM   athyg a
-                LEFT   JOIN fic f 
-                ON     a.id = f.star_id
-                AND    f.world_id = ?
-                WHERE  x BETWEEN ? AND ?
-                AND  y BETWEEN ? AND ?
-                AND  z BETWEEN ? AND ?
-                AND  absmag <= ?
-                ORDER  BY $order
-                LIMIT $MAX_ROWS
-            ";
+        // Single query handles both cases: with or without fictional names
+        $sql = "
+            SELECT a.*, COALESCE(f.name, '') AS name
+            FROM   athyg a
+            LEFT   JOIN fic f 
+            ON     a.id = f.star_id
+            AND    f.world_id = ?
+            WHERE  x BETWEEN ? AND ?
+            AND    y BETWEEN ? AND ?
+            AND    z BETWEEN ? AND ?
+            AND    absmag <= ?
+            ORDER  BY $order
+            LIMIT  $MAX_ROWS
+        ";
 
-            $stmt = self::connection()->prepare($sql);
-            $stmt->execute([$world_id,$xmin,$xmax,$ymin,$ymax,$zmin,$zmax,$magLimit]);
-        } else {
-            $sql = "
-                SELECT a.*, ''
-                FROM   athyg a
-                WHERE  x BETWEEN ? AND ?
-                AND  y BETWEEN ? AND ?
-                AND  z BETWEEN ? AND ?
-                AND  absmag <= ?
-                ORDER  BY $order
-                LIMIT $MAX_ROWS
-            ";
-
-            $stmt = self::connection()->prepare($sql);
-            $stmt->execute([$xmin,$xmax,$ymin,$ymax,$zmin,$zmax,$magLimit]);
-
-        }
+        $stmt = self::connection()->prepare($sql);
+        $stmt->execute([$world_id, $xmin, $xmax, $ymin, $ymax, $zmin, $zmax, $magLimit]);
 
         return $stmt->fetchAll();
     }
@@ -97,23 +81,22 @@ final class Database
     /** Return one star by ATHYG id, or null */
     public static function queryStar(int $id, int $world_id): ?array
     {
-        if($world_id) {
-            $sql = "SELECT a.*, f.name
-                    FROM athyg a
-                    LEFT JOIN fic f ON a.id = f.star_id AND f.world_id = ?
-                    WHERE a.id = ?";
-            $stmt = self::connection()->prepare($sql);
-            $stmt->execute([$world_id, $id]); // order of parameters flipped!
-        } else {
-            $sql  = "SELECT    *, '' AS name
-                        FROM   athyg
-                        WHERE  id = ?";
-            $stmt = self::connection()->prepare($sql);
-            $stmt->execute([$id]);
-        }
+        // Single query handles both cases: with or without fictional names
+        $sql = "
+            SELECT a.*, COALESCE(f.name, '') AS name
+            FROM   athyg a
+            LEFT   JOIN fic f 
+            ON     a.id = f.star_id
+            AND    f.world_id = ?
+            WHERE  a.id = ?
+        ";
+        
+        $stmt = self::connection()->prepare($sql);
+        $stmt->execute([$world_id, $id]);
 
         return $stmt->fetch() ?: null;
     }
+
 
     // Query all signals in a bounding box
     public static function querySignals(
@@ -369,5 +352,16 @@ final class Database
 
         return $stmt->fetchAll();
     }
+
+    /** All fictional universes/worlds */
+    public static function queryWorlds(): array
+    {
+        $sql = "SELECT id, name FROM fic_worlds ORDER BY id";
+        $stmt = self::connection()->prepare($sql);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
 
 }
