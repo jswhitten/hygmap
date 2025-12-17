@@ -77,10 +77,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // always attach u=
     $q['u'] = $unit;
 
-    if( isset($select_star) && is_numeric($select_star)) {
-        $q['select_star'] = $select_star;
-    }
-
     /* rebuild querystring */
     $parts['query'] = http_build_query($q);
     $dest =
