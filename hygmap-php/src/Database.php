@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/AstronomyData.php';
+require_once __DIR__ . '/DatabaseConnectionException.php';
+
 final class Database
 {
     /** @var PDO|null */
@@ -38,7 +41,7 @@ final class Database
             return self::$pdo;
         } catch (PDOException $e) {
             error_log("Database connection failed: " . $e->getMessage());
-            die('<!DOCTYPE html><html><head><title>Database Error</title></head><body style="font-family:sans-serif;margin:2rem;"><h1>⚠️ Database Connection Error</h1><p>Unable to connect to the star database. Please check that the database service is running.</p><p>Technical details have been logged.</p></body></html>');
+            throw new DatabaseConnectionException("Unable to connect to the star database", 0, $e);
         }
 
     }
@@ -166,129 +169,10 @@ final class Database
         }
 
         // 2. Bayer / Flamsteed
-        // greek-letter ➜ 3-letter Bayer prefix
-        $greek = [
-        'α'=>'alp','alpha'=>'alp',  'alp'=>'alp',
-        'β'=>'bet','beta'=>'bet',   'bet'=>'bet',
-        'γ'=>'gam','gamma'=>'gam',  'gam'=>'gam',
-        'δ'=>'del','delta'=>'del',  'del'=>'del',
-        'ε'=>'eps','epsilon'=>'eps','eps'=>'eps',
-        'ζ'=>'zet','zeta'=>'zet',   'zet'=>'zet',
-        'η'=>'eta','eta'=>'eta',
-        'θ'=>'the','theta'=>'the',  'the'=>'the',
-        'ι'=>'iot','iota'=>'iot',   'iot'=>'iot',
-        'κ'=>'kap','kappa'=>'kap',  'kap'=>'kap',
-        'λ'=>'lam','lambda'=>'lam', 'lam'=>'lam',
-        'μ'=>'mu','mu'=>'mu',
-        'ν'=>'nu','nu'=>'nu',
-        'ξ'=>'ksi','xi'=>'ksi',     'ksi'=>'ksi',
-        'ο'=>'omi','omicron'=>'omi','omi'=>'omi',
-        'π'=>'pi','pi'=>'pi',
-        'ρ'=>'rho','rho'=>'rho',
-        'σ'=>'sig','sigma'=>'sig',  'sig'=>'sig',
-        'τ'=>'tau','tau'=>'tau',
-        'υ'=>'ups','upsilon'=>'ups','ups'=>'ups',
-        'φ'=>'phi','phi'=>'phi',
-        'χ'=>'chi','chi'=>'chi',
-        'ψ'=>'psi','psi'=>'psi',
-        'ω'=>'ome','omega'=>'ome',  'ome'=>'ome',
-        ];
-
-        $const = [
-        'andromeda'          => 'And',
-        'antlia'             => 'Ant',
-        'apus'               => 'Aps',
-        'aquarius'           => 'Aqr',
-        'aquila'             => 'Aql',
-        'ara'                => 'Ara',
-        'aries'              => 'Ari',
-        'auriga'             => 'Aur',
-        'bootes'             => 'Boo',
-        'caelum'             => 'Cae',
-        'camelopardalis'     => 'Cam',
-        'cancer'             => 'Cnc',
-        'canesvenatici'      => 'CVn',
-        'canismajor'         => 'CMa',
-        'canisminor'         => 'CMi',
-        'capricornus'        => 'Cap',
-        'carina'             => 'Car',
-        'cassiopeia'         => 'Cas',
-        'centaurus'          => 'Cen',
-        'cepheus'            => 'Cep',
-        'cetus'              => 'Cet',
-        'chamaeleon'         => 'Cha',
-        'circinus'           => 'Cir',
-        'columba'            => 'Col',
-        'comaberenices'      => 'Com',
-        'coronaaustralis'    => 'CrA',
-        'coronaborealis'     => 'CrB',
-        'corvus'             => 'Crv',
-        'crater'             => 'Crt',
-        'crux'               => 'Cru',
-        'cygnus'             => 'Cyg',
-        'delphinus'          => 'Del',
-        'dorado'             => 'Dor',
-        'draco'              => 'Dra',
-        'equuleus'           => 'Equ',
-        'eridanus'           => 'Eri',
-        'fornax'             => 'For',
-        'gemini'             => 'Gem',
-        'grus'               => 'Gru',
-        'hercules'           => 'Her',
-        'horologium'         => 'Hor',
-        'hydra'              => 'Hya',
-        'hydrus'             => 'Hyi',
-        'indus'              => 'Ind',
-        'lacerta'            => 'Lac',
-        'leo'                => 'Leo',
-        'leominor'           => 'LMi',
-        'lepus'              => 'Lep',
-        'libra'              => 'Lib',
-        'lupus'              => 'Lup',
-        'lynx'               => 'Lyn',
-        'lyra'               => 'Lyr',
-        'mensa'              => 'Men',
-        'microscopium'       => 'Mic',
-        'monoceros'          => 'Mon',
-        'musca'              => 'Mus',
-        'norma'              => 'Nor',
-        'octans'             => 'Oct',
-        'ophiuchus'          => 'Oph',
-        'orion'              => 'Ori',
-        'pavo'               => 'Pav',
-        'pegasus'            => 'Peg',
-        'perseus'            => 'Per',
-        'phoenix'            => 'Phe',
-        'pictor'             => 'Pic',
-        'piscisaustrinus'    => 'PsA',
-        'pisces'             => 'Psc',
-        'puppis'             => 'Pup',
-        'pyxis'              => 'Pyx',
-        'reticulum'          => 'Ret',
-        'sagitta'            => 'Sge',
-        'sagittarius'        => 'Sgr',
-        'scorpius'           => 'Sco',
-        'sculptor'           => 'Scl',
-        'serpens'            => 'Ser',
-        'sextans'            => 'Sex',
-        'taurus'             => 'Tau',
-        'telescopium'        => 'Tel',
-        'triangulumaustrale' => 'TrA',
-        'triangulum'         => 'Tri',
-        'tucana'             => 'Tuc',
-        'ursamajor'          => 'UMa',
-        'ursaminor'          => 'UMi',
-        'vela'               => 'Vel',
-        'virgo'              => 'Vir',
-        'volans'             => 'Vol',
-        'vulpecula'          => 'Vul',
-        ];
-
-
         if (preg_match('/^\s*([0-9]+)\s+([a-z]{3,})/i', $t, $m)) {
             // Flamsteed
             $num  = ltrim($m[1],'0');
-            $con3 = ucfirst($const[strtolower(preg_replace('/\s+/','',$m[2]))] ?? ucfirst(substr($m[2],0,3)));
+            $con3 = ucfirst(AstronomyData::CONSTELLATIONS[strtolower(preg_replace('/\s+/','',$m[2]))] ?? ucfirst(substr($m[2],0,3)));
 
             $sql  = "SELECT id FROM athyg WHERE flam=? AND lower(con)=? LIMIT 1";
             $stmt = self::connection()->prepare($sql);
@@ -298,10 +182,10 @@ final class Database
         } elseif (preg_match('/^\s*([^\d\s]+)\s+([a-z]{3,})/iu', $t, $m)) {
             // Bayer
             $g = mb_strtolower($m[1], 'UTF-8');
-            $bayer = isset($greek[$g]) ? ucfirst($greek[$g]) : null;   // safe lookup
+            $bayer = isset(AstronomyData::GREEK_LETTERS[$g]) ? ucfirst(AstronomyData::GREEK_LETTERS[$g]) : null;
             if ($bayer) {
                 $con3 = ucfirst(
-                        $const[strtolower(preg_replace('/\s+/', '', $m[2]))]
+                        AstronomyData::CONSTELLATIONS[strtolower(preg_replace('/\s+/', '', $m[2]))]
                         ?? substr($m[2], 0, 3)
                         );
 

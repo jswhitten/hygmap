@@ -23,14 +23,14 @@ $xy_zoom = $vars['xy_zoom'];
 $z_zoom = $vars['z_zoom'];
 $image_side = $vars['image_side'];
 
-prof_flag("START");
+$profiler->flag("START");
 
 header("X-Robots-Tag: noindex");
 
 $select_center_checked = "";
 
 if($select_star > 0) {
-   prof_flag("Querying selected star");
+   $profiler->flag("Querying selected star");
    try {
        $selected_star = Database::queryStar((int)$select_star, (int)$fic_names);
        if (!$selected_star) {
@@ -79,7 +79,7 @@ if($select_star > 0 && $selected_star) {
 }
 
 // Retrieve list of stars with fictional names
-prof_flag("Querying fictional star names");
+$profiler->flag("Querying fictional star names");
 $fic_checked = ((int)$fic_names > 0) ? "CHECKED" : "";
 try {
    $fic_rows = Database::queryFiction($fic_names);
@@ -92,7 +92,7 @@ foreach ($fic_rows as $fic_row) {
 }
 
 // Retrieve list of stars with proper names
-prof_flag("Querying star proper names");
+$profiler->flag("Querying star proper names");
 $proper_options = '';
 try {
    foreach (Database::queryProperNames() as $p) {
@@ -140,7 +140,7 @@ if ($image_type === 'stereo') {
 }
 
 // Get data for star table
-prof_flag("Querying all stars in map");
+$profiler->flag("Querying all stars in map");
 $bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
 // Around line 121 - Query all stars
 try {
@@ -148,7 +148,7 @@ try {
 } catch (PDOException $e) {
     handleError("Unable to query stars in the current map area.", $e);
 }
-prof_flag("Query complete");
+$profiler->flag("Query complete");
 
 $star_count = 0;
 $star_count_displayed = 0;
@@ -332,10 +332,10 @@ END;
 <?= $star_count_displayed ?> of <?= $star_count ?> stars displayed.
 </div>
 <?php
-prof_flag('FINISH');
+$profiler->flag('FINISH');
 if ($profiling) {
     echo '<div style="margin:1rem auto;max-width:95%;font-size:small;text-align:left">';
-    prof_print();                 // echoes its own <br>s
+    echo $profiler->getReport();
     echo '</div>';
 }
 ?>
