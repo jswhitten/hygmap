@@ -163,7 +163,7 @@ foreach($rows as $row) {
 	    if($select_star != $id) {
             if($mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
                 $skiplabel = true;
-            } elseif(sizeof($rows) > 1000) {
+            } elseif(count($rows) > 1000) {
                 if($mag > 5 && $id > 0) {
                     $skiplabel = true;
                 }

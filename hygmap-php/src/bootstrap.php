@@ -10,6 +10,10 @@ require 'common_inc.php';
 require_once __DIR__ . '/Database.php';
 require_once 'config.inc.php';
 
+// Initialize profiling arrays
+$prof_timing = [];
+$prof_names = [];
+
 // Load configuration from session
 $cfg = cfg_load();
 
