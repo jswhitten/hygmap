@@ -161,9 +161,12 @@ foreach($rows as $row) {
         // label
 	    $skiplabel = false;
 	    if($select_star != $id) {
-            if($mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
+            // Always label stars with proper names or fictional names (important stars)
+            $has_important_name = !empty($row["proper"]) || (!empty($row["name"]) && $fic_names > 0);
+
+            if(!$has_important_name && $mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
                 $skiplabel = true;
-            } elseif(count($rows) > 1000) {
+            } elseif(!$has_important_name && count($rows) > 1000) {
                 if($mag > 5 && $id > 0) {
                     $skiplabel = true;
                 }
