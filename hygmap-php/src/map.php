@@ -161,30 +161,34 @@ foreach($rows as $row) {
         // label
 	    $skiplabel = false;
 	    if($select_star != $id) {
-            // Always label stars with traditional astronomical names (important stars)
-            $has_important_name = !empty($row["proper"])      // Proper names (Sirius, Vega)
-                               || !empty($row["bayer"])       // Bayer designations (Tau Ceti, Alpha Centauri)
-                               || !empty($row["flam"])        // Flamsteed numbers (51 Pegasi)
-                               || (!empty($row["name"]) && $fic_names > 0); // Fictional names
-
-            if(!$has_important_name && $mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
+            // First: respect user's configured magnitude cutoff for labels
+            if ($mag > $m_limit_label) {
                 $skiplabel = true;
-            } elseif(!$has_important_name && count($rows) > 1000) {
-                if($mag > 5 && $id > 0) {
-                    $skiplabel = true;
-                }
             } else {
-                foreach($rows as $checkrow) {
-                    // if a brighter star is at the same location don't label this one
-                    if((float)$checkrow['absmag'] < $mag) {  // Only check brighter stars
-                        if(abs($checkrow['x']-$x) < $xy_zoom / LABEL_OVERLAP_X_DIVISOR && 
-                            abs($checkrow['y']-$y) < $xy_zoom / LABEL_OVERLAP_Y_DIVISOR) {
-                            $skiplabel = true;
-                            break;
+                // Star is bright enough for labels, now apply density-based filtering
+                // Exempt stars with traditional astronomical names from density filtering
+                $has_important_name = !empty($row["proper"])      // Proper names (Sirius, Vega)
+                                   || !empty($row["bayer"])       // Bayer designations (Tau Ceti, Alpha Centauri)
+                                   || !empty($row["flam"])        // Flamsteed numbers (51 Pegasi)
+                                   || (!empty($row["name"]) && $fic_names > 0); // Fictional names
+
+                if(!$has_important_name && $mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
+                    $skiplabel = true;
+                } elseif(!$has_important_name && count($rows) > 1000 && $mag > 5 && $id > 0) {
+                    $skiplabel = true;
+                } else {
+                    // Check for overlap with brighter stars
+                    foreach($rows as $checkrow) {
+                        if((float)$checkrow['absmag'] < $mag) {  // Only check brighter stars
+                            if(abs($checkrow['x']-$x) < $xy_zoom / LABEL_OVERLAP_X_DIVISOR &&
+                                abs($checkrow['y']-$y) < $xy_zoom / LABEL_OVERLAP_Y_DIVISOR) {
+                                $skiplabel = true;
+                                break;
+                            }
                         }
                     }
                 }
-	        }
+            }
 	    }
         if(!$skiplabel) {
             list ($name, $labelcolor) = getLabel((int)$fic_names, $row, $image_type, $mag, $colors);
