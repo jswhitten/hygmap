@@ -83,10 +83,10 @@ function buildSelectedStarData(?array $selected_star, int $fic_names, string $un
     }
 
     // Calculate coordinates and links
-    $selected_ra_deg = $selected_star["ra"] * 360 / 24;
-    $selected_dec_av = abs($selected_star["dec"]);
-    $selected_dec_ns = ($selected_star["dec"] >= 0) ? 'North' : 'South';
-    $selected_dec_simbad = ($selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
+    $selected_ra_deg = (float)$selected_star["ra"] * 360 / 24;
+    $selected_dec_av = abs((float)$selected_star["dec"]);
+    $selected_dec_ns = ((float)$selected_star["dec"] >= 0) ? 'North' : 'South';
+    $selected_dec_simbad = ((float)$selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
 
     $distance_ui = number_format(from_pc((float)$selected_star["dist"], $unit), 3);
     $x_ui = number_format(from_pc((float)$selected_star["x"], $unit), 3);
