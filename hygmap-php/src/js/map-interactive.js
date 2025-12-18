@@ -1,8 +1,8 @@
 /**
  * HYGMap Interactive Map
  *
- * Provides hover tooltips, click-to-select, and shift+click distance measurement
- * for stars on the map image.
+ * Provides hover tooltips with star info and distances, click-to-select,
+ * and cursor coordinate display.
  */
 (function() {
     'use strict';
@@ -14,28 +14,48 @@
 
     // State
     let currentStar = null;
-    let measureFromStar = null;
 
     // Get data from PHP
-    const data = window.HYGMapData || { stars: [], selectedStarId: 0, unit: 'pc' };
+    const data = window.HYGMapData || { stars: [], selectedStarId: 0, unit: 'pc', view: {} };
     const stars = data.stars;
     const selectedStarId = data.selectedStarId;
     const unit = data.unit;
+    const view = data.view || {};
 
     // DOM elements
     const container = document.getElementById('map-container');
     const tooltip = document.getElementById('star-tooltip');
-    const distanceDisplay = document.getElementById('distance-display');
-    const distanceValue = document.getElementById('distance-value');
-    const clearDistanceBtn = document.getElementById('clear-distance');
+    const cursorCoordsEl = document.getElementById('cursor-coords');
 
-    if (!container || !tooltip || stars.length === 0) {
-        return; // Exit if elements not found or no star data
+    if (!container || !tooltip) {
+        return; // Exit if elements not found
     }
 
     // Get the map image(s)
     const mapImages = container.querySelectorAll('img');
     if (mapImages.length === 0) return;
+
+    /**
+     * Convert screen coordinates to galactic coordinates
+     * @param {number} screenX - Screen X position
+     * @param {number} screenY - Screen Y position
+     * @returns {object} - {x, y} galactic coordinates
+     */
+    function screenToGalactic(screenX, screenY) {
+        const imageSize = view.imageSize || 600;
+        const xy_zoom = view.xy_zoom || 25;
+        const x_c = view.x_c || 0;
+        const y_c = view.y_c || 0;
+
+        // Reverse the transformation from MapRenderer::screenCoords()
+        // screen_x = imageSize - ((imageSize / (2 * xy_zoom)) * (y - y_c))
+        // screen_y = (imageSize / 2) - ((imageSize / (2 * xy_zoom)) * (x - x_c))
+        const scale = imageSize / (2 * xy_zoom);
+        const galY = y_c + (imageSize - screenX) / scale;
+        const galX = x_c + ((imageSize / 2) - screenY) / scale;
+
+        return { x: galX, y: galY };
+    }
 
     /**
      * Find the nearest star to the given screen coordinates
@@ -62,16 +82,25 @@
     }
 
     /**
-     * Calculate 3D distance between two stars
-     * @param {object} star1
-     * @param {object} star2
+     * Calculate 3D distance between two points
+     * @param {object} point1 - {x, y, z}
+     * @param {object} point2 - {x, y, z}
      * @returns {number} - Distance in current units
      */
-    function calculate3DDistance(star1, star2) {
-        const dx = star1.x - star2.x;
-        const dy = star1.y - star2.y;
-        const dz = star1.z - star2.z;
+    function calculate3DDistance(point1, point2) {
+        const dx = point1.x - point2.x;
+        const dy = point1.y - point2.y;
+        const dz = point1.z - point2.z;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    /**
+     * Calculate distance from Sun (origin)
+     * @param {object} star - Star with x, y, z coordinates
+     * @returns {number} - Distance from Sun
+     */
+    function distanceFromSun(star) {
+        return Math.sqrt(star.x * star.x + star.y * star.y + star.z * star.z);
     }
 
     /**
@@ -83,19 +112,22 @@
     function showTooltip(star, pageX, pageY) {
         // Build tooltip content
         let html = `<strong>${escapeHtml(star.name)}</strong><br>`;
-        html += `Mag: ${star.mag}<br>`;
-        html += `Coords: ${star.x}, ${star.y}, ${star.z}`;
-
+        html += `Mag: ${star.mag}`;
         if (star.spect) {
-            html += `<br>Spectral: ${escapeHtml(star.spect)}`;
+            html += ` • ${escapeHtml(star.spect)}`;
         }
+        html += `<br>Coords: ${star.x}, ${star.y}, ${star.z}`;
+
+        // Distance from Sun
+        const sunDist = distanceFromSun(star);
+        html += `<br>From Sol: ${sunDist.toFixed(3)} ${unit}`;
 
         // Show distance from selected star if one is selected
         if (selectedStarId && selectedStarId !== star.id) {
             const selectedStar = stars.find(s => s.id === selectedStarId);
             if (selectedStar) {
                 const dist = calculate3DDistance(star, selectedStar);
-                html += `<br><em>${dist.toFixed(3)} ${unit} from selected</em>`;
+                html += `<br><em>From selected: ${dist.toFixed(3)} ${unit}</em>`;
             }
         }
 
@@ -132,22 +164,24 @@
     }
 
     /**
-     * Show distance measurement between two stars
-     * @param {object} star1
-     * @param {object} star2
+     * Update cursor coordinates display
+     * @param {number} screenX - Screen X position
+     * @param {number} screenY - Screen Y position
      */
-    function showDistance(star1, star2) {
-        const dist = calculate3DDistance(star1, star2);
-        distanceValue.textContent = `${dist.toFixed(3)} (${star1.name} to ${star2.name})`;
-        distanceDisplay.style.display = 'block';
+    function updateCursorCoords(screenX, screenY) {
+        if (!cursorCoordsEl) return;
+
+        const coords = screenToGalactic(screenX, screenY);
+        cursorCoordsEl.textContent = `X: ${coords.x.toFixed(2)}, Y: ${coords.y.toFixed(2)}`;
     }
 
     /**
-     * Clear distance measurement
+     * Clear cursor coordinates display
      */
-    function clearDistance() {
-        measureFromStar = null;
-        distanceDisplay.style.display = 'none';
+    function clearCursorCoords() {
+        if (cursorCoordsEl) {
+            cursorCoordsEl.textContent = '';
+        }
     }
 
     /**
@@ -177,14 +211,13 @@
 
     // Event handlers for each map image
     mapImages.forEach((img, index) => {
-        // For stereo mode, we need to handle left/right images differently
-        // Left image is index 0, right image is index 1
-        // The star screen coords are calculated for non-stereo mode,
-        // so for stereo we'd need separate coords. For now, tooltips work
-        // best with normal/printable modes.
-
         img.addEventListener('mousemove', function(e) {
             const pos = getMousePosition(e, img);
+
+            // Update cursor coordinates
+            updateCursorCoords(pos.x, pos.y);
+
+            // Find and show star tooltip
             const star = findNearestStar(pos.x, pos.y);
 
             if (star) {
@@ -204,6 +237,7 @@
 
         img.addEventListener('mouseleave', function() {
             hideTooltip();
+            clearCursorCoords();
             img.style.cursor = 'default';
         });
 
@@ -211,43 +245,11 @@
             const pos = getMousePosition(e, img);
             const star = findNearestStar(pos.x, pos.y);
 
-            if (!star) return;
-
-            if (e.shiftKey) {
-                // Shift+click: measure distance
-                if (measureFromStar) {
-                    // Second star clicked - show distance
-                    showDistance(measureFromStar, star);
-                    measureFromStar = null;
-                } else if (selectedStarId) {
-                    // Use currently selected star as first point
-                    const selectedStar = stars.find(s => s.id === selectedStarId);
-                    if (selectedStar && selectedStar.id !== star.id) {
-                        showDistance(selectedStar, star);
-                    }
-                } else {
-                    // No star selected, use this as first point
-                    measureFromStar = star;
-                    distanceValue.textContent = `Click another star to measure from ${star.name}`;
-                    distanceDisplay.style.display = 'block';
-                }
-            } else {
-                // Regular click: select and center star
+            if (star) {
+                // Click: select and center star
                 window.location.href = `?select_star=${star.id}&select_center=1`;
             }
         });
-    });
-
-    // Clear distance button handler
-    if (clearDistanceBtn) {
-        clearDistanceBtn.addEventListener('click', clearDistance);
-    }
-
-    // Keyboard shortcut: Escape to clear distance measurement
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            clearDistance();
-        }
     });
 
 })();
