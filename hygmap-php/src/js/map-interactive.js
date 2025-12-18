@@ -2,7 +2,7 @@
  * HYGMap Interactive Map
  *
  * Provides hover tooltips with star info and distances, click-to-select,
- * and cursor coordinate display.
+ * cursor coordinate display, and keyboard navigation.
  */
 (function() {
     'use strict';
@@ -11,6 +11,12 @@
     const HOVER_RADIUS = 15;  // Pixels - how close mouse must be to star center
     const TOOLTIP_OFFSET_X = 15;
     const TOOLTIP_OFFSET_Y = 10;
+
+    // Navigation configuration
+    const PAN_FRACTION = 0.25;   // Pan by 25% of current zoom
+    const ZOOM_FACTOR = 1.5;     // Zoom in/out by 50%
+    const MIN_ZOOM = 0.1;
+    const MAX_ZOOM = 10000;
 
     // State
     let currentStar = null;
@@ -251,5 +257,124 @@
             }
         });
     });
+
+    // =========================================================================
+    // Keyboard Navigation
+    // =========================================================================
+
+    /**
+     * Navigate to new view coordinates
+     * @param {object} params - Navigation parameters to change
+     */
+    function navigateTo(params) {
+        const url = new URL(window.location.href);
+
+        // Update parameters
+        for (const [key, value] of Object.entries(params)) {
+            url.searchParams.set(key, value);
+        }
+
+        // Preserve selected star if any
+        if (selectedStarId && !params.select_star) {
+            url.searchParams.set('select_star', selectedStarId);
+        }
+
+        window.location.href = url.toString();
+    }
+
+    /**
+     * Pan the view in a direction
+     * @param {string} direction - 'up', 'down', 'left', 'right', 'zup', 'zdown'
+     */
+    function pan(direction) {
+        const xy_zoom = view.xy_zoom || 25;
+        const z_zoom = view.z_zoom || 25;
+        const panAmount = xy_zoom * PAN_FRACTION;
+        const zPanAmount = z_zoom * PAN_FRACTION;
+
+        let x_c = view.x_c || 0;
+        let y_c = view.y_c || 0;
+        let z_c = view.z_c || 0;
+
+        switch (direction) {
+            case 'up':    x_c += panAmount; break;
+            case 'down':  x_c -= panAmount; break;
+            case 'left':  y_c += panAmount; break;
+            case 'right': y_c -= panAmount; break;
+            case 'zup':   z_c += zPanAmount; break;
+            case 'zdown': z_c -= zPanAmount; break;
+        }
+
+        navigateTo({ x_c, y_c, z_c });
+    }
+
+    /**
+     * Zoom the view in or out
+     * @param {string} direction - 'in' or 'out'
+     */
+    function zoom(direction) {
+        let xy_zoom = view.xy_zoom || 25;
+        let z_zoom = view.z_zoom || 25;
+
+        if (direction === 'in') {
+            xy_zoom = Math.max(MIN_ZOOM, xy_zoom / ZOOM_FACTOR);
+            z_zoom = Math.max(MIN_ZOOM, z_zoom / ZOOM_FACTOR);
+        } else {
+            xy_zoom = Math.min(MAX_ZOOM, xy_zoom * ZOOM_FACTOR);
+            z_zoom = Math.min(MAX_ZOOM, z_zoom * ZOOM_FACTOR);
+        }
+
+        navigateTo({ xy_zoom, z_zoom });
+    }
+
+    /**
+     * Return to Sol (origin)
+     */
+    function goHome() {
+        navigateTo({ x_c: 0, y_c: 0, z_c: 0 });
+    }
+
+    /**
+     * Handle keyboard navigation
+     * @param {KeyboardEvent} e
+     */
+    function handleKeyboard(e) {
+        // Ignore if user is typing in an input field
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+
+        let handled = true;
+
+        switch (e.key) {
+            // Pan with arrow keys
+            case 'ArrowUp':    pan('up'); break;
+            case 'ArrowDown':  pan('down'); break;
+            case 'ArrowLeft':  pan('left'); break;
+            case 'ArrowRight': pan('right'); break;
+
+            // Z-axis pan with Page Up/Down
+            case 'PageUp':   pan('zup'); break;
+            case 'PageDown': pan('zdown'); break;
+
+            // Zoom with +/- (and = for + without shift)
+            case '+':
+            case '=': zoom('in'); break;
+            case '-': zoom('out'); break;
+
+            // Home key returns to Sol
+            case 'Home': goHome(); break;
+
+            default:
+                handled = false;
+        }
+
+        if (handled) {
+            e.preventDefault();
+        }
+    }
+
+    // Add keyboard event listener
+    document.addEventListener('keydown', handleKeyboard);
 
 })();
