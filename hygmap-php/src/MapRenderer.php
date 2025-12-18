@@ -224,8 +224,6 @@ class MapRenderer
             return;
         }
 
-        $max_line_pc = to_pc($this->max_line, $this->unit);
-
         // Pre-filter stars by magnitude and pre-calculate coordinates
         $eligible_stars = [];
         foreach ($rows as $row) {
@@ -249,10 +247,10 @@ class MapRenderer
         // Only check upper triangle to avoid duplicate pairs
         $count = count($eligible_stars);
 
-        // Calculate squared distance thresholds
-        $max_far_line2 = $max_line_pc * $max_line_pc;
-        $max_mid_line2 = (CONNECTING_LINE_MID_FACTOR * $max_line_pc) * (CONNECTING_LINE_MID_FACTOR * $max_line_pc);
-        $max_close_line2 = (CONNECTING_LINE_CLOSE_FACTOR * $max_line_pc) * (CONNECTING_LINE_CLOSE_FACTOR * $max_line_pc);
+        // Calculate squared distance thresholds (in UI units)
+        $max_far_line2 = $this->max_line * $this->max_line;
+        $max_mid_line2 = (CONNECTING_LINE_MID_FACTOR * $this->max_line) * (CONNECTING_LINE_MID_FACTOR * $this->max_line);
+        $max_close_line2 = (CONNECTING_LINE_CLOSE_FACTOR * $this->max_line) * (CONNECTING_LINE_CLOSE_FACTOR * $this->max_line);
 
         for ($i = 0; $i < $count - 1; $i++) {
             $star_i = $eligible_stars[$i];
@@ -312,8 +310,8 @@ class MapRenderer
                 // Plot star
                 $this->plotStar($screen_x, $screen_y, $size, $starcolor, $this->select_star == $id);
 
-                // Plot label
-                if ($this->select_star != $id && !$this->shouldSkipLabel($row, $mag, $rows, $x, $y)) {
+                // Plot label (always label selected star, otherwise check if we should skip)
+                if ($this->select_star == $id || !$this->shouldSkipLabel($row, $mag, $rows, $x, $y)) {
                     list($name, $labelcolor) = $this->getStarLabel($row, $mag);
                     $this->labelStar($name, $labelsize, $labelcolor, $screen_x, $screen_y);
                 }
