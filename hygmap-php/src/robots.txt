@@ -1,2 +1,49 @@
+# Allow search engines to index the main page
+# but block crawling of dynamic star pages
+
+User-agent: Googlebot
+Allow: /$
+Disallow: /map.php
+Disallow: /search.php
+Disallow: /configure.php
+Disallow: /*?*select_star=
+Disallow: /*?*x_c=
+Disallow: /*?*xy_zoom=
+
+User-agent: Bingbot
+Allow: /$
+Disallow: /map.php
+Disallow: /search.php
+Disallow: /configure.php
+Disallow: /*?*select_star=
+Disallow: /*?*x_c=
+Disallow: /*?*xy_zoom=
+
+# Block AI crawlers and aggressive bots entirely
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+# Block all other bots by default
 User-agent: *
 Disallow: /
