@@ -4,9 +4,10 @@
 
 services:
   hygmap-db:
-    # Bind to localhost only (not externally accessible) in production
+    # Use alternate port to avoid conflict with host PostgreSQL
+    # Only accessible from localhost; PHP container uses internal Docker networking
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:15432:5432"
     restart: always
 
   hygmap-php:
