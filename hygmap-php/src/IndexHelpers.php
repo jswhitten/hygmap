@@ -32,9 +32,9 @@ function fetchSelectedStar(int $select_star, int $select_center, int $fic_names,
 
         // Update view center if requested
         if ($select_center == 1) {
-            $view_coords['x_c'] = from_pc($selected_star["x"], $unit);
-            $view_coords['y_c'] = from_pc($selected_star["y"], $unit);
-            $view_coords['z_c'] = from_pc($selected_star["z"], $unit);
+            $view_coords['x_c'] = from_pc((float)$selected_star["x"], $unit);
+            $view_coords['y_c'] = from_pc((float)$selected_star["y"], $unit);
+            $view_coords['z_c'] = from_pc((float)$selected_star["z"], $unit);
         }
 
         return $selected_star;
@@ -88,14 +88,14 @@ function buildSelectedStarData(?array $selected_star, int $fic_names, string $un
     $selected_dec_ns = ($selected_star["dec"] >= 0) ? 'North' : 'South';
     $selected_dec_simbad = ($selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
 
-    $distance_ui = number_format(from_pc($selected_star["dist"], $unit), 3);
-    $x_ui = number_format(from_pc($selected_star["x"], $unit), 3);
-    $y_ui = number_format(from_pc($selected_star["y"], $unit), 3);
-    $z_ui = number_format(from_pc($selected_star["z"], $unit), 3);
+    $distance_ui = number_format(from_pc((float)$selected_star["dist"], $unit), 3);
+    $x_ui = number_format(from_pc((float)$selected_star["x"], $unit), 3);
+    $y_ui = number_format(from_pc((float)$selected_star["y"], $unit), 3);
+    $z_ui = number_format(from_pc((float)$selected_star["z"], $unit), 3);
 
-    $x_ly = to_ly($selected_star["x"], "pc");
-    $y_ly = to_ly($selected_star["y"], "pc");
-    $z_ly = to_ly($selected_star["z"], "pc");
+    $x_ly = to_ly((float)$selected_star["x"], "pc");
+    $y_ly = to_ly((float)$selected_star["y"], "pc");
+    $z_ly = to_ly((float)$selected_star["z"], "pc");
 
     return [
         'has_star' => true,
@@ -179,9 +179,9 @@ function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, i
 
         $displayed_count++;
 
-        $x_ui = from_pc($row["x"], $unit);
-        $y_ui = from_pc($row["y"], $unit);
-        $z_ui = from_pc($row["z"], $unit);
+        $x_ui = from_pc((float)$row["x"], $unit);
+        $y_ui = from_pc((float)$row["y"], $unit);
+        $z_ui = from_pc((float)$row["z"], $unit);
 
         $distance_from_center = sqrt(
             pow($x_ui - $view_coords['x_c'], 2) +
@@ -195,7 +195,7 @@ function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, i
             'con' => $row["con"] ?? '',
             'spect' => $row["spect"] ?? '',
             'absmag' => $row["absmag"],
-            'distance' => number_format(from_pc($row["dist"], $unit), 3),
+            'distance' => number_format(from_pc((float)$row["dist"], $unit), 3),
             'distance_from_center' => number_format($distance_from_center, 3),
             'x' => number_format($x_ui, 3),
             'y' => number_format($y_ui, 3),
