@@ -219,7 +219,7 @@ $profiler->flag('FINISH');
       <div id="star-tooltip" class="star-tooltip"></div>
     </div>
     <div class="map-status">
-      <small>Hover over stars for info • Click to select/center</small>
+      <small>Hover for info • Click to select • Arrows pan • +/- zoom • Home=Sol</small>
       <span id="cursor-coords" class="cursor-coords"></span>
     </div>
   </div>
@@ -270,7 +270,9 @@ window.HYGMapData = {
   view: {
     x_c: <?= json_encode($x_c) ?>,
     y_c: <?= json_encode($y_c) ?>,
+    z_c: <?= json_encode($z_c) ?>,
     xy_zoom: <?= json_encode($xy_zoom) ?>,
+    z_zoom: <?= json_encode($z_zoom) ?>,
     imageSize: <?= json_encode($image_size) ?>
   }
 };
