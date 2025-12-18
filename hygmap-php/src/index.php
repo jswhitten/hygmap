@@ -69,6 +69,13 @@ $fictional_options = $fic_names > 0 ? fetchFictionalStarOptions($fic_names) : ''
 $profiler->flag("Querying all stars in map");
 $bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
 $star_table_data = fetchStarTableData($bbox, $m_limit, $m_limit_label, $fic_names, $unit, $view_coords);
+
+// Build interactive star data for map overlay (tooltips, click handling)
+$profiler->flag("Building interactive star data");
+$interactive_stars = buildInteractiveStarData(
+    $bbox, $m_limit, $m_limit_label, $fic_names, $unit, $view_coords,
+    $xy_zoom, $z_zoom, $image_size, $image_type
+);
 $profiler->flag("Query complete");
 
 // Prepare view variables
@@ -207,7 +214,18 @@ $profiler->flag('FINISH');
 
   <!-- MAIN MAP (RIGHT) -->
   <div class="main">
-    <?= $map_html ?>
+    <div class="map-container" id="map-container">
+      <?= $map_html ?>
+      <div id="star-tooltip" class="star-tooltip"></div>
+    </div>
+    <!-- Distance measurement display -->
+    <div id="distance-display" class="distance-display" style="display:none;">
+      <strong>Distance:</strong> <span id="distance-value"></span> <?= htmlspecialchars($unit, ENT_QUOTES) ?>
+      <button type="button" id="clear-distance" title="Clear measurement">×</button>
+    </div>
+    <div class="map-help">
+      <small>Hover over stars for info • Click to select/center • Shift+click to measure distance</small>
+    </div>
   </div>
 
 </div><!-- /page -->
@@ -245,6 +263,17 @@ $profiler->flag('FINISH');
 <?php endif; ?>
 
 <script src="js/table-sort.js"></script>
+
+<!-- Interactive map data and script -->
+<script>
+window.HYGMapData = {
+  stars: <?= json_encode($interactive_stars, JSON_NUMERIC_CHECK) ?>,
+  selectedStarId: <?= (int)$select_star ?>,
+  unit: <?= json_encode($unit) ?>,
+  imageType: <?= json_encode($image_type) ?>
+};
+</script>
+<script src="js/map-interactive.js"></script>
 
 </body>
 </html>

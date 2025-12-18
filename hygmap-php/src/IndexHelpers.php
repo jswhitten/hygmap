@@ -261,3 +261,124 @@ function fetchFictionalStarOptions(int $fic_names): string
         return '';
     }
 }
+
+/**
+ * Calculate screen coordinates for a star position
+ *
+ * This mirrors the logic in MapRenderer::screenCoords() to ensure consistency
+ * between the rendered image and the interactive overlay.
+ *
+ * @param float $x Star X coordinate in UI units
+ * @param float $y Star Y coordinate in UI units
+ * @param float $z Star Z coordinate in UI units
+ * @param float $x_c View center X
+ * @param float $y_c View center Y
+ * @param float $z_c View center Z (used for stereo offset)
+ * @param float $xy_zoom Zoom level
+ * @param float $z_zoom Z zoom level (used for stereo offset)
+ * @param int $image_size Image size in pixels
+ * @param string $image_type Image type ('stereo', 'normal', 'printable')
+ * @param string $image_side Side for stereo ('left', 'right', '')
+ * @return array [screen_x, screen_y]
+ */
+function calculateScreenCoords(
+    float $x, float $y, float $z,
+    float $x_c, float $y_c, float $z_c,
+    float $xy_zoom, float $z_zoom,
+    int $image_size,
+    string $image_type,
+    string $image_side = ''
+): array {
+    $is_stereo = ($image_side === 'left' || $image_side === 'right');
+
+    if ($is_stereo) {
+        $screen_x = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($y - $y_c));
+        $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x - $x_c));
+
+        // Apply stereo offset
+        $offset = STEREO_OFFSET_MULTIPLIER * (($z - $z_c) / $z_zoom);
+        $screen_x += ($image_side === 'left') ? $offset : -$offset;
+    } else {
+        $screen_x = $image_size - (($image_size / (2 * $xy_zoom)) * ($y - $y_c));
+        $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x - $x_c));
+    }
+
+    return [$screen_x, $screen_y];
+}
+
+/**
+ * Build star data for interactive map overlay
+ *
+ * Returns an array of stars with their screen positions for use in JavaScript.
+ * Only includes stars that would be visible/labeled on the map.
+ *
+ * @param array $bbox Bounding box for query
+ * @param float $m_limit Magnitude limit for display
+ * @param float $m_limit_label Magnitude limit for labels
+ * @param int $fic_names Fiction world ID
+ * @param string $unit Distance unit
+ * @param array $view_coords View center coordinates
+ * @param int $image_size Image size in pixels
+ * @param string $image_type Image type
+ * @return array Star data with screen positions
+ */
+function buildInteractiveStarData(
+    array $bbox,
+    float $m_limit,
+    float $m_limit_label,
+    int $fic_names,
+    string $unit,
+    array $view_coords,
+    float $xy_zoom,
+    float $z_zoom,
+    int $image_size,
+    string $image_type
+): array {
+    try {
+        $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+    } catch (PDOException $e) {
+        return [];
+    }
+
+    $stars = [];
+
+    foreach ($rows as $row) {
+        // Only include stars bright enough to be labeled
+        if ((float)$row['absmag'] >= $m_limit_label) {
+            continue;
+        }
+
+        $x_ui = from_pc((float)$row["x"], $unit);
+        $y_ui = from_pc((float)$row["y"], $unit);
+        $z_ui = from_pc((float)$row["z"], $unit);
+
+        // Calculate screen position
+        list($screen_x, $screen_y) = calculateScreenCoords(
+            $x_ui, $y_ui, $z_ui,
+            $view_coords['x_c'], $view_coords['y_c'], $view_coords['z_c'],
+            $xy_zoom, $z_zoom,
+            $image_size,
+            $image_type
+        );
+
+        // Skip stars that are off-screen
+        $max_x = ($image_type === 'stereo') ? $image_size : $image_size * 2;
+        if ($screen_x < 0 || $screen_x > $max_x || $screen_y < 0 || $screen_y > $image_size) {
+            continue;
+        }
+
+        $stars[] = [
+            'id' => (int)$row['id'],
+            'name' => getStarDisplayName($row, $fic_names),
+            'x' => round($x_ui, 3),
+            'y' => round($y_ui, 3),
+            'z' => round($z_ui, 3),
+            'sx' => round($screen_x, 1),
+            'sy' => round($screen_y, 1),
+            'mag' => round((float)$row['absmag'], 2),
+            'spect' => $row['spect'] ?? '',
+        ];
+    }
+
+    return $stars;
+}

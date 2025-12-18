@@ -71,3 +71,69 @@ h4 { margin-top: 5px; margin-bottom: 5px;}
   border-radius:4px;
 }
 
+/* === Interactive map styles === */
+.map-container {
+  position: relative;
+  display: inline-block;
+}
+
+.map-container img {
+  display: block;
+  cursor: crosshair;
+}
+
+.star-tooltip {
+  display: none;
+  position: absolute;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 250px;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  border: 1px solid #444;
+}
+
+.star-tooltip strong {
+  color: #ffdd44;
+  font-size: 13px;
+}
+
+.star-tooltip em {
+  color: #88ccff;
+}
+
+.distance-display {
+  margin-top: 0.5rem;
+  padding: 8px 12px;
+  background: #e8f4e8;
+  border: 1px solid #4a4;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.distance-display button {
+  margin-left: 10px;
+  background: #c44;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.distance-display button:hover {
+  background: #a33;
+}
+
+.map-help {
+  margin-top: 0.5rem;
+  color: #666;
+  text-align: center;
+}
+
