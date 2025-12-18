@@ -218,13 +218,9 @@ $profiler->flag('FINISH');
       <?= $map_html ?>
       <div id="star-tooltip" class="star-tooltip"></div>
     </div>
-    <!-- Distance measurement display -->
-    <div id="distance-display" class="distance-display" style="display:none;">
-      <strong>Distance:</strong> <span id="distance-value"></span> <?= htmlspecialchars($unit, ENT_QUOTES) ?>
-      <button type="button" id="clear-distance" title="Clear measurement">×</button>
-    </div>
-    <div class="map-help">
-      <small>Hover over stars for info • Click to select/center • Shift+click to measure distance</small>
+    <div class="map-status">
+      <small>Hover over stars for info • Click to select/center</small>
+      <span id="cursor-coords" class="cursor-coords"></span>
     </div>
   </div>
 
@@ -270,7 +266,13 @@ window.HYGMapData = {
   stars: <?= json_encode($interactive_stars, JSON_NUMERIC_CHECK) ?>,
   selectedStarId: <?= (int)$select_star ?>,
   unit: <?= json_encode($unit) ?>,
-  imageType: <?= json_encode($image_type) ?>
+  imageType: <?= json_encode($image_type) ?>,
+  view: {
+    x_c: <?= json_encode($x_c) ?>,
+    y_c: <?= json_encode($y_c) ?>,
+    xy_zoom: <?= json_encode($xy_zoom) ?>,
+    imageSize: <?= json_encode($image_size) ?>
+  }
 };
 </script>
 <script src="js/map-interactive.js"></script>

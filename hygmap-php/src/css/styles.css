@@ -107,33 +107,20 @@ h4 { margin-top: 5px; margin-bottom: 5px;}
   color: #88ccff;
 }
 
-.distance-display {
-  margin-top: 0.5rem;
-  padding: 8px 12px;
-  background: #e8f4e8;
-  border: 1px solid #4a4;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.distance-display button {
-  margin-left: 10px;
-  background: #c44;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  padding: 2px 8px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.distance-display button:hover {
-  background: #a33;
-}
-
-.map-help {
+.map-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 0.5rem;
   color: #666;
-  text-align: center;
+  padding: 0 0.5rem;
+}
+
+.cursor-coords {
+  font-family: monospace;
+  font-size: 13px;
+  color: #333;
+  min-width: 180px;
+  text-align: right;
 }
 

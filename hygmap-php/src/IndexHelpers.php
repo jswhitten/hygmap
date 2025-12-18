@@ -310,11 +310,11 @@ function calculateScreenCoords(
  * Build star data for interactive map overlay
  *
  * Returns an array of stars with their screen positions for use in JavaScript.
- * Only includes stars that would be visible/labeled on the map.
+ * Includes all stars in the current view for tooltip and click interaction.
  *
  * @param array $bbox Bounding box for query
  * @param float $m_limit Magnitude limit for display
- * @param float $m_limit_label Magnitude limit for labels
+ * @param float $m_limit_label Magnitude limit for labels (unused, kept for API compatibility)
  * @param int $fic_names Fiction world ID
  * @param string $unit Distance unit
  * @param array $view_coords View center coordinates
@@ -343,11 +343,6 @@ function buildInteractiveStarData(
     $stars = [];
 
     foreach ($rows as $row) {
-        // Only include stars bright enough to be labeled
-        if ((float)$row['absmag'] >= $m_limit_label) {
-            continue;
-        }
-
         $x_ui = from_pc((float)$row["x"], $unit);
         $y_ui = from_pc((float)$row["y"], $unit);
         $z_ui = from_pc((float)$row["z"], $unit);
