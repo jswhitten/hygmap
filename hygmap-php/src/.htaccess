@@ -8,3 +8,10 @@ Options -Indexes
 
 # Force UTF-8 for text files
 AddDefaultCharset UTF-8
+
+# Block aggressive bots and AI crawlers
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP_USER_AGENT} (ClaudeBot|Amazonbot|GPTBot|CCBot|ChatGPT|anthropic|Google-Extended|FacebookBot|Bytespider|PetalBot|SemrushBot|AhrefsBot|DotBot|MJ12bot) [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
