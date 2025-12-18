@@ -1,12 +1,15 @@
 # docker-compose.prod.yml
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Requires: POSTGRES_PASSWORD environment variable (set in .env file or shell)
+
 services:
   hygmap-db:
-    ports: []  # Don't expose database port in production
-    restart: unless-stopped
+    # Bind to localhost only (not externally accessible) in production
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: always
 
   hygmap-php:
-    ports:
-      - "80:80"
-    restart: unless-stopped
+    restart: always
     environment:
       - PHP_INI_SCAN_DIR=/usr/local/etc/php/conf.d:/usr/local/etc/php/production.d
