@@ -161,8 +161,11 @@ foreach($rows as $row) {
         // label
 	    $skiplabel = false;
 	    if($select_star != $id) {
-            // Always label stars with proper names or fictional names (important stars)
-            $has_important_name = !empty($row["proper"]) || (!empty($row["name"]) && $fic_names > 0);
+            // Always label stars with traditional astronomical names (important stars)
+            $has_important_name = !empty($row["proper"])      // Proper names (Sirius, Vega)
+                               || !empty($row["bayer"])       // Bayer designations (Tau Ceti, Alpha Centauri)
+                               || !empty($row["flam"])        // Flamsteed numbers (51 Pegasi)
+                               || (!empty($row["name"]) && $fic_names > 0); // Fictional names
 
             if(!$has_important_name && $mag > MAG_THRESHOLD_DENSE_FIELD && $id > 0) {
                 $skiplabel = true;
