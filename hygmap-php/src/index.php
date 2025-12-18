@@ -9,7 +9,12 @@ require_once 'IndexHelpers.php';
 // =============================================================================
 
 $profiler->flag("START");
-header("X-Robots-Tag: noindex");
+
+// Only allow indexing of the main page (no query parameters)
+// Block indexing of star-specific pages and custom views
+if (!empty($_SERVER['QUERY_STRING'])) {
+    header("X-Robots-Tag: noindex, nofollow");
+}
 
 // Extract configuration
 $unit = $cfg['unit'];
