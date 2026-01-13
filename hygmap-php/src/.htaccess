@@ -1,6 +1,15 @@
 # Disable automatic directory indexes
 Options -Indexes
 
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+</IfModule>
+
 # Block direct access to sensitive files
 <FilesMatch "^(\.env|composer\.(json|lock)|.*\.(sql|sh|bak|gz))$">
     Require all denied

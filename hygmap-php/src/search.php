@@ -1,7 +1,8 @@
 <?php
 declare(strict_types=1);
-require_once 'common_inc.php';
-require_once 'Database.php';
+
+require_once __DIR__ . '/Database.php';
+
 session_start();
 
 $q = trim($_GET['q'] ?? '');

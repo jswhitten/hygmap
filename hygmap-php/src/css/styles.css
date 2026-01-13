@@ -124,3 +124,217 @@ h4 { margin-top: 5px; margin-bottom: 5px;}
   text-align: right;
 }
 
+.copy-link-btn {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.copy-link-btn:hover {
+  background: #357abd;
+}
+
+.copy-link-btn.copied {
+  background: #28a745;
+}
+
+.export-btn {
+  display: inline-block;
+  background: #5cb85c;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-decoration: none;
+  margin-left: 10px;
+  transition: background 0.2s;
+}
+
+.export-btn:hover {
+  background: #449d44;
+  color: white;
+}
+
+/* === Focus styles for accessibility === */
+input:focus,
+select:focus,
+button:focus,
+a:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+.map-container:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+/* Visually hidden but accessible to screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* === Mobile Responsive Styles === */
+
+/* Tablet and below */
+@media screen and (max-width: 900px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-shrink: 1;
+  }
+
+  .main {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .map-container {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .map-container img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .menupanel {
+    padding: 0.5rem 1rem;
+    display: block;
+    border-right: none;
+    border-bottom: 1px solid #ddddcc;
+  }
+
+  .datatable {
+    overflow-x: auto;
+  }
+
+  .datatable table {
+    min-width: 600px;
+  }
+}
+
+/* Phone screens */
+@media screen and (max-width: 600px) {
+  .toplink {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    margin-bottom: 2px;
+  }
+
+  .sidebar {
+    gap: 0.5rem;
+  }
+
+  .menupanel {
+    padding: 0.75rem;
+  }
+
+  .menupanel label {
+    display: inline-block;
+    min-width: 2rem;
+  }
+
+  .menupanel input[type="text"],
+  .menupanel input:not([type]) {
+    width: calc(100% - 3rem);
+    padding: 8px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  .menupanel select {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px;
+    margin-bottom: 0.5rem;
+  }
+
+  .menupanel button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    margin-top: 0.5rem;
+  }
+
+  .info {
+    font-size: 14px;
+  }
+
+  .info table td {
+    padding: 4px 2px;
+  }
+
+  .map-status {
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: center;
+  }
+
+  .cursor-coords {
+    text-align: center;
+  }
+
+  .star-tooltip {
+    max-width: 200px;
+    font-size: 11px;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    margin: 0.5rem 0;
+  }
+}
+
+/* ===========================================
+   Configure Page Styles
+   =========================================== */
+.configure-page {
+  font-family: sans-serif;
+  margin: 1rem auto;
+  max-width: 520px;
+  padding: 0 1rem;
+}
+
+.configure-page fieldset {
+  margin-bottom: 1.2rem;
+}
+
+.configure-page label {
+  display: block;
+  margin: 0.4rem 0;
+}
+
+.configure-page input[type=number] {
+  width: 6rem;
+  padding: 8px;
+  font-size: 16px;
+}
+
+.configure-page select {
+  padding: 8px;
+  font-size: 16px;
+}
+
+.configure-page button {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+

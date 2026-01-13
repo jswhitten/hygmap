@@ -1,3 +1,4 @@
 .env
+.claude/
 /db/data/athyg_v*
 /vendor/

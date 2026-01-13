@@ -1,286 +1,440 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/Units.php';
+require_once __DIR__ . '/StarFormatter.php';
+require_once __DIR__ . '/ErrorHandler.php';
+require_once __DIR__ . '/RenderingConstants.php';
+
 /**
- * IndexHelpers - Helper functions for index.php view
+ * IndexHelpers - Helper methods for index.php view
  *
- * Separates business logic from presentation by providing focused functions
+ * Separates business logic from presentation by providing focused methods
  * for data fetching, transformation, and HTML generation.
  */
-
-/**
- * Fetch selected star and update view center if requested
- *
- * @param int $select_star Star ID to select
- * @param int $select_center Whether to center view on star (1 = yes)
- * @param int $fic_names Fiction world ID
- * @param string $unit Distance unit for conversion
- * @param array &$view_coords Reference to coordinates array to update
- * @return array|null Selected star data or null
- */
-function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords): ?array
+final class IndexHelpers
 {
-    if ($select_star <= 0) {
-        return null;
-    }
-
-    try {
-        $selected_star = Database::queryStar($select_star, $fic_names);
-        if (!$selected_star) {
+    /**
+     * Fetch selected star and update view center if requested
+     *
+     * @param int $select_star Star ID to select
+     * @param int $select_center Whether to center view on star (1 = yes)
+     * @param int $fic_names Fiction world ID
+     * @param string $unit Distance unit for conversion
+     * @param array &$view_coords Reference to coordinates array to update
+     * @return array|null Selected star data or null
+     */
+    public static function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords): ?array
+    {
+        if ($select_star <= 0) {
             return null;
         }
 
-        // Update view center if requested
-        if ($select_center == 1) {
-            $view_coords['x_c'] = from_pc((float)$selected_star["x"], $unit);
-            $view_coords['y_c'] = from_pc((float)$selected_star["y"], $unit);
-            $view_coords['z_c'] = from_pc((float)$selected_star["z"], $unit);
+        try {
+            $selected_star = Database::queryStar($select_star, $fic_names);
+            if (!$selected_star) {
+                return null;
+            }
+
+            // Update view center if requested
+            if ($select_center == 1) {
+                $view_coords['x_c'] = Units::fromParsecs((float)$selected_star["x"], $unit);
+                $view_coords['y_c'] = Units::fromParsecs((float)$selected_star["y"], $unit);
+                $view_coords['z_c'] = Units::fromParsecs((float)$selected_star["z"], $unit);
+            }
+
+            return $selected_star;
+        } catch (PDOException $e) {
+            ErrorHandler::handleError("Unable to retrieve star information from database.", $e);
+        }
+    }
+
+    /**
+     * Build data for selected star info panel
+     *
+     * @param array|null $selected_star Star data from database
+     * @param int $fic_names Fiction world ID
+     * @param string $unit Distance unit
+     * @return array Data for rendering selected star info
+     */
+    public static function buildSelectedStarData(?array $selected_star, int $fic_names, string $unit): array
+    {
+        if (!$selected_star) {
+            return [
+                'has_star' => false,
+                'html' => '<em>No star selected.</em>'
+            ];
         }
 
-        return $selected_star;
-    } catch (PDOException $e) {
-        handleError("Unable to retrieve star information from database.", $e);
-        return null;
-    }
-}
+        // Calculate display name and links
+        $star_name = StarFormatter::getDisplayName($selected_star, 0);
+        $has_catalog_name = !empty($selected_star["proper"]) || !empty($selected_star["bf"]);
 
-/**
- * Build data for selected star info panel
- *
- * @param array|null $selected_star Star data from database
- * @param int $fic_names Fiction world ID
- * @param string $unit Distance unit
- * @return array Data for rendering selected star info
- */
-function buildSelectedStarData(?array $selected_star, int $fic_names, string $unit): array
-{
-    if (!$selected_star) {
+        if ($has_catalog_name) {
+            $display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' .
+                           urlencode($star_name) . '">' .
+                           htmlspecialchars($star_name, ENT_QUOTES) . '</a>';
+        } else {
+            $display_name = htmlspecialchars($star_name, ENT_QUOTES);
+        }
+
+        // Add fictional name if present
+        $memory_alpha = '';
+        if ($fic_names && !empty($selected_star["name"]) && $star_name != $selected_star["name"]) {
+            $display_name .= " (" . htmlspecialchars($selected_star["name"], ENT_QUOTES) . ")";
+            $memory_alpha = '<br/>[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query=' .
+                           urlencode($selected_star["name"]) .
+                           '&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>';
+        }
+
+        // Calculate coordinates and links
+        $selected_ra_deg = (float)$selected_star["ra"] * 360 / 24;
+        $selected_dec_av = abs((float)$selected_star["dec"]);
+        $selected_dec_ns = ((float)$selected_star["dec"] >= 0) ? 'North' : 'South';
+        $selected_dec_simbad = ((float)$selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
+
+        $distance_ui = number_format(Units::fromParsecs((float)$selected_star["dist"], $unit), 3);
+        $x_ui = number_format(Units::fromParsecs((float)$selected_star["x"], $unit), 3);
+        $y_ui = number_format(Units::fromParsecs((float)$selected_star["y"], $unit), 3);
+        $z_ui = number_format(Units::fromParsecs((float)$selected_star["z"], $unit), 3);
+
+        $x_ly = Units::toLightYears((float)$selected_star["x"], "pc");
+        $y_ly = Units::toLightYears((float)$selected_star["y"], "pc");
+        $z_ly = Units::toLightYears((float)$selected_star["z"], "pc");
+
         return [
-            'has_star' => false,
-            'html' => '<em>No star selected.</em>'
+            'has_star' => true,
+            'display_name' => $display_name,
+            'absmag' => $selected_star["absmag"],
+            'spect' => $selected_star["spect"],
+            'distance_ui' => $distance_ui,
+            'unit' => $unit,
+            'x_ui' => $x_ui,
+            'y_ui' => $y_ui,
+            'z_ui' => $z_ui,
+            'mag' => $selected_star["mag"],
+            'ra' => $selected_star["ra"],
+            'dec' => $selected_star["dec"],
+            'x_ly' => $x_ly,
+            'y_ly' => $y_ly,
+            'z_ly' => $z_ly,
+            'selected_ra_deg' => $selected_ra_deg,
+            'selected_dec_av' => $selected_dec_av,
+            'selected_dec_ns' => $selected_dec_ns,
+            'selected_dec_simbad' => $selected_dec_simbad,
+            'memory_alpha' => $memory_alpha,
         ];
     }
 
-    // Calculate display name and links
-    $star_name = getStarDisplayName($selected_star, 0);
-    $has_catalog_name = !empty($selected_star["proper"]) || !empty($selected_star["bf"]);
-
-    if ($has_catalog_name) {
-        $display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' .
-                       urlencode($star_name) . '">' .
-                       htmlspecialchars($star_name, ENT_QUOTES) . '</a>';
-    } else {
-        $display_name = htmlspecialchars($star_name, ENT_QUOTES);
-    }
-
-    // Add fictional name if present
-    $memory_alpha = '';
-    if ($fic_names && !empty($selected_star["name"]) && $star_name != $selected_star["name"]) {
-        $display_name .= " (" . htmlspecialchars($selected_star["name"], ENT_QUOTES) . ")";
-        $memory_alpha = '<br/>[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query=' .
-                       urlencode($selected_star["name"]) .
-                       '&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>';
-    }
-
-    // Calculate coordinates and links
-    $selected_ra_deg = (float)$selected_star["ra"] * 360 / 24;
-    $selected_dec_av = abs((float)$selected_star["dec"]);
-    $selected_dec_ns = ((float)$selected_star["dec"] >= 0) ? 'North' : 'South';
-    $selected_dec_simbad = ((float)$selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
-
-    $distance_ui = number_format(from_pc((float)$selected_star["dist"], $unit), 3);
-    $x_ui = number_format(from_pc((float)$selected_star["x"], $unit), 3);
-    $y_ui = number_format(from_pc((float)$selected_star["y"], $unit), 3);
-    $z_ui = number_format(from_pc((float)$selected_star["z"], $unit), 3);
-
-    $x_ly = to_ly((float)$selected_star["x"], "pc");
-    $y_ly = to_ly((float)$selected_star["y"], "pc");
-    $z_ly = to_ly((float)$selected_star["z"], "pc");
-
-    return [
-        'has_star' => true,
-        'display_name' => $display_name,
-        'absmag' => $selected_star["absmag"],
-        'spect' => $selected_star["spect"],
-        'distance_ui' => $distance_ui,
-        'unit' => $unit,
-        'x_ui' => $x_ui,
-        'y_ui' => $y_ui,
-        'z_ui' => $z_ui,
-        'mag' => $selected_star["mag"],
-        'ra' => $selected_star["ra"],
-        'dec' => $selected_star["dec"],
-        'x_ly' => $x_ly,
-        'y_ly' => $y_ly,
-        'z_ly' => $z_ly,
-        'selected_ra_deg' => $selected_ra_deg,
-        'selected_dec_av' => $selected_dec_av,
-        'selected_dec_ns' => $selected_dec_ns,
-        'selected_dec_simbad' => $selected_dec_simbad,
-        'memory_alpha' => $memory_alpha,
-    ];
-}
-
-/**
- * Generate HTML for map image tags
- *
- * @param string $image_type Type of map ('stereo', 'normal', 'printable')
- * @param int $image_size Size in pixels
- * @param array $baseParams Query parameters for map.php
- * @return string HTML for map image(s)
- */
-function buildMapHtml(string $image_type, int $image_size, array $baseParams): string
-{
-    if ($image_type === 'stereo') {
-        $leftSrc = 'map.php?' . http_build_query($baseParams + ['image_side' => 'left']);
-        $rightSrc = 'map.php?' . http_build_query($baseParams + ['image_side' => 'right']);
-
-        return '<img src="' . htmlspecialchars($leftSrc) . '" ' .
-               'width="' . $image_size . '" height="' . $image_size . '">&nbsp;' .
-               '<img src="' . htmlspecialchars($rightSrc) . '" ' .
-               'width="' . $image_size . '" height="' . $image_size . '">';
-    } else {
-        $src = 'map.php?' . http_build_query($baseParams);
-        return '<img src="' . htmlspecialchars($src) . '" ' .
-               'width="' . ($image_size * 2) . '" height="' . $image_size . '">';
-    }
-}
-
-/**
- * Fetch and transform star table data
- *
- * @param array $bbox Bounding box for query
- * @param float $m_limit Magnitude limit
- * @param float $m_limit_label Label magnitude limit
- * @param int $fic_names Fiction world ID
- * @param string $unit Distance unit
- * @param array $view_coords View center coordinates
- * @return array Star table data with counts
- */
-function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, int $fic_names, string $unit, array $view_coords): array
-{
-    try {
-        $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
-    } catch (PDOException $e) {
-        handleError("Unable to query stars in the current map area.", $e);
-        return ['rows' => [], 'total_count' => 0, 'displayed_count' => 0];
-    }
-
-    $star_data = [];
-    $total_count = 0;
-    $displayed_count = 0;
-
-    foreach ($rows as $row) {
-        $total_count++;
-
-        if ($row['absmag'] >= $m_limit_label) {
-            continue;
-        }
-
-        $displayed_count++;
-
-        $x_ui = from_pc((float)$row["x"], $unit);
-        $y_ui = from_pc((float)$row["y"], $unit);
-        $z_ui = from_pc((float)$row["z"], $unit);
-
-        $distance_from_center = sqrt(
-            pow($x_ui - $view_coords['x_c'], 2) +
-            pow($y_ui - $view_coords['y_c'], 2) +
-            pow($z_ui - $view_coords['z_c'], 2)
+    /**
+     * Generate HTML for map image tags
+     *
+     * @param string $image_type Type of map ('stereo', 'normal', 'printable')
+     * @param int $image_size Size in pixels
+     * @param array $baseParams Query parameters for map.php
+     * @return string HTML for map image(s)
+     */
+    public static function buildMapHtml(string $image_type, int $image_size, array $baseParams): string
+    {
+        // Build descriptive alt text for accessibility
+        $x_c = $baseParams['x_c'] ?? 0;
+        $y_c = $baseParams['y_c'] ?? 0;
+        $z_c = $baseParams['z_c'] ?? 0;
+        $xy_zoom = $baseParams['xy_zoom'] ?? 25;
+        $altText = sprintf(
+            'Star map centered at X:%.1f Y:%.1f Z:%.1f with zoom %.1f',
+            $x_c, $y_c, $z_c, $xy_zoom
         );
 
-        $star_data[] = [
-            'id' => $row['id'],
-            'name' => getStarDisplayName($row, 0),
-            'con' => $row["con"] ?? '',
-            'spect' => $row["spect"] ?? '',
-            'absmag' => $row["absmag"],
-            'distance' => number_format(from_pc((float)$row["dist"], $unit), 3),
-            'distance_from_center' => number_format($distance_from_center, 3),
-            'x' => number_format($x_ui, 3),
-            'y' => number_format($y_ui, 3),
-            'z' => number_format($z_ui, 3),
+        if ($image_type === 'stereo') {
+            $leftSrc = 'map.php?' . http_build_query($baseParams + ['image_side' => 'left']);
+            $rightSrc = 'map.php?' . http_build_query($baseParams + ['image_side' => 'right']);
+
+            return '<img src="' . htmlspecialchars($leftSrc) . '" ' .
+                   'alt="' . htmlspecialchars($altText . ' (left eye)') . '" ' .
+                   'width="' . $image_size . '" height="' . $image_size . '">&nbsp;' .
+                   '<img src="' . htmlspecialchars($rightSrc) . '" ' .
+                   'alt="' . htmlspecialchars($altText . ' (right eye)') . '" ' .
+                   'width="' . $image_size . '" height="' . $image_size . '">';
+        } else {
+            $src = 'map.php?' . http_build_query($baseParams);
+            return '<img src="' . htmlspecialchars($src) . '" ' .
+                   'alt="' . htmlspecialchars($altText) . '" ' .
+                   'width="' . ($image_size * 2) . '" height="' . $image_size . '">';
+        }
+    }
+
+    /**
+     * Fetch and transform star table data
+     *
+     * @param array $bbox Bounding box for query
+     * @param float $m_limit Magnitude limit
+     * @param float $m_limit_label Label magnitude limit
+     * @param int $fic_names Fiction world ID
+     * @param string $unit Distance unit
+     * @param array $view_coords View center coordinates
+     * @return array Star table data with counts
+     */
+    public static function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, int $fic_names, string $unit, array $view_coords): array
+    {
+        try {
+            $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+        } catch (PDOException $e) {
+            ErrorHandler::handleError("Unable to query stars in the current map area.", $e);
+        }
+
+        $star_data = [];
+        $total_count = 0;
+        $displayed_count = 0;
+
+        foreach ($rows as $row) {
+            $total_count++;
+
+            if ($row['absmag'] >= $m_limit_label) {
+                continue;
+            }
+
+            $displayed_count++;
+
+            $x_ui = Units::fromParsecs((float)$row["x"], $unit);
+            $y_ui = Units::fromParsecs((float)$row["y"], $unit);
+            $z_ui = Units::fromParsecs((float)$row["z"], $unit);
+
+            $distance_from_center = sqrt(
+                pow($x_ui - $view_coords['x_c'], 2) +
+                pow($y_ui - $view_coords['y_c'], 2) +
+                pow($z_ui - $view_coords['z_c'], 2)
+            );
+
+            $star_data[] = [
+                'id' => $row['id'],
+                'name' => StarFormatter::getDisplayName($row, 0),
+                'con' => $row["con"] ?? '',
+                'spect' => $row["spect"] ?? '',
+                'absmag' => $row["absmag"],
+                'distance' => number_format(Units::fromParsecs((float)$row["dist"], $unit), 3),
+                'distance_from_center' => number_format($distance_from_center, 3),
+                'x' => number_format($x_ui, 3),
+                'y' => number_format($y_ui, 3),
+                'z' => number_format($z_ui, 3),
+            ];
+        }
+
+        return [
+            'rows' => $star_data,
+            'total_count' => $total_count,
+            'displayed_count' => $displayed_count,
         ];
     }
 
-    return [
-        'rows' => $star_data,
-        'total_count' => $total_count,
-        'displayed_count' => $displayed_count,
-    ];
+    /**
+     * Build HTML option tags from array of items
+     *
+     * @param array $items Array of items with id/value fields
+     * @param string $value_key Key for option value
+     * @param string $label_key Key for option label
+     * @return string HTML option tags
+     */
+    public static function buildSelectOptions(array $items, string $value_key, string $label_key): string
+    {
+        $options = [];
+        foreach ($items as $item) {
+            $value = htmlspecialchars((string)$item[$value_key], ENT_QUOTES);
+            $label = htmlspecialchars($item[$label_key], ENT_QUOTES);
+            $options[] = "<option value=\"{$value}\">{$label}</option>";
+        }
+        return implode("\n", $options);
+    }
+
+    /**
+     * Fetch proper star names for dropdown
+     *
+     * @return string HTML option tags
+     */
+    public static function fetchProperStarOptions(): string
+    {
+        try {
+            $rows = Database::queryProperNames();
+            return self::buildSelectOptions($rows, 'id', 'proper');
+        } catch (PDOException $e) {
+            ErrorHandler::handleError("Unable to load star catalog.", $e);
+        }
+    }
+
+    /**
+     * Fetch fictional star names for dropdown
+     *
+     * @param int $fic_names Fiction world ID
+     * @return string HTML option tags
+     */
+    public static function fetchFictionalStarOptions(int $fic_names): string
+    {
+        try {
+            $rows = Database::queryFiction($fic_names);
+            return self::buildSelectOptions($rows, 'star_id', 'name');
+        } catch (PDOException $e) {
+            ErrorHandler::handleError("Unable to load fictional star names.", $e);
+        }
+    }
+
+    /**
+     * Calculate screen coordinates for a star position
+     *
+     * This mirrors the logic in MapRenderer::screenCoords() to ensure consistency
+     * between the rendered image and the interactive overlay.
+     *
+     * @param float $x Star X coordinate in UI units
+     * @param float $y Star Y coordinate in UI units
+     * @param float $z Star Z coordinate in UI units
+     * @param float $x_c View center X
+     * @param float $y_c View center Y
+     * @param float $z_c View center Z (used for stereo offset)
+     * @param float $xy_zoom Zoom level
+     * @param float $z_zoom Z zoom level (used for stereo offset)
+     * @param int $image_size Image size in pixels
+     * @param string $image_type Image type ('stereo', 'normal', 'printable')
+     * @param string $image_side Side for stereo ('left', 'right', '')
+     * @return array [screen_x, screen_y]
+     */
+    public static function calculateScreenCoords(
+        float $x, float $y, float $z,
+        float $x_c, float $y_c, float $z_c,
+        float $xy_zoom, float $z_zoom,
+        int $image_size,
+        string $image_type,
+        string $image_side = ''
+    ): array {
+        $is_stereo = ($image_side === 'left' || $image_side === 'right');
+
+        if ($is_stereo) {
+            $screen_x = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($y - $y_c));
+            $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x - $x_c));
+
+            // Apply stereo offset
+            $offset = RenderingConstants::STEREO_OFFSET_MULTIPLIER * (($z - $z_c) / $z_zoom);
+            $screen_x += ($image_side === 'left') ? $offset : -$offset;
+        } else {
+            $screen_x = $image_size - (($image_size / (2 * $xy_zoom)) * ($y - $y_c));
+            $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x - $x_c));
+        }
+
+        return [$screen_x, $screen_y];
+    }
+
+    /**
+     * Build star data for interactive map overlay
+     *
+     * Returns an array of stars with their screen positions for use in JavaScript.
+     * Includes all stars in the current view for tooltip and click interaction.
+     *
+     * @param array $bbox Bounding box for query
+     * @param float $m_limit Magnitude limit for display
+     * @param float $m_limit_label Magnitude limit for labels (unused, kept for API compatibility)
+     * @param int $fic_names Fiction world ID
+     * @param string $unit Distance unit
+     * @param array $view_coords View center coordinates
+     * @param float $xy_zoom XY zoom level
+     * @param float $z_zoom Z zoom level
+     * @param int $image_size Image size in pixels
+     * @param string $image_type Image type
+     * @return array Star data with screen positions
+     */
+    public static function buildInteractiveStarData(
+        array $bbox,
+        float $m_limit,
+        float $m_limit_label,
+        int $fic_names,
+        string $unit,
+        array $view_coords,
+        float $xy_zoom,
+        float $z_zoom,
+        int $image_size,
+        string $image_type
+    ): array {
+        try {
+            $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+        } catch (PDOException $e) {
+            return [];
+        }
+
+        $stars = [];
+
+        foreach ($rows as $row) {
+            $x_ui = Units::fromParsecs((float)$row["x"], $unit);
+            $y_ui = Units::fromParsecs((float)$row["y"], $unit);
+            $z_ui = Units::fromParsecs((float)$row["z"], $unit);
+
+            // Calculate screen position
+            list($screen_x, $screen_y) = self::calculateScreenCoords(
+                $x_ui, $y_ui, $z_ui,
+                $view_coords['x_c'], $view_coords['y_c'], $view_coords['z_c'],
+                $xy_zoom, $z_zoom,
+                $image_size,
+                $image_type
+            );
+
+            // Skip stars that are off-screen
+            $max_x = ($image_type === 'stereo') ? $image_size : $image_size * 2;
+            if ($screen_x < 0 || $screen_x > $max_x || $screen_y < 0 || $screen_y > $image_size) {
+                continue;
+            }
+
+            $stars[] = [
+                'id' => (int)$row['id'],
+                'name' => StarFormatter::getDisplayName($row, $fic_names),
+                'x' => round($x_ui, 3),
+                'y' => round($y_ui, 3),
+                'z' => round($z_ui, 3),
+                'sx' => round($screen_x, 1),
+                'sy' => round($screen_y, 1),
+                'mag' => round((float)$row['absmag'], 2),
+                'spect' => $row['spect'] ?? '',
+            ];
+        }
+
+        return $stars;
+    }
 }
 
-/**
- * Build HTML option tags from array of items
- *
- * @param array $items Array of items with id/value fields
- * @param string $value_key Key for option value
- * @param string $label_key Key for option label
- * @return string HTML option tags
- */
+// =============================================================================
+// Backwards-compatible function wrappers
+// =============================================================================
+
+function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords): ?array
+{
+    return IndexHelpers::fetchSelectedStar($select_star, $select_center, $fic_names, $unit, $view_coords);
+}
+
+function buildSelectedStarData(?array $selected_star, int $fic_names, string $unit): array
+{
+    return IndexHelpers::buildSelectedStarData($selected_star, $fic_names, $unit);
+}
+
+function buildMapHtml(string $image_type, int $image_size, array $baseParams): string
+{
+    return IndexHelpers::buildMapHtml($image_type, $image_size, $baseParams);
+}
+
+function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, int $fic_names, string $unit, array $view_coords): array
+{
+    return IndexHelpers::fetchStarTableData($bbox, $m_limit, $m_limit_label, $fic_names, $unit, $view_coords);
+}
+
 function buildSelectOptions(array $items, string $value_key, string $label_key): string
 {
-    $options = [];
-    foreach ($items as $item) {
-        $value = htmlspecialchars((string)$item[$value_key], ENT_QUOTES);
-        $label = htmlspecialchars($item[$label_key], ENT_QUOTES);
-        $options[] = "<option value=\"{$value}\">{$label}</option>";
-    }
-    return implode("\n", $options);
+    return IndexHelpers::buildSelectOptions($items, $value_key, $label_key);
 }
 
-/**
- * Fetch proper star names for dropdown
- *
- * @return string HTML option tags
- */
 function fetchProperStarOptions(): string
 {
-    try {
-        $rows = Database::queryProperNames();
-        return buildSelectOptions($rows, 'id', 'proper');
-    } catch (PDOException $e) {
-        handleError("Unable to load star catalog.", $e);
-        return '';
-    }
+    return IndexHelpers::fetchProperStarOptions();
 }
 
-/**
- * Fetch fictional star names for dropdown
- *
- * @param int $fic_names Fiction world ID
- * @return string HTML option tags
- */
 function fetchFictionalStarOptions(int $fic_names): string
 {
-    try {
-        $rows = Database::queryFiction($fic_names);
-        return buildSelectOptions($rows, 'star_id', 'name');
-    } catch (PDOException $e) {
-        handleError("Unable to load fictional star names.", $e);
-        return '';
-    }
+    return IndexHelpers::fetchFictionalStarOptions($fic_names);
 }
 
-/**
- * Calculate screen coordinates for a star position
- *
- * This mirrors the logic in MapRenderer::screenCoords() to ensure consistency
- * between the rendered image and the interactive overlay.
- *
- * @param float $x Star X coordinate in UI units
- * @param float $y Star Y coordinate in UI units
- * @param float $z Star Z coordinate in UI units
- * @param float $x_c View center X
- * @param float $y_c View center Y
- * @param float $z_c View center Z (used for stereo offset)
- * @param float $xy_zoom Zoom level
- * @param float $z_zoom Z zoom level (used for stereo offset)
- * @param int $image_size Image size in pixels
- * @param string $image_type Image type ('stereo', 'normal', 'printable')
- * @param string $image_side Side for stereo ('left', 'right', '')
- * @return array [screen_x, screen_y]
- */
 function calculateScreenCoords(
     float $x, float $y, float $z,
     float $x_c, float $y_c, float $z_c,
@@ -289,39 +443,9 @@ function calculateScreenCoords(
     string $image_type,
     string $image_side = ''
 ): array {
-    $is_stereo = ($image_side === 'left' || $image_side === 'right');
-
-    if ($is_stereo) {
-        $screen_x = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($y - $y_c));
-        $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x - $x_c));
-
-        // Apply stereo offset
-        $offset = STEREO_OFFSET_MULTIPLIER * (($z - $z_c) / $z_zoom);
-        $screen_x += ($image_side === 'left') ? $offset : -$offset;
-    } else {
-        $screen_x = $image_size - (($image_size / (2 * $xy_zoom)) * ($y - $y_c));
-        $screen_y = ($image_size / 2) - (($image_size / (2 * $xy_zoom)) * ($x - $x_c));
-    }
-
-    return [$screen_x, $screen_y];
+    return IndexHelpers::calculateScreenCoords($x, $y, $z, $x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $image_size, $image_type, $image_side);
 }
 
-/**
- * Build star data for interactive map overlay
- *
- * Returns an array of stars with their screen positions for use in JavaScript.
- * Includes all stars in the current view for tooltip and click interaction.
- *
- * @param array $bbox Bounding box for query
- * @param float $m_limit Magnitude limit for display
- * @param float $m_limit_label Magnitude limit for labels (unused, kept for API compatibility)
- * @param int $fic_names Fiction world ID
- * @param string $unit Distance unit
- * @param array $view_coords View center coordinates
- * @param int $image_size Image size in pixels
- * @param string $image_type Image type
- * @return array Star data with screen positions
- */
 function buildInteractiveStarData(
     array $bbox,
     float $m_limit,
@@ -334,46 +458,5 @@ function buildInteractiveStarData(
     int $image_size,
     string $image_type
 ): array {
-    try {
-        $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
-    } catch (PDOException $e) {
-        return [];
-    }
-
-    $stars = [];
-
-    foreach ($rows as $row) {
-        $x_ui = from_pc((float)$row["x"], $unit);
-        $y_ui = from_pc((float)$row["y"], $unit);
-        $z_ui = from_pc((float)$row["z"], $unit);
-
-        // Calculate screen position
-        list($screen_x, $screen_y) = calculateScreenCoords(
-            $x_ui, $y_ui, $z_ui,
-            $view_coords['x_c'], $view_coords['y_c'], $view_coords['z_c'],
-            $xy_zoom, $z_zoom,
-            $image_size,
-            $image_type
-        );
-
-        // Skip stars that are off-screen
-        $max_x = ($image_type === 'stereo') ? $image_size : $image_size * 2;
-        if ($screen_x < 0 || $screen_x > $max_x || $screen_y < 0 || $screen_y > $image_size) {
-            continue;
-        }
-
-        $stars[] = [
-            'id' => (int)$row['id'],
-            'name' => getStarDisplayName($row, $fic_names),
-            'x' => round($x_ui, 3),
-            'y' => round($y_ui, 3),
-            'z' => round($z_ui, 3),
-            'sx' => round($screen_x, 1),
-            'sy' => round($screen_y, 1),
-            'mag' => round((float)$row['absmag'], 2),
-            'spect' => $row['spect'] ?? '',
-        ];
-    }
-
-    return $stars;
+    return IndexHelpers::buildInteractiveStarData($bbox, $m_limit, $m_limit_label, $fic_names, $unit, $view_coords, $xy_zoom, $z_zoom, $image_size, $image_type);
 }

@@ -1,10 +1,22 @@
 <?php
 declare(strict_types=1);
-require_once 'config.inc.php';
-require_once 'common_inc.php';
+
+require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/Csrf.php';
+require_once __DIR__ . '/Units.php';
 require_once __DIR__ . '/Database.php';
 
+session_start();
+Csrf::init();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+    // Validate CSRF token
+    $csrf_token = filter_input(INPUT_POST, 'csrf_token', FILTER_SANITIZE_SPECIAL_CHARS) ?? '';
+    if (!Csrf::validate($csrf_token)) {
+        http_response_code(403);
+        die('Invalid or missing CSRF token. Please <a href="configure.php">try again</a>.');
+    }
 
     // validate using filter_input
     $unit_input = filter_input(INPUT_POST, 'unit', FILTER_SANITIZE_SPECIAL_CHARS) ?? 'pc';
@@ -38,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $showSignals = filter_input(INPUT_POST, 'show_signals', FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 
     // save
-    cfg_set([
+    Config::save([
         'unit'            => $unit,
         'grid'            => $grid,
         'fic_names'       => $fic_names,
@@ -64,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // convert coords if unit changed
     if ($prevUnit !== $unit) {
-        $factor = LY_PER_PC;
+        $factor = Units::LY_PER_PC;
         $mul = ($unit === 'ly') ? $factor : 1/$factor;
 
         foreach (['x_c','y_c','z_c','xy_zoom','z_zoom'] as $p) {
@@ -90,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 
-$cfg  = cfg_load();
+$cfg  = Config::load();
 
 // Validate referer is from same domain before using it
 $referer = $_SERVER['HTTP_REFERER'] ?? '';
@@ -100,14 +112,13 @@ $is_valid_referer = $referer_host && $referer_host === $current_host;
 $back = $is_valid_referer ? $referer : ($_SESSION['last_map'] ?? 'index.php');
 ?>
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HYGMap – Settings</title>
-<style>
- body{font-family:sans-serif;margin:2rem auto;max-width:520px}
- fieldset{margin-bottom:1.2rem} label{display:block;margin:.4rem 0}
- input[type=number]{width:6rem}
-</style></head><body>
+<link href="css/styles.css" rel="stylesheet">
+</head><body class="configure-page">
 <h2>Map Settings</h2>
 <form action="configure.php" method="post">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Csrf::token(), ENT_QUOTES) ?>">
 
 <!---------------- Units & Grid ---------------->
 <fieldset><legend>Units &amp; Grid</legend>
