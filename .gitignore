@@ -2,3 +2,4 @@
 .claude/
 /db/data/athyg_v*
 /vendor/
+/hygmap-php/vendor/
