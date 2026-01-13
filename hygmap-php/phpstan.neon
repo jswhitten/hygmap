@@ -1,0 +1,16 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    excludePaths:
+        - src/css
+        - src/js
+        - src/vulcan.jpg
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # Session superglobal access
+        - '#Variable \$_SESSION might not be defined#'
+        # Legacy code patterns that work but PHPStan doesn't like
+        - '#Function [a-z_]+ invoked with \d+ parameters?, \d+ required#'
+    scanDirectories:
+        - src

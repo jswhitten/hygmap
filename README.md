@@ -74,18 +74,46 @@ The AT-HYG database includes over 2.5 million stars; essentially all known stars
 - **[Setup Guide](docs/setup.md)** - Installation and configuration
 - **[User Guide](docs/user-guide.md)** - How to navigate and use the star map
 - **[Docker Commands](docs/docker-commands.md)** - Container management
+- **[API Reference](docs/api.md)** - Search and export endpoints
+- **[Database Schema](docs/database.md)** - Star catalog structure
+- **[Contributing](CONTRIBUTING.md)** - How to contribute
 
 ## Technology Stack
 
-- **Frontend:** PHP (GD library for image generation) and Apache
-- **Backend:** PostgreSQL
+- **Frontend:** PHP 8.2 (GD library for image generation) and Apache
+- **Backend:** PostgreSQL 15
 - **Deployment:** Docker containers
+- **Testing:** PHPUnit 10.5, PHPStan
 
 ## Requirements
 
-- Docker
+- Docker and Docker Compose
 - 2GB RAM minimum
 - 4GB disk space for star database + cache
+
+## Development
+
+Tests run inside Docker containers - no local PHP installation required.
+
+```bash
+# Run all tests
+make test
+
+# Run only unit tests (fast, no database needed)
+make test-unit
+
+# Run integration tests (requires database)
+make test-integration
+
+# Run static analysis
+make analyse
+
+# Full CI pipeline (analyse + test)
+make ci
+
+# See all available commands
+make help
+```
 
 ## Contributing
 

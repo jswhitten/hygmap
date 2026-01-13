@@ -4,6 +4,11 @@ declare(strict_types=1);
 require 'bootstrap.php';
 require_once 'IndexHelpers.php';
 
+// Variables defined in bootstrap.php
+/** @var Profiler $profiler */
+/** @var array $cfg */
+/** @var array $vars */
+
 // =============================================================================
 // DATA FETCHING AND TRANSFORMATION (Business Logic)
 // =============================================================================
@@ -72,7 +77,7 @@ $fictional_options = $fic_names > 0 ? fetchFictionalStarOptions($fic_names) : ''
 
 // Fetch star table data
 $profiler->flag("Querying all stars in map");
-$bbox = buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
+$bbox = MapGeometry::buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit, $image_type);
 $star_table_data = fetchStarTableData($bbox, $m_limit, $m_limit_label, $fic_names, $unit, $view_coords);
 
 // Build interactive star data for map overlay (tooltips, click handling)
@@ -83,12 +88,6 @@ $interactive_stars = buildInteractiveStarData(
 );
 $profiler->flag("Query complete");
 
-// Prepare view variables
-$select_center_checked = ($selected_star && $select_center == 1) ? "CHECKED" : "";
-$sel_normal = ($image_type == "normal") ? "SELECTED" : "";
-$sel_3d = ($image_type == "stereo") ? "SELECTED" : "";
-$sel_printable = ($image_type == "printable") ? "SELECTED" : "";
-
 $profiler->flag('FINISH');
 
 // =============================================================================
@@ -96,8 +95,10 @@ $profiler->flag('FINISH');
 // =============================================================================
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <title>HYGMap</title>
    <link href="css/styles.css" rel="stylesheet">
 </head>
@@ -163,17 +164,17 @@ $profiler->flag('FINISH');
     <form method="GET" action="index.php">
       <fieldset class="menupanel">
         <legend>Center (<?= htmlspecialchars($unit, ENT_QUOTES) ?>)</legend>
-        X <input name="x_c" size="6" value="<?= htmlspecialchars((string)$x_c, ENT_QUOTES) ?>"><br>
-        Y <input name="y_c" size="6" value="<?= htmlspecialchars((string)$y_c, ENT_QUOTES) ?>"><br>
-        Z <input name="z_c" size="6" value="<?= htmlspecialchars((string)$z_c, ENT_QUOTES) ?>">
+        <label for="x_c">X</label> <input name="x_c" id="x_c" size="6" value="<?= htmlspecialchars((string)$x_c, ENT_QUOTES) ?>"><br>
+        <label for="y_c">Y</label> <input name="y_c" id="y_c" size="6" value="<?= htmlspecialchars((string)$y_c, ENT_QUOTES) ?>"><br>
+        <label for="z_c">Z</label> <input name="z_c" id="z_c" size="6" value="<?= htmlspecialchars((string)$z_c, ENT_QUOTES) ?>">
       </fieldset>
 
       <fieldset class="menupanel">
         <legend>Zoom (<?= htmlspecialchars($unit, ENT_QUOTES) ?>)</legend>
-        X <input name="xy_zoom" id="xy_zoom" size="4" value="<?= htmlspecialchars((string)$xy_zoom, ENT_QUOTES) ?>"
-                 onkeyup="document.getElementById('y_zoom').value=this.value*2;"><br>
-        Y <input id="y_zoom" size="4" value="<?= htmlspecialchars((string)($xy_zoom*2), ENT_QUOTES) ?>" disabled><br>
-        Z <input name="z_zoom" size="4" value="<?= htmlspecialchars((string)$z_zoom, ENT_QUOTES) ?>">
+        <label for="xy_zoom">X</label> <input name="xy_zoom" id="xy_zoom" size="4" value="<?= htmlspecialchars((string)$xy_zoom, ENT_QUOTES) ?>"><br>
+        <label for="y_zoom">Y</label> <input id="y_zoom" size="4" value="<?= htmlspecialchars((string)($xy_zoom*2), ENT_QUOTES) ?>" disabled aria-describedby="y-zoom-note"><br>
+        <label for="z_zoom">Z</label> <input name="z_zoom" id="z_zoom" size="4" value="<?= htmlspecialchars((string)$z_zoom, ENT_QUOTES) ?>">
+        <span id="y-zoom-note" class="visually-hidden">Y zoom is automatically calculated as 2x the X zoom value</span>
       </fieldset>
       <input type="hidden" name="select_star" value="<?= (int)$select_star ?>">
 
@@ -219,12 +220,13 @@ $profiler->flag('FINISH');
 
   <!-- MAIN MAP (RIGHT) -->
   <div class="main">
-    <div class="map-container" id="map-container">
+    <div class="map-container" id="map-container" role="application" aria-label="Interactive 3D star map - use arrow keys to pan, +/- to zoom" tabindex="0">
       <?= $map_html ?>
-      <div id="star-tooltip" class="star-tooltip"></div>
+      <div id="star-tooltip" class="star-tooltip" role="tooltip" aria-live="polite"></div>
     </div>
     <div class="map-status">
       <small>Hover for info • Click to select • Arrows pan • +/- zoom • Home=Sol</small>
+      <button type="button" id="copy-link-btn" class="copy-link-btn" title="Copy link to this view">Copy Link</button>
       <span id="cursor-coords" class="cursor-coords"></span>
     </div>
   </div>
@@ -233,28 +235,44 @@ $profiler->flag('FINISH');
 
 <!-- DATA TABLE -->
 <div class="datatable">
-  <b>Stars in current map</b><br>
-  <small>Click column heading to sort</small><br>
   <table id="star-table" cellspacing="2" cellpadding="5">
-    <tr>
-      <th>Name</th><th>Con</th><th>Spectral</th><th>Abs Mag</th>
-      <th>Dist (<?= htmlspecialchars($unit, ENT_QUOTES) ?>)</th><th>Δ Center</th><th>X</th><th>Y</th><th>Z</th>
-    </tr>
-    <?php foreach ($star_table_data['rows'] as $star): ?>
-    <tr>
-      <td><a href="?select_star=<?= (int)$star['id'] ?>&select_center=1"><?= htmlspecialchars($star['name'], ENT_QUOTES) ?></a></td>
-      <td><?= htmlspecialchars($star['con'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars($star['spect'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars((string)$star['absmag'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars($star['distance'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars($star['distance_from_center'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars($star['x'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars($star['y'], ENT_QUOTES) ?></td>
-      <td><?= htmlspecialchars($star['z'], ENT_QUOTES) ?></td>
-    </tr>
-    <?php endforeach; ?>
+    <caption>
+      <strong>Stars in current map</strong><br>
+      <small>Click column heading to sort</small>
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Con</th>
+        <th scope="col">Spectral</th>
+        <th scope="col">Abs Mag</th>
+        <th scope="col">Dist (<?= htmlspecialchars($unit, ENT_QUOTES) ?>)</th>
+        <th scope="col">Δ Center</th>
+        <th scope="col">X</th>
+        <th scope="col">Y</th>
+        <th scope="col">Z</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($star_table_data['rows'] as $star): ?>
+      <tr>
+        <td><a href="?select_star=<?= (int)$star['id'] ?>&select_center=1"><?= htmlspecialchars($star['name'], ENT_QUOTES) ?></a></td>
+        <td><?= htmlspecialchars($star['con'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars($star['spect'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars((string)$star['absmag'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars($star['distance'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars($star['distance_from_center'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars($star['x'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars($star['y'], ENT_QUOTES) ?></td>
+        <td><?= htmlspecialchars($star['z'], ENT_QUOTES) ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
   </table>
-  <?= (int)$star_table_data['displayed_count'] ?> of <?= (int)$star_table_data['total_count'] ?> stars displayed.
+  <p>
+    <?= (int)$star_table_data['displayed_count'] ?> of <?= (int)$star_table_data['total_count'] ?> stars displayed.
+    <a href="export.php?x_c=<?= urlencode((string)$x_c) ?>&y_c=<?= urlencode((string)$y_c) ?>&z_c=<?= urlencode((string)$z_c) ?>&xy_zoom=<?= urlencode((string)$xy_zoom) ?>&z_zoom=<?= urlencode((string)$z_zoom) ?>" class="export-btn" download>Export CSV</a>
+  </p>
 </div>
 
 <?php if ($profiling): ?>
@@ -266,19 +284,23 @@ $profiler->flag('FINISH');
 <script src="js/table-sort.js"></script>
 
 <!-- Interactive map data and script -->
+<?php
+// JSON encoding flags for XSS hardening
+$json_flags = JSON_NUMERIC_CHECK | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+?>
 <script>
 window.HYGMapData = {
-  stars: <?= json_encode($interactive_stars, JSON_NUMERIC_CHECK) ?>,
+  stars: <?= json_encode($interactive_stars, $json_flags) ?>,
   selectedStarId: <?= (int)$select_star ?>,
-  unit: <?= json_encode($unit) ?>,
-  imageType: <?= json_encode($image_type) ?>,
+  unit: <?= json_encode($unit, $json_flags) ?>,
+  imageType: <?= json_encode($image_type, $json_flags) ?>,
   view: {
-    x_c: <?= json_encode($x_c) ?>,
-    y_c: <?= json_encode($y_c) ?>,
-    z_c: <?= json_encode($z_c) ?>,
-    xy_zoom: <?= json_encode($xy_zoom) ?>,
-    z_zoom: <?= json_encode($z_zoom) ?>,
-    imageSize: <?= json_encode($image_size) ?>
+    x_c: <?= json_encode($x_c, $json_flags) ?>,
+    y_c: <?= json_encode($y_c, $json_flags) ?>,
+    z_c: <?= json_encode($z_c, $json_flags) ?>,
+    xy_zoom: <?= json_encode($xy_zoom, $json_flags) ?>,
+    z_zoom: <?= json_encode($z_zoom, $json_flags) ?>,
+    imageSize: <?= json_encode($image_size, $json_flags) ?>
   }
 };
 </script>

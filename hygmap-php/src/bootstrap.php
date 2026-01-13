@@ -6,19 +6,35 @@ declare(strict_types=1);
  * Loads configuration, extracts settings, and parses query parameters
  */
 
-require 'common_inc.php';
+// Core classes
+require_once __DIR__ . '/Units.php';
+require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/Csrf.php';
+require_once __DIR__ . '/Request.php';
+require_once __DIR__ . '/StarFormatter.php';
+require_once __DIR__ . '/ErrorHandler.php';
+require_once __DIR__ . '/RenderingConstants.php';
+require_once __DIR__ . '/MapGeometry.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Profiler.php';
-require_once 'config.inc.php';
+
+// Initialize session and CSRF protection
+session_start();
+Csrf::init();
+
+// Error reporting configuration
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 
 // Initialize profiler
 $profiler = new Profiler();
 
 // Load configuration from session
-$cfg = cfg_load();
+$cfg = Config::load();
 
 // Extract variables from query string
-$vars = getVars();
+$vars = Request::getMapParams();
 
 // Test database connection early to fail fast with friendly error
 try {

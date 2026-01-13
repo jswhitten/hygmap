@@ -377,4 +377,100 @@
     // Add keyboard event listener
     document.addEventListener('keydown', handleKeyboard);
 
+    // =========================================================================
+    // Form Enhancements
+    // =========================================================================
+
+    /**
+     * Sync Y zoom input with X zoom input (Y = X * 2)
+     */
+    const xyZoomInput = document.getElementById('xy_zoom');
+    const yZoomInput = document.getElementById('y_zoom');
+
+    if (xyZoomInput && yZoomInput) {
+        xyZoomInput.addEventListener('keyup', function() {
+            yZoomInput.value = this.value * 2;
+        });
+        xyZoomInput.addEventListener('change', function() {
+            yZoomInput.value = this.value * 2;
+        });
+    }
+
+    // =========================================================================
+    // Copy Link Feature
+    // =========================================================================
+
+    /**
+     * Build a shareable URL with current view parameters
+     * @returns {string} - Full URL to current view
+     */
+    function buildShareableUrl() {
+        const url = new URL(window.location.origin + window.location.pathname);
+
+        // Add view parameters
+        url.searchParams.set('x_c', view.x_c || 0);
+        url.searchParams.set('y_c', view.y_c || 0);
+        url.searchParams.set('z_c', view.z_c || 0);
+        url.searchParams.set('xy_zoom', view.xy_zoom || 25);
+        url.searchParams.set('z_zoom', view.z_zoom || 25);
+
+        // Add selected star if any
+        if (selectedStarId) {
+            url.searchParams.set('select_star', selectedStarId);
+        }
+
+        return url.toString();
+    }
+
+    /**
+     * Copy text to clipboard with fallback for older browsers
+     * @param {string} text - Text to copy
+     * @returns {Promise<boolean>} - Success status
+     */
+    async function copyToClipboard(text) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+            // Fallback for older browsers
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return success;
+        } catch (err) {
+            console.error('Failed to copy to clipboard:', err);
+            return false;
+        }
+    }
+
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+
+    if (copyLinkBtn) {
+        copyLinkBtn.addEventListener('click', async function() {
+            const url = buildShareableUrl();
+            const success = await copyToClipboard(url);
+
+            if (success) {
+                // Visual feedback
+                const originalText = this.textContent;
+                this.textContent = 'Copied!';
+                this.classList.add('copied');
+
+                setTimeout(() => {
+                    this.textContent = originalText;
+                    this.classList.remove('copied');
+                }, 2000);
+            } else {
+                // Show URL in prompt as fallback
+                window.prompt('Copy this link:', url);
+            }
+        });
+    }
+
 })();

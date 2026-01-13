@@ -35,12 +35,14 @@ class Profiler
         $output = '';
         for ($i = 0; $i < $size - 1; $i++) {
             $elapsed = $this->timing[$i + 1] - $this->timing[$i];
-            $output .= "<b>{$this->names[$i]}</b><br>";
+            $label = htmlspecialchars($this->names[$i], ENT_QUOTES, 'UTF-8');
+            $output .= "<b>{$label}</b><br>";
             $output .= sprintf("&nbsp;&nbsp;&nbsp;%f<br>", $elapsed);
         }
-        $output .= "<b>{$this->names[$size - 1]}</b><br>";
+        $label = htmlspecialchars($this->names[$size - 1], ENT_QUOTES, 'UTF-8');
+        $output .= "<b>{$label}</b><br>";
         $total = $this->timing[$size - 1] - $this->timing[0];
-        $output .= "<b>Total time:</b> " . $total;
+        $output .= "<b>Total time:</b> " . htmlspecialchars((string)$total, ENT_QUOTES, 'UTF-8');
 
         return $output;
     }

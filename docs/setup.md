@@ -35,8 +35,8 @@ cd hygmap
 
 ```bash
 cd db/data
-wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-1.csv.gz
-wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-2.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-2.csv.gz
 gunzip *.csv.gz
 ```
 
@@ -179,6 +179,47 @@ docker compose up -d --build
 # Add to docker-compose.yml:
 # volumes:
 #   - ./hygmap-php/src:/var/www/html
+```
+
+### Running Tests
+
+**No local PHP installation required.** All tests run inside Docker containers.
+
+HYGMap uses PHPUnit for testing with two test suites:
+
+```bash
+# Run all tests
+make test
+
+# Run unit tests only (fast, no database required)
+make test-unit
+
+# Run integration tests (requires running database)
+make test-integration
+```
+
+### Static Analysis
+
+PHPStan performs static analysis at level 5:
+
+```bash
+make analyse
+```
+
+### Full CI Pipeline
+
+Run the complete CI pipeline locally:
+
+```bash
+make ci
+```
+
+This runs PHPStan analysis followed by all tests.
+
+### Available Make Commands
+
+```bash
+make help    # Show all available commands
 ```
 
 ## Stopping HygMap

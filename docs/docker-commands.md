@@ -13,8 +13,8 @@ cp .env.example .env
 vi .env
 # Download AT-HYG CSV files to db/data directory
 cd db/data
-wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-1.csv.gz
-wget https://codeberg.org/astronexus/athyg/raw/branch/main/data/athyg_v32-2.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-1.csv.gz
+wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-2.csv.gz
 gunzip *.csv.gz
 # Now you are ready to build and start the application and database containers
 docker compose up -d --build
@@ -75,4 +75,52 @@ docker compose exec hygmap-php bash
 # Update from git
 git pull origin main
 docker compose up -d --build
+```
+
+## Development Commands
+
+HYGMap includes a Makefile for common development tasks:
+
+```bash
+# Install PHP dependencies
+make install
+
+# Run all tests
+make test
+
+# Run unit tests only (no database required)
+make test-unit
+
+# Run integration tests (requires running database)
+make test-integration
+
+# Run tests with code coverage report
+make test-coverage
+
+# Run PHPStan static analysis
+make analyse
+
+# Run full CI pipeline (install + analyse + test)
+make ci
+
+# Docker shortcuts
+make up        # Start containers
+make down      # Stop containers
+make logs      # View logs
+make rebuild   # Rebuild and restart
+```
+
+### Running Tests in Docker
+
+Integration tests require the database to be running:
+
+```bash
+# Start the database
+docker compose up -d hygmap-db
+
+# Wait for it to be ready
+docker compose exec hygmap-db pg_isready -U hygmap_user -d hygmap
+
+# Run integration tests
+make test-integration
 ```

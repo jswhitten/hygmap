@@ -6,13 +6,14 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_pgsql gd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache mod_rewrite (in case you use .htaccess)
-RUN a2enmod rewrite
+# Enable Apache modules for URL rewriting and security headers
+RUN a2enmod rewrite headers
 
 # Copy PHP application files
 COPY src/ /var/www/html/

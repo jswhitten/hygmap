@@ -174,7 +174,7 @@ final class Database
             $num  = ltrim($m[1],'0');
             $con3 = ucfirst(AstronomyData::CONSTELLATIONS[strtolower(preg_replace('/\s+/','',$m[2]))] ?? ucfirst(substr($m[2],0,3)));
 
-            $sql  = "SELECT id FROM athyg WHERE flam=? AND lower(con)=? LIMIT 1";
+            $sql  = "SELECT id FROM athyg WHERE flam=? AND lower(con)=lower(?) LIMIT 1";
             $stmt = self::connection()->prepare($sql);
             $stmt->execute([$num,$con3]);
             if ($r=$stmt->fetch()) return $r;
