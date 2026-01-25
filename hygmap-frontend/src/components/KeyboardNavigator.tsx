@@ -11,7 +11,7 @@ import type { ViewMode } from '../domain/viewMode'
 import { isLockedViewMode } from '../domain/viewMode'
 
 interface KeyboardNavigatorProps {
-  controlsRef: React.RefObject<OrbitControlsImpl | null>
+  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>
   viewMode: ViewMode
 }
 
