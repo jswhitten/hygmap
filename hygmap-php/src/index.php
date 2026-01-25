@@ -107,6 +107,7 @@ $profiler->flag('FINISH');
 <span class="toplink"><a href="https://github.com/jswhitten/hygmap">Source code</a></span>
 <span class="toplink"><a href="configure.php">Configure</a></span>
 <span class="toplink"><a href="changelog.html">Change log</a></span>
+<span class="toplink"><a href="http://new.hygmap.org/">Try the new version!</a></span>
 
 <!-- PAGE WRAPPER -->
 <div class="page">
