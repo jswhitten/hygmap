@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render } from '@testing-library/react'
 import * as THREE from 'three'
 import type { Star } from '../types/star'
 import type { ViewMode } from '../domain/viewMode'
 
 // Track useFrame callbacks for testing
 const useFrameCallbacks: Array<(state: { camera: THREE.Camera; clock: THREE.Clock }) => void> = []
-let mockMeshRef: { current: MockInstancedMesh | null } = { current: null }
+const mockMeshRef: { current: MockInstancedMesh | null } = { current: null }
 
 interface MockInstancedMesh {
   count: number
@@ -38,7 +37,6 @@ vi.mock('../domain/star', () => ({
 
 describe('StarGlow Quaternion Optimization', () => {
   let mockCamera: THREE.Camera
-  let mockClock: THREE.Clock
   let mockMesh: MockInstancedMesh
 
   const createMockStars = (count: number): Star[] => {
@@ -61,9 +59,6 @@ describe('StarGlow Quaternion Optimization', () => {
     mockCamera = new THREE.PerspectiveCamera()
     mockCamera.position.set(0, 0, 10)
     mockCamera.quaternion.set(0, 0, 0, 1)
-
-    // Create mock clock
-    mockClock = new THREE.Clock()
 
     // Create mock mesh
     mockMesh = {
@@ -91,20 +86,8 @@ describe('StarGlow Quaternion Optimization', () => {
     it('should skip billboard updates when camera position and rotation unchanged', () => {
       // This tests the optimization at lines 267-273:
       // if (!quatChanged) { return } - skips updates when camera didn't rotate
-
-      const stars = createMockStars(5)
-      const starsInitializedRef = { current: true }
-
-      // First frame - should update (initial state)
-      const frameState = { camera: mockCamera, clock: mockClock }
-
-      // Simulate first useFrame call (initial calculation)
-      // The optimization should allow first frame to run fully
-
-      // Simulate subsequent frame with same camera state
-      // The optimization should skip billboard updates
-
-      expect(true).toBe(true) // Placeholder - real test needs component rendering
+      // Placeholder assertions until component can be rendered in a test harness
+      expect(true).toBe(true)
     })
 
     it('should update billboards when camera rotates but does not move', () => {

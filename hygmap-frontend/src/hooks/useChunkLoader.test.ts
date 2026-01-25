@@ -11,17 +11,19 @@ vi.mock('../api/stars', () => ({
 }))
 
 // Mock R3F useFrame
-const useFrameCallbacks: Array<(state: any, delta: number) => void> = []
 const mockCamera = {
   position: new THREE.Vector3(0, 0, 8),
   quaternion: new THREE.Quaternion(),
 }
 
+type FrameState = { camera: typeof mockCamera }
+const useFrameCallbacks: Array<(state: FrameState, delta: number) => void> = []
+
 vi.mock('@react-three/fiber', () => ({
   useThree: () => ({
     camera: mockCamera,
   }),
-  useFrame: (callback: (state: any, delta: number) => void) => {
+  useFrame: (callback: (state: FrameState, delta: number) => void) => {
     useFrameCallbacks.push(callback)
   },
 }))
