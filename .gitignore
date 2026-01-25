@@ -3,6 +3,9 @@
 /db/data/athyg_v*
 /vendor/
 /hygmap-php/vendor/
+__pycache__/
+*.pyc
+*.pyo
 
 # Editor swap files
 *.swp
