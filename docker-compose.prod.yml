@@ -5,7 +5,7 @@
 services:
   hygmap-db:
     # Use alternate port to avoid conflict with host PostgreSQL
-    # Only accessible from localhost; PHP container uses internal Docker networking
+    # Only accessible from localhost; containers use internal Docker networking
     ports:
       - "127.0.0.1:15432:5432"
     restart: always
@@ -14,3 +14,23 @@ services:
     restart: always
     environment:
       - PHP_INI_SCAN_DIR=/usr/local/etc/php/conf.d:/usr/local/etc/php/production.d
+
+  hygmap-api:
+    build:
+      context: ./hygmap-api
+      dockerfile: Dockerfile.prod
+    volumes: []  # No volume mounts in production
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hygmap_user}:${POSTGRES_PASSWORD}@hygmap-db:5432/${POSTGRES_DB:-hygmap}
+      - DEBUG=False
+      - CORS_ORIGINS=${CORS_ORIGINS_PROD:-http://localhost,http://localhost:3000}
+    restart: always
+
+  hygmap-frontend:
+    build:
+      context: ./hygmap-frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:80"  # nginx serves on 80 inside container, expose as 3000
+    volumes: []  # No volume mounts in production
+    restart: always

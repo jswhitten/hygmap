@@ -3,3 +3,8 @@
 /db/data/athyg_v*
 /vendor/
 /hygmap-php/vendor/
+
+# Editor swap files
+*.swp
+*.swo
+*~

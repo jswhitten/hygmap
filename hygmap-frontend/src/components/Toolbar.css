@@ -1,0 +1,192 @@
+.toolbar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1001;
+}
+
+.toolbar-search {
+  position: relative;
+}
+
+.toolbar-search input {
+  width: 200px;
+  padding: 10px 36px 10px 14px;
+  background: rgba(20, 30, 50, 0.9);
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  border-radius: 20px;
+  color: #ddeeff;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.toolbar-search input:focus {
+  border-color: rgba(100, 140, 200, 0.7);
+  background: rgba(25, 35, 55, 0.95);
+  width: 260px;
+}
+
+.toolbar-search input::placeholder {
+  color: #667788;
+}
+
+.search-icon,
+.search-spinner {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #667788;
+  pointer-events: none;
+}
+
+.search-spinner {
+  font-size: 14px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.search-results {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 8px;
+  background: rgba(20, 30, 50, 0.95);
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: #ddeeff;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.search-result:hover {
+  background: rgba(60, 80, 120, 0.5);
+}
+
+.search-result + .search-result {
+  border-top: 1px solid rgba(100, 140, 200, 0.2);
+}
+
+.result-name {
+  font-weight: 500;
+}
+
+.result-spect {
+  font-size: 11px;
+  color: #88aacc;
+  font-family: monospace;
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-button {
+  width: 40px;
+  height: 40px;
+  background: rgba(20, 30, 50, 0.9);
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  border-radius: 50%;
+  color: #aaccff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: rgba(40, 60, 90, 0.95);
+  border-color: rgba(100, 140, 200, 0.6);
+  color: #ccddff;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.toolbar-button.active {
+  background: rgba(255, 204, 0, 0.3);
+  border-color: #ffcc00;
+  color: #ffcc00;
+}
+
+.toolbar-button.active:hover {
+  background: rgba(255, 204, 0, 0.4);
+}
+
+.toolbar-button.success {
+  background: rgba(0, 200, 100, 0.3);
+  border-color: #00c864;
+  color: #00c864;
+}
+
+.toolbar-button.success:hover {
+  background: rgba(0, 200, 100, 0.4);
+}
+
+/* Measure panel */
+.measure-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(20, 30, 50, 0.9);
+  border: 1px solid #ffcc00;
+  border-radius: 20px;
+  color: #ffcc00;
+  font-size: 13px;
+}
+
+.measure-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.measure-names {
+  font-size: 11px;
+  color: #aaccff;
+  margin-left: 4px;
+}
+
+.measure-clear {
+  background: none;
+  border: none;
+  color: #ffcc00;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.measure-clear:hover {
+  opacity: 1;
+}

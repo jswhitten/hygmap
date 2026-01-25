@@ -1,0 +1,50 @@
+.printable-overlay {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1100;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  max-width: 280px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+  color: #111;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.printable-overlay__content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.printable-overlay__title {
+  margin: 0 0 4px 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.printable-overlay__body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.printable-overlay__button {
+  align-self: flex-start;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #111;
+  color: #fff;
+  transition: opacity 0.2s ease;
+}
+
+.printable-overlay__button:hover {
+  opacity: 0.85;
+}

@@ -1,6 +1,6 @@
 services:
   hygmap-db:
-    image: postgres:15
+    build: ./db
     container_name: hygmap_db
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-hygmap}
@@ -10,8 +10,6 @@ services:
       - "5432:5432"  # Expose port for pgAdmin access
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./db/sql:/docker-entrypoint-initdb.d
-      - ./db/data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hygmap_user} -d ${POSTGRES_DB:-hygmap}"]
@@ -41,6 +39,47 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  hygmap-api:
+    build:
+      context: ./hygmap-api
+      dockerfile: Dockerfile
+    container_name: hygmap_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./hygmap-api:/app
+      - /app/__pycache__
+    depends_on:
+      hygmap-db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hygmap_user}:${POSTGRES_PASSWORD}@hygmap-db:5432/${POSTGRES_DB:-hygmap}
+      - DEBUG=${DEBUG:-True}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:80}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  hygmap-frontend:
+    build:
+      context: ./hygmap-frontend
+      dockerfile: Dockerfile
+    container_name: hygmap_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./hygmap-frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    depends_on:
+      - hygmap-api
+    restart: unless-stopped
 
 volumes:
   db_data:

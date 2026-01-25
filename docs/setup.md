@@ -6,8 +6,25 @@ Complete installation guide for setting up HYGMap on your system.
 
 - **Docker** and **Docker Compose** installed
 - **2GB RAM** minimum (4GB recommended)
-- **5GB disk space** for star database
+- **1GB disk space** for containers and database
 - **Git** for downloading the code
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/jswhitten/hygmap.git
+cd hygmap
+
+# Create environment file
+cp .env.example .env
+nano .env  # Edit with your desired password
+
+# Start all services
+docker compose up -d --build
+```
+
+The first startup takes 2-3 minutes as the database imports 2.5 million stars.
 
 ## Installation
 
@@ -24,20 +41,11 @@ sudo usermod -aG docker $USER
 **Windows/Mac:**
 Download Docker Desktop from https://www.docker.com/products/docker-desktop/
 
-### 2. Download HygMap
+### 2. Download HYGMap
 
 ```bash
 git clone https://github.com/jswhitten/hygmap.git
 cd hygmap
-```
-
-### 2. Download HYG CSV files
-
-```bash
-cd db/data
-wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-1.csv.gz
-wget https://codeberg.org/astronexus/athyg/media/branch/main/data/athyg_v33-2.csv.gz
-gunzip *.csv.gz
 ```
 
 ### 3. Configure Environment
@@ -52,14 +60,22 @@ nano .env
 
 **Example .env file:**
 ```bash
+# Database (shared by all services)
 POSTGRES_DB=hygmap
 POSTGRES_USER=hygmap_user
 POSTGRES_PASSWORD=your_secure_password_here
+
+# API settings
+DEBUG=True
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:80
+
+# Frontend settings
+VITE_API_URL=http://localhost:8000
 ```
 
-**Important:** The username and password you set will be created automatically when the database is first built.
+**Important:** The database credentials are created automatically on first startup.
 
-### 4. Start HygMap
+### 4. Start HYGMap
 
 ```bash
 # Build and start all containers
@@ -67,31 +83,51 @@ docker compose up -d --build
 ```
 
 This will:
-- Download and build the containers
+- Build 4 containers (database, PHP app, API, frontend)
+- Download AT-HYG star catalog (~100MB compressed)
 - Create the PostgreSQL database
-- Import the HYG star catalog (~2.5 million stars)
-- Import fictional star names from various sci-fi universes
-- Start the web application
+- Import ~2.5 million stars
+- Import fictional star names (Star Trek, Babylon 5)
+- Import signal data
+- Start all web services
 
-### 5. Access HygMap
+### 5. Access HYGMap
 
-Open your web browser and go to:
-- **http://localhost** (main application)
+Open your web browser:
 
-The initial database import may take a few minutes. You can monitor progress with:
+| Service | URL | Description |
+|---------|-----|-------------|
+| PHP App | http://localhost | Classic star map interface |
+| React Frontend | http://localhost:5173 | Modern 3D interface |
+| API Docs | http://localhost:8000/docs | Swagger API documentation |
+
+The initial database import takes 2-3 minutes. Monitor progress with:
 ```bash
 docker compose logs -f hygmap-db
 ```
 
 ## Verification
 
-### Check Everything is Running
+### Check All Services Running
 
 ```bash
 # View container status
 docker compose ps
 
-# Should show both containers as "Up"
+# Should show 4 containers as "Up" or "healthy"
+```
+
+### Test Each Service
+
+```bash
+# Test PHP app
+curl -I http://localhost/
+
+# Test API
+curl http://localhost:8000/health
+
+# Test Frontend
+curl -I http://localhost:5173/
 ```
 
 ### Test the Database
@@ -100,18 +136,23 @@ docker compose ps
 # Connect to database
 docker compose exec hygmap-db psql -U hygmap_user -d hygmap
 
-# Check star count
+# Check star count (should be ~2.5M)
 SELECT COUNT(*) FROM athyg;
 
-# Should count ~2.5M stars
+# Check all tables exist
+\dt
 ```
 
-### Test the Application
+## Services Overview
 
-Visit http://localhost and you should see:
-- Star map interface with controls
-- Table of stars at the bottom
-- Ability to zoom, pan, and filter stars
+HYGMap runs 4 Docker containers:
+
+| Container | Port | Description |
+|-----------|------|-------------|
+| `hygmap-db` | 5432 | PostgreSQL with star data |
+| `hygmap-php` | 80 | Classic PHP/Apache interface |
+| `hygmap-api` | 8000 | FastAPI REST backend |
+| `hygmap-frontend` | 5173 | React/Three.js 3D interface |
 
 ## Troubleshooting
 
@@ -119,12 +160,15 @@ Visit http://localhost and you should see:
 
 ```bash
 # Check logs for errors
-docker compose logs hygmap-php
 docker compose logs hygmap-db
+docker compose logs hygmap-php
+docker compose logs hygmap-api
+docker compose logs hygmap-frontend
 
 # Common issues:
 # - Port 80 already in use (stop Apache/nginx)
 # - Port 5432 already in use (stop PostgreSQL)
+# - Port 8000 already in use
 # - Insufficient memory
 ```
 
@@ -132,7 +176,7 @@ docker compose logs hygmap-db
 
 ```bash
 # Reset and try again
-docker compose down -- volumes
+docker compose down --volumes
 docker compose up -d --build
 ```
 
@@ -142,11 +186,12 @@ docker compose up -d --build
 # Check if containers are running
 docker compose ps
 
-# Check PHP logs
+# Check specific service logs
 docker compose logs hygmap-php
 
 # Test direct connection
 curl http://localhost
+curl http://localhost:8000/health
 ```
 
 ### Permission Errors
@@ -156,65 +201,29 @@ curl http://localhost
 sudo chown -R $USER:$USER .
 ```
 
-## Next Steps
-
-Once HygMap is running:
-
-1. **Explore the interface** - See the [User Guide](user-guide.md)
-2. **Customize settings** - Adjust zoom, filters, star magnitude limits
-3. **Add fictional universes** - Contribute more sci-fi star names
-4. **Set up production** - Deploy to a server with a domain name
-
 ## Development Setup
-
-If you want to modify the code:
-
-```bash
-# Make changes to PHP files in hygmap-php/src/
-# Rebuild and restart
-docker compose down
-docker compose up -d --build
-
-# Or mount source for live editing:
-# Add to docker-compose.yml:
-# volumes:
-#   - ./hygmap-php/src:/var/www/html
-```
 
 ### Running Tests
 
-**No local PHP installation required.** All tests run inside Docker containers.
-
-HYGMap uses PHPUnit for testing with two test suites:
+**No local installations required.** All tests run inside Docker containers.
 
 ```bash
-# Run all tests
+# Run all tests (PHP + API + Frontend)
 make test
 
-# Run unit tests only (fast, no database required)
-make test-unit
+# Run specific test suites
+make test-unit        # PHP unit tests
+make test-integration # PHP integration tests (needs running db)
+make test-api         # FastAPI backend tests
+make test-frontend    # React frontend tests
 
-# Run integration tests (requires running database)
-make test-integration
-```
+# Run static analysis
+make analyse          # PHPStan for PHP
+make lint-frontend    # ESLint for frontend
 
-### Static Analysis
-
-PHPStan performs static analysis at level 5:
-
-```bash
-make analyse
-```
-
-### Full CI Pipeline
-
-Run the complete CI pipeline locally:
-
-```bash
+# Full CI pipeline
 make ci
 ```
-
-This runs PHPStan analysis followed by all tests.
 
 ### Available Make Commands
 
@@ -222,7 +231,14 @@ This runs PHPStan analysis followed by all tests.
 make help    # Show all available commands
 ```
 
-## Stopping HygMap
+### Live Code Editing
+
+The docker-compose.yml mounts source directories for live editing:
+- PHP: Changes to `hygmap-php/src/` are reflected immediately
+- API: Changes to `hygmap-api/` trigger auto-reload
+- Frontend: Changes to `hygmap-frontend/src/` trigger hot reload
+
+## Stopping HYGMap
 
 ```bash
 # Stop all containers (data is preserved)
@@ -235,8 +251,19 @@ docker compose up -d
 ## Uninstalling
 
 ```bash
-# Stop and remove everything
-docker compose down
-docker volume rm hygmap_db_data
-docker image rm hygmap_hygmap-php
+# Stop and remove everything including data
+docker compose down --volumes
+
+# Remove images
+docker image rm hygmap-hygmap-db
+docker image rm hygmap-hygmap-php
+docker image rm hygmap-hygmap-api
+docker image rm hygmap-hygmap-frontend
 ```
+
+## Next Steps
+
+- **Explore the interfaces** - See the [User Guide](user-guide.md)
+- **Learn the API** - See the [API Reference](api.md)
+- **Deploy to production** - See the [DigitalOcean Deployment Guide](digitalocean-deployment.md)
+- **Contribute** - Add more fictional star names from your favorite sci-fi universes
