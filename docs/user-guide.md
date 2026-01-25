@@ -1,16 +1,65 @@
 # HYGMap User Guide
 
-Learn how to navigate and explore the star map with HygMap.
+Learn how to navigate and explore the star map with HYGMap.
 
-## Interface Overview
+## Available Interfaces
+
+HYGMap offers two ways to explore the stars:
+
+| Interface | URL | Description |
+|-----------|-----|-------------|
+| **PHP App** | http://localhost/ | Classic 2D map with server-rendered images |
+| **React Frontend** | http://localhost:5173/ | Modern 3D interactive visualization |
+
+Both interfaces connect to the same star database and show the same 2.5+ million stars.
+
+---
+
+## React Frontend (3D Interface)
+
+The React frontend provides an interactive 3D star map built with Three.js.
+
+### Features
+
+- **3D Navigation** - Rotate, pan, and zoom through the star field
+- **Real-time Rendering** - Stars render instantly as you navigate
+- **Level of Detail** - Distant stars fade and nearby stars become more detailed
+- **Star Selection** - Click stars to see detailed information
+- **Search** - Find stars by name or catalog ID
+
+### Controls
+
+**Mouse:**
+- **Left click + drag** - Rotate view
+- **Right click + drag** - Pan view
+- **Scroll wheel** - Zoom in/out
+- **Click star** - Select and view details
+
+**Keyboard:**
+- **Arrow keys** - Pan view
+- **+/-** - Zoom in/out
+
+### SETI Signals
+
+The 3D frontend displays SETI signal data:
+- **Transmitted signals** - Historical messages sent from Earth (Arecibo Message, etc.)
+- **Received signals** - Notable signals detected from space (Wow! Signal, etc.)
+
+Signals are shown as expanding spheres representing how far radio waves have traveled through space.
+
+---
+
+## PHP App (Classic Interface)
+
+The PHP interface provides a traditional 2D star map view with server-rendered images.
+
+### Interface Overview
 
 - **Control Panel** (left) - Navigation and filter controls
 - **Star Map** (center) - Visual representation of stars
 - **Star Table** (bottom) - List of visible stars
 
-## Basic Navigation
-
-### Setting Your Position
+### Basic Navigation
 
 **Center Coordinates (X, Y, Z):**
 - Your position in galactic coordinates (parsecs or light years)
@@ -21,113 +70,89 @@ Learn how to navigate and explore the star map with HygMap.
 - **X/Y Zoom** - Distance from center to edge (smaller = zoomed in)
 - **Z Zoom** - Depth of view ("up" and "down" distance)
 
+### Configuration
+
+**Units and Grid Size:**
+- Select between parsecs and light years
+- Choose the spacing between grid lines in your selected units
+- Optionally add lines between stars within a certain distance of each other
+
+**Fictional Names:**
+- Choose None to see only real star names, or a scifi universe to identify real stars with fictional planets
+
+**Map Types:**
+- **Normal:** 2D overhead view of the galactic plane
+- **3D:** Stereoscopic left/right images for depth perception
+- **Printable:** Black and white version
+
+**Magnitude Filters:**
+- **Show stars brighter than magnitude X:** Lower numbers = only brightest stars visible
+- **Label stars brighter than magnitude X:** Controls which stars get name labels
+
+### Sharing and Exporting
+
+**Copy Link:**
+Click the **Copy Link** button to copy a shareable URL preserving your current view settings.
+
+**Export CSV:**
+Click **Export CSV** to download a spreadsheet of visible stars including names, coordinates, magnitudes, and catalog IDs.
+
+---
+
 ## Understanding Stars
 
-### Visual Elements
+### Star Colors
 
-**Star Colors** (based on temperature):
-- **Blue** - Hot stars
-- **White** - Medium-hot stars  
-- **Yellow** - Sun-like stars
-- **Orange/Red** - Cool stars
+Colors indicate stellar temperature:
+- **Blue** - Hot stars (O, B type)
+- **White** - Medium-hot stars (A, F type)
+- **Yellow** - Sun-like stars (G type)
+- **Orange/Red** - Cool stars (K, M type)
 
-**Star Sizes** based on brightness:
+### Star Sizes
+
+In both interfaces, star size represents brightness:
 - Larger = brighter stars
 - Smaller = dimmer stars
 
-### Star Labels
+### Star Names
 
 Stars show the most prominent name available:
 1. Proper names (Sirius, Vega)
 2. Traditional designations (Alpha Centauri)
 3. Catalog numbers (HD, Hipparcos)
 
-**Fictional Names:** Check "Show fictional names" to see sci-fi locations (Star Trek, etc.) in yellow.
+**Fictional Names:** Enable fictional names to see sci-fi locations (Star Trek, Babylon 5) overlaid on real stars.
 
-## Configuration
+---
 
-### Units and Grid Size
+## Coordinate System
 
-- Select between parsecs and light years
-- Choose the spacing between grid lines in your selected units
-- Optionally add lines between stars within a certain distance of each other
+Both interfaces use galactic coordinates centered on Sol:
 
-### Fictional Names
+- **Origin (0, 0, 0):** Our Sun's position
+- **X-axis:** Points toward galactic center
+- **Y-axis:** Points toward Cygnus (90° galactic longitude)
+- **Z-axis:** Points "up" perpendicular to galactic plane
 
-- Choose None to see only real star names, or a scifi universe to identify real stars with fictional planets
+**Units:**
+- Default: parsecs
+- 1 parsec = 3.26156 light years
 
-### Image Render
-
-**Map Types**
-- **Normal:** 2D overhead view of the galactic plane
-- **3D:** Stereoscopic left/right images for depth perception
-- **Printable:** Black and white version
-
-**Image size**
-- Adjust map resolution
-
-### Magnitude Filters
-
-**Show stars brighter than magnitude X:**
-- Lower numbers = only brightest stars visible
-- Higher numbers = more dim stars included
-
-**Label stars brighter than magnitude X:**
-- Controls which stars get name labels
-- Prevents overcrowding
-
-## Getting Started
-
-1. **Default view:** Shows stars near the Sun
-2. **Click star names** in the table to center on them
-3. **Adjust zoom** to explore different scales
-4. **Use magnitude filter** to reduce clutter
-5. **Try fictional names** to visit famous sci-fi locations
-
-## Sharing and Exporting
-
-### Copy Link
-
-Click the **Copy Link** button to copy a shareable URL to your clipboard. The link preserves your current view settings:
-- Center coordinates (X, Y, Z)
-- Zoom levels
-- Magnitude filters
-- Configuration options
-
-Share this link with others to show them exactly what you're viewing.
-
-### Export CSV
-
-Click the **Export CSV** button to download a spreadsheet of all stars currently visible in your view. The CSV includes:
-- Star names (proper names, Bayer/Flamsteed designations)
-- Constellation
-- Spectral type
-- Apparent and absolute magnitude
-- Distance in parsecs
-- Galactic coordinates (X, Y, Z)
-- Catalog IDs (Hipparcos, Henry Draper, Gliese)
-
-Useful for:
-- Research and analysis
-- Creating custom star lists
-- Importing into other applications
-
-## Mobile Support
-
-HYGMap works on tablets and phones with a responsive design:
-- **Tablets (< 900px):** Controls stack vertically above the map
-- **Phones (< 600px):** Compact layout with touch-friendly controls
-
-All features work on mobile, including:
-- Touch to center on stars
-- Pinch-friendly coordinate inputs
-- Copy Link and Export buttons
+---
 
 ## Tips
 
 - **Lower magnitude numbers** = fewer, brighter stars = cleaner view
-- **3D view** helps understand stellar distances
 - **Center on bright stars** (Sirius, Vega) for good reference points
-- **Distance units:** 1 parsec ≈ 3.26 light years
-- **Copy Link** to bookmark interesting views or share with friends
-- **Export CSV** to analyze star data in a spreadsheet
+- **Use the search feature** to find specific stars by name or catalog ID
+- **Try both interfaces** - the 3D view helps understand stellar distances, while the 2D view is better for precise navigation
+- **Fictional names** add a fun layer for sci-fi fans to locate familiar star systems
+
+---
+
+## Mobile Support
+
+**PHP App:** Works on tablets and phones with responsive design.
+
+**React Frontend:** Best experienced on desktop with mouse controls. Touch navigation is supported but limited.

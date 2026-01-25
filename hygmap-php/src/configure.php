@@ -70,6 +70,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $dest = filter_input(INPUT_POST, 'back', FILTER_SANITIZE_URL) ?? ($_SESSION['last_map'] ?? 'index.php');
 
+    // Validate redirect destination is same-origin (prevent open redirect)
+    $destParts = parse_url($dest);
+    if (isset($destParts['host']) && $destParts['host'] !== ($_SERVER['HTTP_HOST'] ?? '')) {
+        // External URL detected, fallback to safe default
+        $dest = 'index.php';
+    }
+
     // inject / convert params
     $parts = parse_url($dest);
     parse_str($parts['query'] ?? '', $q);

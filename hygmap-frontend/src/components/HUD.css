@@ -1,0 +1,106 @@
+.hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+}
+
+.hud-section {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px;
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hud-title {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: center;
+}
+
+.hud-title h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 2px;
+}
+
+.hud-title p {
+  margin: 5px 0 0 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.hud-star-info {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.hud-controls {
+  grid-column: 1;
+  grid-row: 3;
+  justify-self: start;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.hud-controls p {
+  margin: 5px 0;
+}
+
+/* Star info styles */
+.star-info {
+  text-align: left;
+}
+
+.star-name {
+  font-size: 18px;
+  font-weight: 500;
+  color: #4a9eff;
+  margin-bottom: 8px;
+}
+
+.star-details {
+  font-size: 13px;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.star-details div {
+  margin: 2px 0;
+}
+
+.star-hint {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.selected-indicator {
+  font-size: 12px;
+  color: #4aff4a;
+  margin-top: 8px;
+}
+
+.hud-loading {
+  color: #ffcc00;
+  font-size: 14px;
+}
+
+.hud-error {
+  color: #ff4a4a;
+  font-size: 14px;
+}

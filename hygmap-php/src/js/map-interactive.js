@@ -116,24 +116,24 @@
      * @param {number} pageY - Page Y coordinate
      */
     function showTooltip(star, pageX, pageY) {
-        // Build tooltip content
+        // Build tooltip content - escape all dynamic values for XSS prevention
         let html = `<strong>${escapeHtml(star.name)}</strong><br>`;
-        html += `Mag: ${star.mag}`;
+        html += `Mag: ${escapeHtml(String(star.mag))}`;
         if (star.spect) {
             html += ` • ${escapeHtml(star.spect)}`;
         }
-        html += `<br>Coords: ${star.x}, ${star.y}, ${star.z}`;
+        html += `<br>Coords: ${escapeHtml(String(star.x))}, ${escapeHtml(String(star.y))}, ${escapeHtml(String(star.z))}`;
 
         // Distance from Sun
         const sunDist = distanceFromSun(star);
-        html += `<br>From Sol: ${sunDist.toFixed(3)} ${unit}`;
+        html += `<br>From Sol: ${escapeHtml(sunDist.toFixed(3))} ${escapeHtml(unit)}`;
 
         // Show distance from selected star if one is selected
         if (selectedStarId && selectedStarId !== star.id) {
             const selectedStar = stars.find(s => s.id === selectedStarId);
             if (selectedStar) {
                 const dist = calculate3DDistance(star, selectedStar);
-                html += `<br><em>From selected: ${dist.toFixed(3)} ${unit}</em>`;
+                html += `<br><em>From selected: ${escapeHtml(dist.toFixed(3))} ${escapeHtml(unit)}</em>`;
             }
         }
 

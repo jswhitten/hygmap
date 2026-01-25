@@ -1,0 +1,1 @@
+export const MAX_RENDERED_STARS = 20000

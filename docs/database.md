@@ -60,6 +60,27 @@ Maps real stars to their fictional names in various universes.
 | `name` | TEXT | Fictional name |
 | `notes` | TEXT | Optional notes/description |
 
+### `signals` - SETI Signal Data
+
+Contains historical SETI transmissions and notable received signals.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER | Primary key |
+| `name` | TEXT | Signal name (e.g., "Arecibo Message", "Wow! Signal") |
+| `type` | signal_type | ENUM: 'transmit' or 'receive' |
+| `time` | TIMESTAMPTZ | Date/time of signal transmission or reception |
+| `ra` | DOUBLE PRECISION | Right ascension (hours) |
+| `dec` | DOUBLE PRECISION | Declination (degrees) |
+| `frequency` | DOUBLE PRECISION | Signal frequency (MHz) |
+| `notes` | TEXT | Additional description or context |
+| `x` | DOUBLE PRECISION | Calculated galactic X coordinate (parsecs) |
+| `y` | DOUBLE PRECISION | Calculated galactic Y coordinate (parsecs) |
+| `z` | DOUBLE PRECISION | Calculated galactic Z coordinate (parsecs) |
+| `last_updated` | TIMESTAMPTZ | When the galactic coordinates were last calculated |
+
+**Note:** The `x`, `y`, `z` coordinates are calculated based on the signal's direction and the time elapsed since transmission/reception. For transmitted signals, this represents how far the signal has traveled into space. For received signals, it represents the calculated origin direction.
+
 ## Indexes
 
 The database includes indexes optimized for spatial queries and catalog lookups:
@@ -162,6 +183,26 @@ FROM athyg
 WHERE dist IS NOT NULL
 ORDER BY dist
 LIMIT 20;
+```
+
+### Query signals
+
+```sql
+-- All signals
+SELECT name, type, time, frequency, notes FROM signals;
+
+-- Transmitted signals only
+SELECT name, time, frequency, x, y, z
+FROM signals
+WHERE type = 'transmit'
+ORDER BY time;
+
+-- Signals within a spatial region
+SELECT name, type, time, x, y, z
+FROM signals
+WHERE x BETWEEN -100 AND 100
+  AND y BETWEEN -100 AND 100
+  AND z BETWEEN -100 AND 100;
 ```
 
 ## Connecting to the Database

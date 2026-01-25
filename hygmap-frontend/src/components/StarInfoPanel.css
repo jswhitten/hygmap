@@ -1,0 +1,140 @@
+.star-info-panel {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  width: 280px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  z-index: 1100;
+  pointer-events: auto;
+}
+
+.star-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.star-info-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a9eff;
+}
+
+.star-info-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 5px;
+  line-height: 1;
+}
+
+.star-info-close:hover {
+  color: #fff;
+}
+
+.star-info-loading {
+  padding: 15px;
+  color: #ffcc00;
+  font-size: 13px;
+  text-align: center;
+}
+
+.star-info-content {
+  padding: 10px 15px 15px;
+}
+
+.star-info-section {
+  margin-bottom: 15px;
+}
+
+.star-info-section:last-child {
+  margin-bottom: 0;
+}
+
+.star-info-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.star-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.star-info-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.star-info-value {
+  color: #fff;
+  text-align: right;
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.star-info-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.star-info-link {
+  display: inline-block;
+  padding: 6px 10px;
+  background: rgba(74, 158, 255, 0.15);
+  border: 1px solid rgba(74, 158, 255, 0.3);
+  border-radius: 4px;
+  color: #4a9eff;
+  text-decoration: none;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.star-info-link:hover {
+  background: rgba(74, 158, 255, 0.25);
+  border-color: rgba(74, 158, 255, 0.5);
+}
+
+.star-info-no-links {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+}
+
+/* Scrollbar styling */
+.star-info-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.star-info-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.star-info-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.star-info-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

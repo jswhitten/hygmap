@@ -1,0 +1,46 @@
+{
+  "name": "hygmap-frontend",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "ci": "npm run format:check && npm run lint && npm run test:run"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.93.0",
+    "@react-three/fiber": "^8.15.15",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.160.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^18.2.47",
+    "@types/react-dom": "^18.2.18",
+    "@types/three": "^0.160.0",
+  "@typescript-eslint/eslint-plugin": "^8.8.1",
+  "@typescript-eslint/parser": "^8.8.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^4.0.16",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "jsdom": "^27.3.0",
+    "prettier": "^3.1.1",
+  "typescript": "^5.9.3",
+    "vite": "^5.0.11",
+    "vitest": "^4.0.16"
+  }
+}

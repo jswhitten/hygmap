@@ -13,28 +13,58 @@ Thank you for your interest in contributing to HYGMap! This guide will help you 
 
 ### Running Tests
 
-Before submitting changes, ensure all tests pass:
+Before submitting changes, ensure all tests pass. All tests run inside Docker containers - no local installations required.
 
 ```bash
-# Install dependencies
-make install
-
-# Run static analysis
-make analyse
-
-# Run all tests
+# Run all tests (PHP + API + Frontend)
 make test
 
-# Or run the full CI pipeline
+# PHP tests
+make test-unit        # Unit tests (fast, no database)
+make test-integration # Integration tests (needs database)
+make analyse          # PHPStan static analysis
+
+# API tests
+make test-api
+
+# Frontend tests
+make test-frontend
+make lint-frontend    # ESLint
+
+# Full CI pipeline
 make ci
 ```
 
 ### Code Style
 
+**PHP (hygmap-php/):**
 - Follow existing code patterns in the codebase
-- Keep PHP files consistent with the existing style
 - Use meaningful variable and function names
 - Add comments for complex logic
+- Run `make analyse` to check for issues
+
+**Python (hygmap-api/):**
+- Follow PEP 8 style guidelines
+- Use type hints for function parameters and return values
+- Use async/await for database operations
+
+**TypeScript/React (hygmap-frontend/):**
+- Follow existing component patterns
+- Use TypeScript types for props and state
+- Run `make lint-frontend` to check for issues
+
+## Project Structure
+
+```
+hygmap/
+├── hygmap-php/       # Classic PHP frontend
+├── hygmap-api/       # FastAPI REST backend
+├── hygmap-frontend/  # React/Three.js 3D frontend
+├── db/               # Database initialization
+│   ├── sql/          # SQL scripts (run in order)
+│   └── data/         # CSV data files
+└── docs/             # Documentation
+```
 
 ## Types of Contributions
 
@@ -84,7 +114,7 @@ docker compose exec hygmap-db psql -U hygmap_user -d hygmap
 SELECT tyc, proper, con FROM athyg WHERE proper ILIKE '%vega%';
 
 -- Search by Bayer designation
-SELECT tyc, bf, con FROM athyg WHERE bf ILIKE 'alp lyr%';
+SELECT tyc, bayer, con FROM athyg WHERE bayer ILIKE 'alp%' AND con = 'Lyr';
 
 -- Search by coordinates (approximate)
 SELECT tyc, proper, x, y, z FROM athyg
@@ -125,19 +155,52 @@ DROP TABLE temp_yourworld_import;
 
 Put your CSV file in `db/data/athyg_tycho_yourworld.csv`
 
-#### 5. Rebuild the Database
+#### 5. Update the Dockerfile
+
+Add a COPY line to `db/Dockerfile`:
+
+```dockerfile
+COPY data/athyg_tycho_yourworld.csv /data/
+```
+
+#### 6. Rebuild the Database
 
 ```bash
 docker compose down --volumes
 docker compose up -d --build
 ```
 
-#### 6. Test Your Changes
+#### 7. Test Your Changes
 
-1. Open HYGMap in your browser
+1. Open HYGMap in your browser (http://localhost/)
 2. Go to Configure
 3. Select your new universe from the "Fictional names" dropdown
 4. Verify your star names appear on the map
+
+### API Development
+
+The FastAPI backend lives in `hygmap-api/`. Key files:
+- `app/main.py` - Application entry point and middleware
+- `app/api/stars.py` - Star endpoints
+- `app/api/signals.py` - SETI signal endpoints
+- `app/schemas/` - Pydantic models for request/response validation
+
+To add a new endpoint:
+1. Create or update a router in `app/api/`
+2. Add Pydantic schemas in `app/schemas/`
+3. Register the router in `app/main.py`
+4. Add tests in `tests/`
+5. The API auto-generates Swagger docs at `/docs`
+
+### Frontend Development
+
+The React frontend lives in `hygmap-frontend/`. Key files:
+- `src/App.tsx` - Main application component
+- `src/components/` - React components
+- `src/hooks/` - Custom React hooks
+- `src/api/` - API client functions
+
+Changes to the frontend trigger hot reload during development.
 
 ### Documentation Improvements
 
@@ -152,7 +215,7 @@ Documentation lives in the `docs/` directory. Feel free to:
 1. Keep PRs focused on a single change
 2. Write clear commit messages
 3. Update documentation if your change affects user-facing features
-4. Ensure all tests pass
+4. Ensure all tests pass (`make ci`)
 5. Reference any related issues in your PR description
 
 ## Questions?

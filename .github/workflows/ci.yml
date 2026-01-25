@@ -7,10 +7,11 @@ on:
     branches: [main]
 
 jobs:
-  # Unit tests and static analysis - runs in Docker, no PHP setup needed
-  test:
+  # ==========================================================================
+  # PHP: Unit tests and static analysis
+  # ==========================================================================
+  php-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,12 +19,42 @@ jobs:
       - name: Run PHPStan static analysis
         run: make analyse
 
-      - name: Run unit tests
+      - name: Run PHP unit tests
         run: make test-unit
 
-  # Integration tests require Docker services with database
+  # ==========================================================================
+  # API: Python/FastAPI tests
+  # ==========================================================================
+  api-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run API tests
+        run: make test-api
+
+  # ==========================================================================
+  # Frontend: React/TypeScript lint and tests
+  # ==========================================================================
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ESLint
+        run: make lint-frontend
+
+      - name: Run frontend tests
+        run: make test-frontend
+
+  # ==========================================================================
+  # Integration: Full stack smoke tests
+  # ==========================================================================
   integration:
     runs-on: ubuntu-latest
+    needs: [php-test, api-test, frontend-test]
 
     steps:
       - name: Checkout code
@@ -34,6 +65,9 @@ jobs:
           echo "POSTGRES_DB=hygmap" >> .env
           echo "POSTGRES_USER=hygmap_user" >> .env
           echo "POSTGRES_PASSWORD=test_password_ci" >> .env
+          echo "DEBUG=True" >> .env
+          echo "CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:80" >> .env
+          echo "VITE_API_URL=http://localhost:8000" >> .env
 
       - name: Build and start services
         run: docker compose up -d --build
@@ -50,63 +84,118 @@ jobs:
             sleep 2
           done
 
-      - name: Wait for web server
+      - name: Wait for PHP web server
         run: |
-          echo "Waiting for web server..."
+          echo "Waiting for PHP web server..."
           for i in {1..30}; do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost/ | grep -q "200"; then
-              echo "Web server is ready!"
+              echo "PHP web server is ready!"
               break
             fi
-            echo "Attempt $i: Web server not ready yet..."
+            echo "Attempt $i: PHP web server not ready yet..."
             sleep 2
           done
 
-      - name: Smoke test - Main page
+      - name: Wait for API server
+        run: |
+          echo "Waiting for API server..."
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health | grep -q "200"; then
+              echo "API server is ready!"
+              break
+            fi
+            echo "Attempt $i: API server not ready yet..."
+            sleep 2
+          done
+
+      - name: Wait for frontend server
+        run: |
+          echo "Waiting for frontend server..."
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/ | grep -qE "200|304"; then
+              echo "Frontend server is ready!"
+              break
+            fi
+            echo "Attempt $i: Frontend server not ready yet..."
+            sleep 2
+          done
+
+      # PHP smoke tests
+      - name: Smoke test - PHP Main page
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/)
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Main page returned $HTTP_CODE instead of 200"
             exit 1
           fi
-          echo "Main page OK (200)"
+          echo "PHP Main page OK (200)"
 
-      - name: Smoke test - Configure page
+      - name: Smoke test - PHP Configure page
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/configure.php)
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Configure page returned $HTTP_CODE instead of 200"
             exit 1
           fi
-          echo "Configure page OK (200)"
+          echo "PHP Configure page OK (200)"
 
-      - name: Smoke test - Map image generation
+      - name: Smoke test - PHP Map image generation
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/map.php?x_c=0&y_c=0&z_c=0&xy_zoom=25&z_zoom=25&m_limit=10&image_size=100")
           if [ "$HTTP_CODE" != "200" ]; then
             echo "Map generation returned $HTTP_CODE instead of 200"
             exit 1
           fi
-          echo "Map generation OK (200)"
+          echo "PHP Map generation OK (200)"
 
-      - name: Smoke test - Search endpoint
+      - name: Smoke test - PHP Search endpoint
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/search.php?q=Sol")
           if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "302" ]; then
             echo "Search returned $HTTP_CODE instead of 200 or 302"
             exit 1
           fi
-          echo "Search OK ($HTTP_CODE)"
+          echo "PHP Search OK ($HTTP_CODE)"
 
-      - name: Verify security headers
+      - name: Verify PHP security headers
         run: |
           HEADERS=$(curl -sI http://localhost/)
           echo "$HEADERS"
           echo "$HEADERS" | grep -q "X-Content-Type-Options: nosniff" || (echo "Missing X-Content-Type-Options" && exit 1)
           echo "$HEADERS" | grep -q "X-Frame-Options: SAMEORIGIN" || (echo "Missing X-Frame-Options" && exit 1)
-          echo "Security headers OK"
+          echo "PHP Security headers OK"
 
-      - name: Run integration tests
+      # API smoke tests
+      - name: Smoke test - API health endpoint
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "API health returned $HTTP_CODE instead of 200"
+            exit 1
+          fi
+          echo "API health OK (200)"
+
+      - name: Smoke test - API docs (Swagger UI)
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/docs)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "API docs returned $HTTP_CODE instead of 200"
+            exit 1
+          fi
+          echo "API docs OK (200)"
+
+      # Frontend smoke test
+      - name: Smoke test - Frontend loads
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/)
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "304" ]; then
+            echo "Frontend returned $HTTP_CODE instead of 200 or 304"
+            exit 1
+          fi
+          echo "Frontend OK ($HTTP_CODE)"
+
+      # PHP integration tests
+      - name: Run PHP integration tests
         run: make test-integration
 
       - name: Show container logs on failure
@@ -116,6 +205,10 @@ jobs:
           docker compose logs hygmap-php
           echo "=== Database Container Logs ==="
           docker compose logs hygmap-db
+          echo "=== API Container Logs ==="
+          docker compose logs hygmap-api
+          echo "=== Frontend Container Logs ==="
+          docker compose logs hygmap-frontend
 
       - name: Stop services
         if: always()

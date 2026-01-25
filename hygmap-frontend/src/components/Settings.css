@@ -1,0 +1,253 @@
+.settings-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  background: rgba(30, 40, 60, 0.9);
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  border-radius: 50%;
+  color: #aaccff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 1001;
+}
+
+.settings-button:hover {
+  background: rgba(40, 60, 90, 0.95);
+  border-color: rgba(100, 140, 200, 0.6);
+  color: #ccddff;
+  transform: rotate(30deg);
+}
+
+.settings-panel {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 300px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  background: rgba(20, 30, 50, 0.95);
+  border: 1px solid rgba(100, 140, 200, 0.4);
+  border-radius: 8px;
+  color: #ddeeff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  z-index: 1001;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(100, 140, 200, 0.3);
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0 12px;
+  border-bottom: 1px solid rgba(100, 140, 200, 0.2);
+}
+
+.settings-tab {
+  flex: 1;
+  background: transparent;
+  border: 1px solid rgba(100, 140, 200, 0.3);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  color: #88aacc;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.settings-tab.active {
+  background: rgba(35, 45, 70, 0.9);
+  color: #ddeeff;
+  border-color: rgba(140, 180, 230, 0.6);
+}
+
+.settings-tabpanel {
+  padding-bottom: 12px;
+}
+
+.settings-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #aaccff;
+}
+
+.settings-close {
+  background: none;
+  border: none;
+  color: #88aacc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.settings-close:hover {
+  color: #ccddff;
+}
+
+.settings-section {
+  padding: 12px 16px;
+}
+
+.settings-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #88aacc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.settings-row span:first-child {
+  flex: 1;
+  color: #aabbcc;
+}
+
+.settings-row input[type="range"] {
+  width: 100px;
+  accent-color: #6688cc;
+}
+
+.settings-value {
+  min-width: 36px;
+  text-align: right;
+  color: #88aaff;
+  font-family: monospace;
+}
+
+.settings-hint {
+  margin: 8px 0 0 0;
+  font-size: 11px;
+  color: #667788;
+  line-height: 1.4;
+}
+
+.settings-section + .settings-section {
+  border-top: 1px solid rgba(100, 140, 200, 0.2);
+}
+
+.settings-row.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.settings-row input[type="number"] {
+  width: 60px;
+  background: rgba(40, 50, 70, 0.8);
+  border: 1px solid rgba(100, 140, 200, 0.3);
+  border-radius: 4px;
+  color: #aabbcc;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.settings-row input[type="checkbox"] {
+  accent-color: #6688cc;
+}
+
+.settings-row select {
+  background: rgba(40, 50, 70, 0.8);
+  border: 1px solid rgba(100, 140, 200, 0.3);
+  border-radius: 4px;
+  color: #aabbcc;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.settings-coming-soon {
+  font-size: 10px;
+  color: #556677;
+  font-style: italic;
+  margin-left: 8px;
+}
+
+/* Vertical settings row for spectral buttons */
+.settings-row-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.settings-row-vertical > span {
+  color: #aabbcc;
+}
+
+/* Spectral type filter buttons */
+.spectral-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.spectral-button {
+  padding: 4px 8px;
+  border: 1px solid rgba(100, 140, 200, 0.3);
+  border-radius: 4px;
+  background: rgba(40, 50, 70, 0.6);
+  color: #667788;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 28px;
+  text-align: center;
+}
+
+.spectral-button:hover {
+  background: rgba(60, 70, 90, 0.8);
+}
+
+.spectral-button.active {
+  background: rgba(60, 80, 120, 0.8);
+  border-color: rgba(100, 140, 200, 0.6);
+  color: #ddeeff;
+}
+
+/* Spectral type colors */
+.spectral-button.spectral-O.active { background: rgba(155, 176, 255, 0.4); color: #9bb0ff; border-color: #9bb0ff; }
+.spectral-button.spectral-B.active { background: rgba(170, 191, 255, 0.4); color: #aabfff; border-color: #aabfff; }
+.spectral-button.spectral-A.active { background: rgba(202, 215, 255, 0.4); color: #cad7ff; border-color: #cad7ff; }
+.spectral-button.spectral-F.active { background: rgba(248, 247, 255, 0.4); color: #f8f7ff; border-color: #f8f7ff; }
+.spectral-button.spectral-G.active { background: rgba(255, 244, 214, 0.4); color: #fff4d6; border-color: #fff4d6; }
+.spectral-button.spectral-K.active { background: rgba(255, 210, 161, 0.4); color: #ffd2a1; border-color: #ffd2a1; }
+.spectral-button.spectral-M.active { background: rgba(255, 204, 111, 0.4); color: #ffcc6f; border-color: #ffcc6f; }
+.spectral-button.spectral-all.active { background: rgba(100, 140, 200, 0.4); color: #aaccff; border-color: #aaccff; }
+
+/* Clear filter button */
+.settings-clear-filter {
+  background: none;
+  border: none;
+  color: #88aacc;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  margin-top: -4px;
+}
+
+.settings-clear-filter:hover {
+  color: #aaccff;
+}

@@ -1,0 +1,90 @@
+.error-boundary {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.95);
+  color: #ddeeff;
+  font-family: system-ui, -apple-system, sans-serif;
+  z-index: 9999;
+}
+
+.error-boundary-content {
+  max-width: 500px;
+  padding: 32px;
+  text-align: center;
+  background: rgba(30, 40, 60, 0.9);
+  border: 1px solid rgba(100, 140, 200, 0.3);
+  border-radius: 12px;
+}
+
+.error-boundary-content h2 {
+  margin: 0 0 16px 0;
+  font-size: 24px;
+  color: #ff6b6b;
+}
+
+.error-message {
+  margin: 0 0 24px 0;
+  color: #aabbcc;
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.error-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.error-button.retry {
+  background: #4a90d9;
+  color: white;
+}
+
+.error-button.retry:hover {
+  background: #5a9fe9;
+}
+
+.error-button.reload {
+  background: rgba(100, 140, 200, 0.2);
+  color: #aaccff;
+  border: 1px solid rgba(100, 140, 200, 0.4);
+}
+
+.error-button.reload:hover {
+  background: rgba(100, 140, 200, 0.3);
+}
+
+.error-details {
+  margin-top: 24px;
+  text-align: left;
+}
+
+.error-details summary {
+  cursor: pointer;
+  color: #88aacc;
+  font-size: 12px;
+}
+
+.error-details pre {
+  margin: 12px 0 0 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #889999;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
