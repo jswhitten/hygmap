@@ -46,11 +46,13 @@ def anyio_backend():
 @pytest.fixture(scope="function")
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """Create a fresh database session for each test"""
-    # Create tables
+    # Recreate tables from scratch for each test to avoid UNIQUE conflicts
     async with test_engine.begin() as conn:
-        # Create the athyg table for testing
+        await conn.execute(text("DROP TABLE IF EXISTS signals"))
+        await conn.execute(text("DROP TABLE IF EXISTS athyg"))
+
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS athyg (
+            CREATE TABLE athyg (
                 id INTEGER PRIMARY KEY,
                 proper TEXT,
                 bayer TEXT,
@@ -76,7 +78,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         """))
 
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS signals (
+            CREATE TABLE signals (
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 type TEXT,
@@ -108,21 +110,16 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (10, 'Wolf 359', 'CN', 'Leo', 'M6.5Ve', 16.55, -2.20, -0.61, 1.13, '54035', NULL)
         """))
 
-    await conn.execute(text("""
-        INSERT INTO signals (id, name, type, time, ra, dec, frequency, notes, x, y, z, last_updated)
-        VALUES
-        (1, 'Wow! Signal', 'receive', '1977-08-15T22:16:00Z', 19.8, -27.0, 1420.4058, 'Detected by Big Ear telescope', -5.0, 12.0, 2.5, '2026-01-01T00:00:00Z'),
-        (2, 'Arecibo Reply', 'transmit', '1974-11-16T00:00:00Z', 17.76, -28.74, 2380.0, 'Arecibo message broadcast', 8.0, -10.0, 1.0, '2026-01-01T00:00:00Z'),
-        (3, 'Voyager Beacon', 'transmit', '1977-09-05T12:56:00Z', 17.0, 12.0, 8400.0, 'Simulated outbound probe message', 60.0, 40.0, 5.0, '2026-01-01T00:00:00Z')
-    """))
+        await conn.execute(text("""
+            INSERT INTO signals (id, name, type, time, ra, dec, frequency, notes, x, y, z, last_updated)
+            VALUES
+            (1, 'Wow! Signal', 'receive', '1977-08-15T22:16:00Z', 19.8, -27.0, 1420.4058, 'Detected by Big Ear telescope', -5.0, 12.0, 2.5, '2026-01-01T00:00:00Z'),
+            (2, 'Arecibo Reply', 'transmit', '1974-11-16T00:00:00Z', 17.76, -28.74, 2380.0, 'Arecibo message broadcast', 8.0, -10.0, 1.0, '2026-01-01T00:00:00Z'),
+            (3, 'Voyager Beacon', 'transmit', '1977-09-05T12:56:00Z', 17.0, 12.0, 8400.0, 'Simulated outbound probe message', 60.0, 40.0, 5.0, '2026-01-01T00:00:00Z')
+        """))
 
     async with TestSessionLocal() as session:
         yield session
-
-    # Clean up
-    async with test_engine.begin() as conn:
-        await conn.execute(text("DROP TABLE IF EXISTS signals"))
-        await conn.execute(text("DROP TABLE IF EXISTS athyg"))
 
 
 @pytest.fixture(scope="function")

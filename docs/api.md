@@ -223,9 +223,17 @@ curl "http://localhost:8000/api/signals/?signal_type=transmit"
 
 ### Rate Limits
 
-- Default: 100 requests per minute per IP
-- Rate limiting can be disabled via `RATE_LIMIT_ENABLED=false` in environment
-- When exceeded, returns HTTP 429 with retry information
+- Scope: per-client IP across all FastAPI endpoints
+- Default allowance: 100 requests per minute (soft reset every 60s)
+- Disable entirely with `RATE_LIMIT_ENABLED=false` (environment variable)
+- Exceeding the limit returns HTTP 429 with a structured error body
+
+**429 Response Example:**
+```json
+{
+  "detail": "Rate limit exceeded. Try again soon."
+}
+```
 
 ---
 

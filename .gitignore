@@ -3,6 +3,10 @@
 /db/data/athyg_v*
 /vendor/
 /hygmap-php/vendor/
+/hygmap-frontend/node_modules/
+/hygmap-frontend/node_modules/.vite/
+node_modules/
+*.log
 __pycache__/
 *.pyc
 *.pyo

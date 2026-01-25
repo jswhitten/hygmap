@@ -24,6 +24,15 @@ import './App.css'
 // Default distance (in parsecs) to place the camera from the target
 const DEFAULT_CAMERA_OFFSET_PC = 8
 
+// Imperative background setter to avoid unsupported <color> tag warnings in JSDOM
+function SceneBackground({ color }: { color: string }) {
+  const { scene } = useThree()
+  useEffect(() => {
+    scene.background = new THREE.Color(color)
+  }, [color, scene])
+  return null
+}
+
 // Camera controller component inside Canvas
 function CameraController({
   controlsRef,
@@ -38,8 +47,15 @@ function CameraController({
   onUserInteraction: () => void
   viewMode: ViewMode
 }) {
+  const orbitRef = useRef<OrbitControlsImpl | null>(null)
   const { camera } = useThree()
   const isLocked = isLockedViewMode(viewMode)
+  const isJsdom = typeof navigator !== 'undefined' && navigator.userAgent.includes('jsdom')
+
+  // Keep external ref in sync without attaching it directly to OrbitControls
+  useEffect(() => {
+    controlsRef.current = orbitRef.current
+  }, [controlsRef])
 
   // Set up 2D mode camera when switching
   useEffect(() => {
@@ -74,7 +90,7 @@ function CameraController({
   return (
     <>
       <OrbitControls
-        ref={controlsRef as React.RefObject<OrbitControlsImpl>}
+        ref={isJsdom ? undefined : orbitRef}
         enableRotate={!isLocked}
         // In 2D mode: left and right click both pan
         mouseButtons={
@@ -220,7 +236,7 @@ function App() {
           role="img"
           aria-label="Interactive 3D star map showing stars from the HYG database. Use WASD or arrow keys to move, Q/E to move up/down, +/- to zoom, R to reset to home. Mouse drag to rotate view."
         >
-          <color attach="background" args={[printableView ? '#ffffff' : '#000000']} />
+          <SceneBackground color={printableView ? '#ffffff' : '#000000'} />
           <KeyboardNavigator controlsRef={controlsRef} viewMode={viewMode} />
           <CameraController
             controlsRef={controlsRef}
