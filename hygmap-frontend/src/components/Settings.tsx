@@ -150,7 +150,7 @@ export default function Settings() {
       setActiveTab(tabIds[newIndex])
       document.getElementById(`settings-tab-${tabIds[newIndex]}`)?.focus()
     },
-    [TABS]
+    []
   )
 
   const renderFiltersTab = () => (

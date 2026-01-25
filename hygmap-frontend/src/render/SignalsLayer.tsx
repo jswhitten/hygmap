@@ -114,7 +114,7 @@ interface SignalWaveProps {
 function SignalWave({ signal, geometries, isSelected, isHovered, onSelect, onHover }: SignalWaveProps) {
   const waveRefs = useRef<Array<THREE.Mesh | null>>(new Array(WAVE_COUNT).fill(null))
   const materialRefs = useRef<Array<THREE.MeshBasicMaterial | null>>(new Array(WAVE_COUNT).fill(null))
-  const basePhase = useMemo(() => Math.random(), [signal.id])
+  const basePhase = useMemo(() => Math.random(), [])
   const [sx, sy, sz] = useMemo(() => galacticToScene(signal.x, signal.y, signal.z), [signal.x, signal.y, signal.z])
   const position = useMemo<[number, number, number]>(() => [sx, sy, sz], [sx, sy, sz])
 
@@ -245,10 +245,9 @@ function SignalTimeline({ signal, color }: SignalTimelineProps) {
     ticks.push({ year: baseYear, label: baseLabel, position: new THREE.Vector3(0, 0, 0), isSun: true })
 
     let forwardYear = baseYear + TIMELINE_YEAR_STEP
-    while (true) {
+    while (lightYearsToParsecs(forwardYear - baseYear) <= forwardLengthPc + 1e-3) {
       const yearsFromBase = forwardYear - baseYear
       const offsetPc = lightYearsToParsecs(yearsFromBase)
-      if (offsetPc > forwardLengthPc + 1e-3) break
       ticks.push({
         year: forwardYear,
         label: `${forwardYear}`,
@@ -260,10 +259,9 @@ function SignalTimeline({ signal, color }: SignalTimelineProps) {
 
     if (extendOpposite) {
       let backwardYear = baseYear - TIMELINE_YEAR_STEP
-      while (true) {
+      while (lightYearsToParsecs(baseYear - backwardYear) <= backwardLengthPc + 1e-3) {
         const yearsFromBase = baseYear - backwardYear
         const offsetPc = lightYearsToParsecs(yearsFromBase)
-        if (offsetPc > backwardLengthPc + 1e-3) break
         ticks.push({
           year: backwardYear,
           label: `${backwardYear}`,
