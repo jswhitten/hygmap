@@ -71,16 +71,6 @@ HYGMap displays stars in **galactic coordinates** centered on our solar system:
 
 **React Frontend (3D):** Real-time 3D visualization using Three.js. Navigate through the star field with mouse controls, see SETI signals as expanding spheres, and click stars for detailed information.
 
-### Features
-
-- 2.5M+ stars from the AT-HYG 3.2 catalog with accurate spatial coordinates
-- Multi-fiction layers: toggle between real star names and those from Star Trek, Babylon 5, and more
-- Interactive 2D/3D visualizations with zoom, pan, and stereoscopic or printable modes
-- Search by catalog ID (HD, HIP, Gaia, Gl/GJ, TYC), Bayer/Flamsteed name, or proper name
-- Sortable data table of stars in view
-- Configurable map settings (units, magnitude limits, layer selection)
-- SETI signal data showing historical transmissions and received signals
-
 ## Data Sources
 
 - **[AT-HYG Database](https://codeberg.org/astronexus/athyg)** - Compiled by David Nash
@@ -117,8 +107,8 @@ The AT-HYG database includes over 2.5 million stars; essentially all known stars
 ## Requirements
 
 - Docker and Docker Compose
-- 2GB RAM minimum (4GB recommended)
-- 1GB disk space for containers and database
+- 1GB RAM minimum (2GB recommended)
+- 2GB disk space for containers and database
 
 ## Development
 
