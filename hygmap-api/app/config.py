@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     # Rate limiting - requests per minute per IP
-    RATE_LIMIT: str = "100/minute"
+    RATE_LIMIT: str = "1000/minute"
     RATE_LIMIT_ENABLED: bool = True
 
     @property

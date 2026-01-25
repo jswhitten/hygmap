@@ -17,8 +17,8 @@ import { sceneToGalactic, sceneBoundsToGalactic } from '../domain/coordinates'
 import { useChunkMergerWorker } from './useChunkMergerWorker'
 
 // Chunk configuration
-const CHUNK_SIZE = 25 // parsecs per chunk side
-const VIEW_DISTANCE = 80 // max distance to load chunks (reduced for faster loading)
+const CHUNK_SIZE = 40 // parsecs per chunk side
+const VIEW_DISTANCE = 80 // base max distance to load chunks (expanded dynamically when zoomed out)
 const UPDATE_THRESHOLD = 5 // minimum camera movement to trigger update
 const JUMP_THRESHOLD = 50 // distance to consider a "jump" (clears old chunks)
 const MAX_CONCURRENT_LOADS = 6 // concurrent chunk requests
@@ -29,9 +29,9 @@ const SPATIAL_CACHE_MAX_STARS = 100000 // Maximum total stars in spatial cache
 
 // LOD configuration - magnitude limits by distance
 const LOD_LEVELS = [
-  { distance: 25, magMax: 12 },   // Close: show most stars
-  { distance: 50, magMax: 8 },    // Medium: moderate detail
-  { distance: 80, magMax: 5 },    // Far: only brighter stars
+  { distance: 40, magMax: 12 },   // Close: show most stars
+  { distance: 80, magMax: 8 },    // Medium: moderate detail
+  { distance: 120, magMax: 5 },    // Far: only brighter stars
   { distance: Infinity, magMax: 3 }, // Very far: only brightest
 ]
 
@@ -107,7 +107,7 @@ class SpatialCache {
         if (parts.length >= 3 && !parts.some(isNaN)) {
           const [ix, iy, iz] = parts
           const chunkPos = new THREE.Vector3(ix, iy, iz)
-          if (position.distanceTo(chunkPos) <= maxDistance) {
+          if (horizontalDistance(position, chunkPos) <= maxDistance) {
             result.set(key, data)
             // Update access time
             this.accessOrder = this.accessOrder.filter((k) => k !== key)
@@ -121,7 +121,7 @@ class SpatialCache {
       if (!parsed) return
 
       const chunkCenter = getChunkCenter(parsed.cx, parsed.cy, parsed.cz)
-      if (position.distanceTo(chunkCenter) <= maxDistance) {
+      if (horizontalDistance(position, chunkCenter) <= maxDistance) {
         result.set(key, data)
         // Update access time
         this.accessOrder = this.accessOrder.filter((k) => k !== key)
@@ -231,6 +231,19 @@ function getChunkCenter(cx: number, cy: number, cz: number): THREE.Vector3 {
     (cy + 0.5) * CHUNK_SIZE,
     (cz + 0.5) * CHUNK_SIZE
   )
+}
+
+// Horizontal distance helper (ignore altitude so zooming out does not block loading)
+function horizontalDistance(a: THREE.Vector3, b: THREE.Vector3): number {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return Math.hypot(dx, dy)
+}
+
+// Expand view distance when zoomed out so distant camera heights still load chunks
+function getEffectiveViewDistance(centerPos: THREE.Vector3): number {
+  const altitudeBuffer = Math.abs(centerPos.z) + VIEW_DISTANCE / 2
+  return Math.max(VIEW_DISTANCE, altitudeBuffer)
 }
 
 /**
@@ -427,7 +440,7 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
       fetchStars({
         bounds: galacticBounds,
         magMax: LOD_LEVELS[lodLevel].magMax,
-        limit: 5000,
+        limit: 10000,
         signal: abortController.signal,
       })
         .then((response) => {
@@ -508,14 +521,14 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
     let actualCancelled = 0
 
     // Cancel requests for chunks outside the view distance + buffer
-    const cancelDistance = VIEW_DISTANCE * 1.5
+    const cancelDistance = getEffectiveViewDistance(centerPos) * 1.5
 
     abortControllersRef.current.forEach((controller, key) => {
       const parsed = parseChunkKey(key)
       if (!parsed) return // Skip malformed keys
 
       const chunkCenter = getChunkCenter(parsed.cx, parsed.cy, parsed.cz)
-      const distance = centerPos.distanceTo(chunkCenter)
+      const distance = horizontalDistance(centerPos, chunkCenter)
 
       if (distance > cancelDistance) {
         controller.abort()
@@ -531,6 +544,7 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
   // Load chunks around a position
   const loadChunksAroundPosition = useCallback((centerPos: THREE.Vector3, clearOld: boolean) => {
     const camChunk = getChunkCoords(centerPos)
+    const viewDistance = getEffectiveViewDistance(centerPos)
 
     // If jumping to new location, save current chunks to spatial cache before clearing
     if (clearOld) {
@@ -550,7 +564,7 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
       onStarsLoaded?.([])
 
       // Restore any cached chunks that are near the new position
-      const cachedNearby = spatialCache.getChunksNear(centerPos, VIEW_DISTANCE)
+      const cachedNearby = spatialCache.getChunksNear(centerPos, viewDistance)
       if (cachedNearby.size > 0) {
         cachedNearby.forEach((data, key) => {
           chunksRef.current.set(key, data)
@@ -566,7 +580,7 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
     }
 
     // Calculate view range in chunks
-    const rangeChunks = Math.ceil(VIEW_DISTANCE / CHUNK_SIZE)
+    const rangeChunks = Math.ceil(viewDistance / CHUNK_SIZE)
 
     // Collect all chunk candidates with their distances
     const candidates: ChunkCandidate[] = []
@@ -579,10 +593,10 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
           const cz = camChunk.cz + dz
 
           const chunkCenter = getChunkCenter(cx, cy, cz)
-          const distance = centerPos.distanceTo(chunkCenter)
+          const distance = horizontalDistance(centerPos, chunkCenter)
 
           // Skip if too far
-          if (distance > VIEW_DISTANCE) continue
+          if (distance > viewDistance) continue
 
           const lodLevel = getLodLevel(distance)
 
@@ -638,9 +652,9 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
           if (parts.length >= 3 && !parts.some(isNaN)) {
             const [ix, iy, iz] = parts
             const immediateCenter = new THREE.Vector3(ix, iy, iz)
-            const distance = centerPos.distanceTo(immediateCenter)
+            const distance = horizontalDistance(centerPos, immediateCenter)
             // Remove immediate chunks that are too far away
-            if (distance > VIEW_DISTANCE * 2) {
+            if (distance > viewDistance * 2) {
               // Save to spatial cache before removing
               spatialCache.set(key, data)
               keysToRemove.push(key)
@@ -653,9 +667,9 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
         if (!parsed) return
 
         const chunkCenter = getChunkCenter(parsed.cx, parsed.cy, parsed.cz)
-        const distance = centerPos.distanceTo(chunkCenter)
+        const distance = horizontalDistance(centerPos, chunkCenter)
 
-        if (distance > VIEW_DISTANCE * 1.5) {
+        if (distance > viewDistance * 1.5) {
           // Save to spatial cache before removing
           spatialCache.set(key, data)
           keysToRemove.push(key)
