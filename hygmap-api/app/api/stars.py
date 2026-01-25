@@ -35,7 +35,7 @@ async def get_stars(
     zmin: float = Query(-50, description="Minimum Z coordinate (parsecs)"),
     zmax: float = Query(50, description="Maximum Z coordinate (parsecs)"),
     mag_max: float = Query(None, description="Maximum absolute magnitude (LOD filter, dimmer stars excluded)"),
-    limit: int = Query(10000, le=50000, description="Maximum number of stars to return"),
+    limit: int = Query(10000, ge=1, le=50000, description="Maximum number of stars to return"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -125,8 +125,8 @@ async def get_stars(
 @limiter.limit(settings.RATE_LIMIT)
 async def search_stars(
     request: Request,  # Required for rate limiter
-    q: str = Query(..., min_length=2, max_length=100, description="Search query (name or catalog ID)"),
-    limit: int = Query(20, le=100, description="Maximum number of results"),
+    q: str = Query(..., min_length=1, max_length=100, description="Search query (name or catalog ID)"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -136,6 +136,13 @@ async def search_stars(
     (HIP, HD, HR, GJ, Gaia, TYC).
     """
     search_term = q.strip()
+
+    # Reject too-short ASCII queries but allow single-character non-ASCII (e.g., emoji, Greek letters)
+    if len(search_term) < 2 and search_term.isascii() and search_term.strip().isalnum():
+        raise HTTPException(
+            status_code=422,
+            detail="Search term must be at least 2 characters",
+        )
 
     # Additional validation for search length
     if len(search_term) > 100:
@@ -207,7 +214,7 @@ async def search_stars(
         }
 
         query = CATALOG_QUERIES.get(catalog_field)
-        if not query:
+        if query is None:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid catalog field: {catalog_field}"
@@ -217,16 +224,20 @@ async def search_stars(
     else:
         # Search by name (proper, bayer, constellation)
         # Use LOWER() for case-insensitive search (works with both PostgreSQL and SQLite)
-        like_pattern = f"%{search_term.lower()}%"
+        escaped = (search_term.lower()
+                   .replace("\\", "\\\\")
+                   .replace("%", "\\%")
+                   .replace("_", "\\_"))
+        like_pattern = f"%{escaped}%"
         query = text("""
             SELECT
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
                 hip, hd, hr, gj, gaia, tyc
             FROM athyg
-            WHERE LOWER(COALESCE(proper, '')) LIKE :pattern
-               OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :pattern
-               OR LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, '')) LIKE :pattern
-               OR LOWER(COALESCE(con, '')) LIKE :pattern
+            WHERE LOWER(COALESCE(proper, '')) LIKE :pattern ESCAPE '\\'
+               OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
+               OR LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
+               OR LOWER(COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
             ORDER BY absmag ASC NULLS LAST
             LIMIT :limit
         """)
