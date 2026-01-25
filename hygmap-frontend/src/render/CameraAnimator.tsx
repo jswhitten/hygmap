@@ -8,7 +8,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 
 interface CameraAnimatorProps {
-  controlsRef: React.RefObject<OrbitControlsImpl | null>
+  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>
   targetPosition: THREE.Vector3 | null
   targetLookAt: THREE.Vector3 | null
   animationKey?: number // Changes to trigger new animation

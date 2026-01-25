@@ -41,7 +41,7 @@ function CameraController({
   onUserInteraction,
   viewMode,
 }: {
-  controlsRef: React.RefObject<OrbitControlsImpl | null>
+  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>
   cameraTarget: { position: THREE.Vector3; lookAt: THREE.Vector3; key: number } | null
   onAnimationComplete: () => void
   onUserInteraction: () => void

@@ -32,7 +32,7 @@ describe('KeyboardNavigator', () => {
     target: THREE.Vector3
     update: ReturnType<typeof vi.fn>
   }
-  let controlsRef: React.RefObject<OrbitControlsImpl | null>
+  let controlsRef: React.MutableRefObject<OrbitControlsImpl | null>
 
   beforeEach(() => {
     // Reset mock camera
