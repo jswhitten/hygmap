@@ -5,6 +5,7 @@ require_once __DIR__ . '/Units.php';
 require_once __DIR__ . '/StarFormatter.php';
 require_once __DIR__ . '/RenderingConstants.php';
 require_once __DIR__ . '/MapGeometry.php';
+require_once __DIR__ . '/ApiClient.php';
 
 /**
  * MapRenderer - Handles all star map image generation
@@ -93,16 +94,16 @@ class MapRenderer
         $bbox = $this->buildBoundingBox();
 
         try {
-            $rows = Database::queryAll($bbox, $this->m_limit, $this->fic_names, 'absmag desc');
-        } catch (PDOException $e) {
+            $rows = ApiClient::instance()->queryAll($bbox, $this->m_limit, $this->fic_names, 'absmag desc');
+        } catch (RuntimeException $e) {
             error_log("Map generation error: " . $e->getMessage());
-            $this->createErrorImage("Database error - unable to load stars");
+            $this->createErrorImage("API error - unable to load stars");
             return;
         }
 
         try {
-            $signal_rows = $this->show_signals ? Database::querySignals($bbox) : [];
-        } catch (PDOException $e) {
+            $signal_rows = $this->show_signals ? ApiClient::instance()->querySignals($bbox) : [];
+        } catch (RuntimeException $e) {
             error_log("Signal query error: " . $e->getMessage());
             $signal_rows = [];
         }

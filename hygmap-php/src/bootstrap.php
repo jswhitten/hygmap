@@ -15,7 +15,7 @@ require_once __DIR__ . '/StarFormatter.php';
 require_once __DIR__ . '/ErrorHandler.php';
 require_once __DIR__ . '/RenderingConstants.php';
 require_once __DIR__ . '/MapGeometry.php';
-require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/ApiClient.php';
 require_once __DIR__ . '/Profiler.php';
 
 // Initialize session and CSRF protection
@@ -36,14 +36,16 @@ $cfg = Config::load();
 // Extract variables from query string
 $vars = Request::getMapParams();
 
-// Test database connection early to fail fast with friendly error
+// Test API connection early to fail fast with friendly error
 try {
-    Database::connection();
-} catch (DatabaseConnectionException $e) {
-    echo '<!DOCTYPE html><html><head><title>Database Error</title></head>';
+    // Quick API health check by fetching worlds list (small response)
+    ApiClient::instance()->queryWorlds();
+} catch (RuntimeException $e) {
+    error_log("API connection error: " . $e->getMessage());
+    echo '<!DOCTYPE html><html><head><title>API Error</title></head>';
     echo '<body style="font-family:sans-serif;margin:2rem;">';
-    echo '<h1>⚠️ Database Connection Error</h1>';
-    echo '<p>Unable to connect to the star database. Please check that the database service is running.</p>';
+    echo '<h1>⚠️ API Connection Error</h1>';
+    echo '<p>Unable to connect to the star API. Please check that the API service is running.</p>';
     echo '<p>Technical details have been logged.</p>';
     echo '</body></html>';
     exit(1);

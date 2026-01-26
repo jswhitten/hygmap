@@ -5,6 +5,7 @@ require_once __DIR__ . '/Units.php';
 require_once __DIR__ . '/StarFormatter.php';
 require_once __DIR__ . '/ErrorHandler.php';
 require_once __DIR__ . '/RenderingConstants.php';
+require_once __DIR__ . '/ApiClient.php';
 
 /**
  * IndexHelpers - Helper methods for index.php view
@@ -31,7 +32,7 @@ final class IndexHelpers
         }
 
         try {
-            $selected_star = Database::queryStar($select_star, $fic_names);
+            $selected_star = ApiClient::instance()->queryStar($select_star, $fic_names);
             if (!$selected_star) {
                 return null;
             }
@@ -44,8 +45,8 @@ final class IndexHelpers
             }
 
             return $selected_star;
-        } catch (PDOException $e) {
-            ErrorHandler::handleError("Unable to retrieve star information from database.", $e);
+        } catch (RuntimeException $e) {
+            ErrorHandler::handleError("Unable to retrieve star information from API.", $e);
         }
     }
 
@@ -106,7 +107,7 @@ final class IndexHelpers
             'has_star' => true,
             'display_name' => $display_name,
             'absmag' => $selected_star["absmag"],
-            'spect' => $selected_star["spect"],
+            'spect' => $selected_star["spect"] ?? '',
             'distance_ui' => $distance_ui,
             'unit' => $unit,
             'x_ui' => $x_ui,
@@ -178,8 +179,8 @@ final class IndexHelpers
     public static function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, int $fic_names, string $unit, array $view_coords): array
     {
         try {
-            $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
-        } catch (PDOException $e) {
+            $rows = ApiClient::instance()->queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+        } catch (RuntimeException $e) {
             ErrorHandler::handleError("Unable to query stars in the current map area.", $e);
         }
 
@@ -254,9 +255,9 @@ final class IndexHelpers
     public static function fetchProperStarOptions(): string
     {
         try {
-            $rows = Database::queryProperNames();
+            $rows = ApiClient::instance()->queryProperNames();
             return self::buildSelectOptions($rows, 'id', 'proper');
-        } catch (PDOException $e) {
+        } catch (RuntimeException $e) {
             ErrorHandler::handleError("Unable to load star catalog.", $e);
         }
     }
@@ -270,9 +271,9 @@ final class IndexHelpers
     public static function fetchFictionalStarOptions(int $fic_names): string
     {
         try {
-            $rows = Database::queryFiction($fic_names);
+            $rows = ApiClient::instance()->queryFiction($fic_names);
             return self::buildSelectOptions($rows, 'star_id', 'name');
-        } catch (PDOException $e) {
+        } catch (RuntimeException $e) {
             ErrorHandler::handleError("Unable to load fictional star names.", $e);
         }
     }
@@ -352,8 +353,8 @@ final class IndexHelpers
         string $image_type
     ): array {
         try {
-            $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
-        } catch (PDOException $e) {
+            $rows = ApiClient::instance()->queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
+        } catch (RuntimeException $e) {
             return [];
         }
 

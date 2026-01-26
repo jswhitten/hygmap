@@ -103,6 +103,71 @@ class TestGetStars:
             for i in range(len(stars_with_mag) - 1):
                 assert stars_with_mag[i]["absmag"] <= stars_with_mag[i + 1]["absmag"]
 
+    async def test_get_stars_with_world_id(self, client: AsyncClient):
+        """Should include fictional names when world_id is provided"""
+        response = await client.get(
+            "/api/stars",
+            params={
+                "xmin": -5,
+                "xmax": 5,
+                "ymin": -5,
+                "ymax": 5,
+                "zmin": -5,
+                "zmax": 5,
+                "world_id": 1,  # Star Trek
+            },
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        # Wolf 359 should have fictional name "Wolf 359" in Star Trek
+        wolf_stars = [s for s in data["data"] if s.get("proper") == "Wolf 359"]
+        if wolf_stars:
+            assert wolf_stars[0].get("name") == "Wolf 359"
+
+    async def test_get_stars_includes_dist_and_mag(self, client: AsyncClient):
+        """Should include dist and mag fields"""
+        response = await client.get("/api/stars")
+        assert response.status_code == 200
+
+        data = response.json()
+        if data["data"]:
+            star = data["data"][0]
+            assert "dist" in star
+            assert "mag" in star
+
+    async def test_get_stars_order_by_mag_desc(self, client: AsyncClient):
+        """Should order by apparent magnitude descending"""
+        response = await client.get(
+            "/api/stars",
+            params={
+                "xmin": -1000,
+                "xmax": 1000,
+                "ymin": -1000,
+                "ymax": 1000,
+                "zmin": -1000,
+                "zmax": 1000,
+                "order": "absmag desc",
+            },
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        stars = data["data"]
+        if len(stars) > 1:
+            stars_with_mag = [s for s in stars if s["absmag"] is not None]
+            for i in range(len(stars_with_mag) - 1):
+                assert stars_with_mag[i]["absmag"] >= stars_with_mag[i + 1]["absmag"]
+
+    async def test_get_stars_invalid_order(self, client: AsyncClient):
+        """Should reject invalid order parameter"""
+        response = await client.get(
+            "/api/stars",
+            params={"order": "invalid; DROP TABLE athyg; --"},
+        )
+        assert response.status_code == 400
+        assert "order" in response.json()["detail"].lower()
+
 
 class TestSearchStars:
     """Tests for GET /api/stars/search endpoint"""
@@ -212,6 +277,116 @@ class TestGetStarById:
         assert "absmag" in star
         assert "hip" in star
         assert "hd" in star
+
+    async def test_get_star_with_world_id(self, client: AsyncClient):
+        """Should include fictional name when world_id is provided"""
+        # Wolf 359 has fictional name in Star Trek (world_id=1)
+        response = await client.get("/api/stars/10", params={"world_id": 1})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["data"]["name"] == "Wolf 359"
+
+    async def test_get_star_without_world_id(self, client: AsyncClient):
+        """Should return empty name when world_id=0"""
+        response = await client.get("/api/stars/10", params={"world_id": 0})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["data"]["name"] == ""
+
+
+class TestDropdownEndpoints:
+    """Tests for dropdown data endpoints"""
+
+    async def test_get_proper_names(self, client: AsyncClient):
+        """Should return all stars with proper names"""
+        response = await client.get("/api/stars/proper-names")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert isinstance(data["data"], list)
+        assert data["length"] == len(data["data"])
+
+        # Check each entry has id and proper
+        for entry in data["data"]:
+            assert "id" in entry
+            assert "proper" in entry
+            assert entry["proper"] is not None
+
+        # Check that our test stars are included
+        proper_names = [e["proper"] for e in data["data"]]
+        assert "Sol" in proper_names
+        assert "Sirius" in proper_names
+
+    async def test_get_fictional_names(self, client: AsyncClient):
+        """Should return fictional names for a world"""
+        response = await client.get(
+            "/api/stars/fictional-names",
+            params={"world_id": 1}  # Star Trek
+        )
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert isinstance(data["data"], list)
+
+        # Check each entry has star_id and name
+        for entry in data["data"]:
+            assert "star_id" in entry
+            assert "name" in entry
+
+        # Check Star Trek names are included
+        fic_names = [e["name"] for e in data["data"]]
+        assert "Wolf 359" in fic_names
+        assert "Alpha Centauri" in fic_names
+
+    async def test_get_fictional_names_requires_world_id(self, client: AsyncClient):
+        """Should require world_id parameter"""
+        response = await client.get("/api/stars/fictional-names")
+        assert response.status_code == 422  # Validation error
+
+    async def test_get_fictional_names_filters_by_world(self, client: AsyncClient):
+        """Should filter fictional names by world_id"""
+        # Star Trek (world_id=1) has Wolf 359, Alpha Centauri, Alpha Canis Majoris
+        response1 = await client.get(
+            "/api/stars/fictional-names",
+            params={"world_id": 1}
+        )
+        assert response1.status_code == 200
+        trek_names = [e["name"] for e in response1.json()["data"]]
+
+        # Babylon 5 (world_id=2) has Epsilon III System
+        response2 = await client.get(
+            "/api/stars/fictional-names",
+            params={"world_id": 2}
+        )
+        assert response2.status_code == 200
+        b5_names = [e["name"] for e in response2.json()["data"]]
+
+        # Check they return different sets
+        assert "Epsilon III System" in b5_names
+        assert "Epsilon III System" not in trek_names
+
+    async def test_get_worlds(self, client: AsyncClient):
+        """Should return all fictional worlds"""
+        response = await client.get("/api/stars/worlds")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert isinstance(data["data"], list)
+
+        # Check each entry has id and name
+        for entry in data["data"]:
+            assert "id" in entry
+            assert "name" in entry
+
+        # Check our test worlds are included
+        world_names = [w["name"] for w in data["data"]]
+        assert "Star Trek" in world_names
+        assert "Babylon 5" in world_names
 
 
 class TestSecurityValidation:

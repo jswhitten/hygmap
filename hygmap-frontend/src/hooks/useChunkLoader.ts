@@ -412,6 +412,50 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
     }
   }, [workerSupported, mergeWithWorker, mergeSynchronous])
 
+  // Load a large immediate area first (single request for fast initial view)
+  const loadImmediateArea = useCallback(async (position: THREE.Vector3) => {
+    // Position is in scene space, create scene bounds first
+    const sceneBounds: BoundingBox = {
+      xmin: position.x - 40,
+      xmax: position.x + 40,
+      ymin: position.y - 40,
+      ymax: position.y + 40,
+      zmin: position.z - 40,
+      zmax: position.z + 40,
+    }
+
+    // Convert to galactic space for API call
+    const galacticBounds = sceneBoundsToGalactic(sceneBounds)
+
+    if (import.meta.env.DEV) {
+      console.log(`loadImmediateArea: scene pos (${position.x.toFixed(0)}, ${position.y.toFixed(0)}, ${position.z.toFixed(0)})`)
+      console.log(`  galactic bounds x[${galacticBounds.xmin.toFixed(0)},${galacticBounds.xmax.toFixed(0)}] y[${galacticBounds.ymin.toFixed(0)},${galacticBounds.ymax.toFixed(0)}] z[${galacticBounds.zmin.toFixed(0)},${galacticBounds.zmax.toFixed(0)}]`)
+    }
+
+    try {
+      const response = await fetchStars({
+        bounds: galacticBounds,
+        magMax: 10, // Good detail level
+        limit: 10000,
+      })
+
+      // Create a synthetic chunk for this area
+      const key = `immediate_${Math.floor(position.x)}_${Math.floor(position.y)}_${Math.floor(position.z)}`
+      chunksRef.current.set(key, {
+        stars: response.data,
+        lodLevel: 0,
+        timestamp: Date.now(),
+      })
+
+      mergeChunks()
+      if (import.meta.env.DEV) {
+        console.log(`Loaded immediate area: ${response.data.length} stars`)
+      }
+    } catch (error) {
+      console.error('Failed to load immediate area:', error)
+    }
+  }, [mergeChunks])
+
   // Process the pending queue with concurrency limit
   const processQueue = useCallback(() => {
     while (pendingQueueRef.current.length > 0 && loadingRef.current.size < MAX_CONCURRENT_LOADS) {
@@ -574,6 +618,9 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
         }
         mergeChunks()
       }
+
+      // Always prime the immediate area so returning to a location shows stars quickly
+      loadImmediateArea(centerPos)
     } else {
       // Cancel distant requests to avoid wasting bandwidth
       cancelDistantRequests(centerPos)
@@ -685,50 +732,6 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
       }
     }
   }, [queueChunk, processQueue, mergeChunks, onStarsLoaded, cancelDistantRequests])
-
-  // Load a large immediate area first (single request for fast initial view)
-  const loadImmediateArea = useCallback(async (position: THREE.Vector3) => {
-    // Position is in scene space, create scene bounds first
-    const sceneBounds: BoundingBox = {
-      xmin: position.x - 40,
-      xmax: position.x + 40,
-      ymin: position.y - 40,
-      ymax: position.y + 40,
-      zmin: position.z - 40,
-      zmax: position.z + 40,
-    }
-
-    // Convert to galactic space for API call
-    const galacticBounds = sceneBoundsToGalactic(sceneBounds)
-
-    if (import.meta.env.DEV) {
-      console.log(`loadImmediateArea: scene pos (${position.x.toFixed(0)}, ${position.y.toFixed(0)}, ${position.z.toFixed(0)})`)
-      console.log(`  galactic bounds x[${galacticBounds.xmin.toFixed(0)},${galacticBounds.xmax.toFixed(0)}] y[${galacticBounds.ymin.toFixed(0)},${galacticBounds.ymax.toFixed(0)}] z[${galacticBounds.zmin.toFixed(0)},${galacticBounds.zmax.toFixed(0)}]`)
-    }
-
-    try {
-      const response = await fetchStars({
-        bounds: galacticBounds,
-        magMax: 10, // Good detail level
-        limit: 10000,
-      })
-
-      // Create a synthetic chunk for this area
-      const key = `immediate_${Math.floor(position.x)}_${Math.floor(position.y)}_${Math.floor(position.z)}`
-      chunksRef.current.set(key, {
-        stars: response.data,
-        lodLevel: 0,
-        timestamp: Date.now(),
-      })
-
-      mergeChunks()
-      if (import.meta.env.DEV) {
-        console.log(`Loaded immediate area: ${response.data.length} stars`)
-      }
-    } catch (error) {
-      console.error('Failed to load immediate area:', error)
-    }
-  }, [mergeChunks])
 
   // Jump to a new position immediately (for search/centering)
   const jumpToPosition = useCallback((position: THREE.Vector3) => {

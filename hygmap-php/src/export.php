@@ -13,7 +13,7 @@ require_once __DIR__ . '/Csrf.php';
 require_once __DIR__ . '/Units.php';
 require_once __DIR__ . '/StarFormatter.php';
 require_once __DIR__ . '/MapGeometry.php';
-require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/ApiClient.php';
 
 session_start();
 Csrf::init();
@@ -36,10 +36,10 @@ $bbox = MapGeometry::buildBoundingBox($x_c, $y_c, $z_c, $xy_zoom, $z_zoom, $unit
 
 // Query stars
 try {
-    $rows = Database::queryAll($bbox, $m_limit, $fic_names, 'absmag');
-} catch (PDOException $e) {
+    $rows = ApiClient::instance()->queryAll($bbox, $m_limit, $fic_names, 'absmag');
+} catch (RuntimeException $e) {
     http_response_code(500);
-    die('Database error');
+    die('API error');
 }
 
 // Set headers for CSV download

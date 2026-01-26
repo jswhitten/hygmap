@@ -39,9 +39,9 @@ help:
 # PHP Tests
 # =============================================================================
 
-# Run PHP tests via Docker
+# Run PHP unit tests via Docker (integration tests require database - use test-integration)
 test-php:
-	docker run --rm -v $(PWD)/hygmap-php:/app -w /app composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testdox"
+	docker run --rm -v $(PWD)/hygmap-php:/app -w /app composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Unit --testdox"
 
 # Run PHP unit tests only via Docker
 test-unit:
@@ -73,7 +73,7 @@ analyse:
 # Run FastAPI backend tests via Docker
 test-api:
 	docker run --rm -v $(PWD)/hygmap-api:/app -w /app python:3.11-slim sh -c \
-		"pip install --quiet -r requirements.txt && python -m pytest tests/ -v"
+		"pip install --quiet --root-user-action=ignore -r requirements.txt && python -m pytest tests/ -v"
 
 # =============================================================================
 # Frontend Tests (React/TypeScript)

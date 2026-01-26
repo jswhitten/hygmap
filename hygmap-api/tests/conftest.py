@@ -49,6 +49,8 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     # Recreate tables from scratch for each test to avoid UNIQUE conflicts
     async with test_engine.begin() as conn:
         await conn.execute(text("DROP TABLE IF EXISTS signals"))
+        await conn.execute(text("DROP TABLE IF EXISTS fic"))
+        await conn.execute(text("DROP TABLE IF EXISTS fic_worlds"))
         await conn.execute(text("DROP TABLE IF EXISTS athyg"))
 
         await conn.execute(text("""
@@ -74,6 +76,24 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 dec REAL,
                 dist REAL,
                 mag REAL
+            )
+        """))
+
+        await conn.execute(text("""
+            CREATE TABLE fic_worlds (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            )
+        """))
+
+        await conn.execute(text("""
+            CREATE TABLE fic (
+                id INTEGER PRIMARY KEY,
+                star_id INTEGER NOT NULL,
+                world_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                FOREIGN KEY (star_id) REFERENCES athyg(id),
+                FOREIGN KEY (world_id) REFERENCES fic_worlds(id)
             )
         """))
 
@@ -108,6 +128,22 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (8, 'Deneb', 'Alp', 'Cyg', 'A2Ia', -8.73, 556.38, 1312.99, 432.82, '102098', '197345'),
                 (9, 'Barnard Star', NULL, 'Oph', 'M4Ve', 13.22, -0.01, -1.82, 0.03, '87937', NULL),
                 (10, 'Wolf 359', 'CN', 'Leo', 'M6.5Ve', 16.55, -2.20, -0.61, 1.13, '54035', NULL)
+        """))
+
+        await conn.execute(text("""
+            INSERT INTO fic_worlds (id, name)
+            VALUES
+                (1, 'Star Trek'),
+                (2, 'Babylon 5')
+        """))
+
+        await conn.execute(text("""
+            INSERT INTO fic (id, star_id, world_id, name)
+            VALUES
+                (1, 10, 1, 'Wolf 359'),
+                (2, 3, 1, 'Alpha Canis Majoris'),
+                (3, 2, 1, 'Alpha Centauri'),
+                (4, 10, 2, 'Epsilon III System')
         """))
 
         await conn.execute(text("""

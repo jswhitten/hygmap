@@ -14,6 +14,8 @@ class StarBase(BaseModel):
     con: Optional[str] = None
     spect: Optional[str] = None
     absmag: Optional[float] = None
+    mag: Optional[float] = None
+    dist: Optional[float] = None
     x: float
     y: float
     z: float
@@ -24,6 +26,8 @@ class StarBase(BaseModel):
     gj: Optional[str] = None
     gaia: Optional[str] = None
     tyc: Optional[str] = None
+    # Fictional name (populated when world_id is provided)
+    name: Optional[str] = None
 
     @computed_field
     @property
@@ -112,3 +116,42 @@ class StarDetailResponse(BaseModel):
     """Response for individual star queries"""
     result: str = "success"
     data: Optional[StarDetail] = None
+
+
+class ProperName(BaseModel):
+    """Star with proper name for dropdown"""
+    id: int
+    proper: str
+
+
+class ProperNamesResponse(BaseModel):
+    """Response for proper names list"""
+    result: str = "success"
+    data: list[ProperName]
+    length: int
+
+
+class FictionalName(BaseModel):
+    """Fictional star name for dropdown"""
+    star_id: int
+    name: str
+
+
+class FictionalNamesResponse(BaseModel):
+    """Response for fictional names list"""
+    result: str = "success"
+    data: list[FictionalName]
+    length: int
+
+
+class World(BaseModel):
+    """Fictional world/universe"""
+    id: int
+    name: str
+
+
+class WorldsResponse(BaseModel):
+    """Response for worlds list"""
+    result: str = "success"
+    data: list[World]
+    length: int

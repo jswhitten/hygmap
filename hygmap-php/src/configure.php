@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/Csrf.php';
 require_once __DIR__ . '/Units.php';
-require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/ApiClient.php';
 
 session_start();
 Csrf::init();
@@ -25,15 +25,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $grid = max(1, min(filter_input(INPUT_POST, 'grid', FILTER_VALIDATE_INT) ?? 20, 100));
     $maxLine = max(0, min(filter_input(INPUT_POST, 'max_line', FILTER_VALIDATE_INT) ?? 0, 100));
 
-    // Build allowed layers: '0' (None) plus all world IDs from database
+    // Build allowed layers: '0' (None) plus all world IDs from API
     try {
         $allowedLayers = array_merge(
             ['0'],
-            array_map(fn($w) => (string)$w['id'], Database::queryWorlds())
+            array_map(fn($w) => (string)$w['id'], ApiClient::instance()->queryWorlds())
         );
-    } catch (PDOException $e) {
+    } catch (RuntimeException $e) {
         error_log("Configure error: " . $e->getMessage());
-        $allowedLayers = ['0']; // Fallback to None only when DB unavailable
+        $allowedLayers = ['0']; // Fallback to None only when API unavailable
     }
     $fic_input = filter_input(INPUT_POST, 'fic_names', FILTER_SANITIZE_SPECIAL_CHARS) ?? '0';
     $fic_names = in_array($fic_input, $allowedLayers, true) ? $fic_input : '0';
@@ -141,15 +141,15 @@ $back = $is_valid_referer ? $referer : ($_SESSION['last_map'] ?? 'index.php');
 <fieldset><legend>Fictional names</legend>
 <select name="fic_names">
  <option value="0" <?= $cfg['fic_names']==='0'?'selected':'' ?>>None</option>
- <?php 
+ <?php
  // Query worlds for dropdown
 try {
-    foreach(Database::queryWorlds() as $world) {
+    foreach(ApiClient::instance()->queryWorlds() as $world) {
         echo '<option value="' . $world['id'] . '" ' . ((string)$cfg['fic_names']===(string)$world['id']?'selected':'') . '>' . htmlspecialchars($world['name']) . '</option>';
     }
-} catch (PDOException $e) {
+} catch (RuntimeException $e) {
     error_log("Configure worlds error: " . $e->getMessage());
-    echo '<option disabled>(Database unavailable)</option>';
+    echo '<option disabled>(API unavailable)</option>';
 }
 ?>
 </select>
