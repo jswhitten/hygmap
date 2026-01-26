@@ -95,9 +95,9 @@ final class IndexHelpers
         $selected_dec_simbad = ((float)$selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
 
         $distance_ui = number_format(Units::fromParsecs((float)$selected_star["dist"], $unit), 3);
-        $x_ui = number_format(Units::fromParsecs((float)$selected_star["x"], $unit), 3);
-        $y_ui = number_format(Units::fromParsecs((float)$selected_star["y"], $unit), 3);
-        $z_ui = number_format(Units::fromParsecs((float)$selected_star["z"], $unit), 3);
+        $x_ui = number_format(Units::fromParsecs((float)$selected_star["x"], $unit), 4);
+        $y_ui = number_format(Units::fromParsecs((float)$selected_star["y"], $unit), 4);
+        $z_ui = number_format(Units::fromParsecs((float)$selected_star["z"], $unit), 4);
 
         $x_ly = Units::toLightYears((float)$selected_star["x"], "pc");
         $y_ly = Units::toLightYears((float)$selected_star["y"], "pc");
@@ -106,16 +106,16 @@ final class IndexHelpers
         return [
             'has_star' => true,
             'display_name' => $display_name,
-            'absmag' => $selected_star["absmag"],
+            'absmag' => number_format((float)$selected_star["absmag"], 2),
             'spect' => $selected_star["spect"] ?? '',
             'distance_ui' => $distance_ui,
             'unit' => $unit,
             'x_ui' => $x_ui,
             'y_ui' => $y_ui,
             'z_ui' => $z_ui,
-            'mag' => $selected_star["mag"],
-            'ra' => $selected_star["ra"],
-            'dec' => $selected_star["dec"],
+            'mag' => number_format((float)$selected_star["mag"], 2),
+            'ra' => number_format((float)$selected_star["ra"], 4),
+            'dec' => number_format((float)$selected_star["dec"], 4),
             'x_ly' => $x_ly,
             'y_ly' => $y_ly,
             'z_ly' => $z_ly,
@@ -212,12 +212,12 @@ final class IndexHelpers
                 'name' => StarFormatter::getDisplayName($row, 0),
                 'con' => $row["con"] ?? '',
                 'spect' => $row["spect"] ?? '',
-                'absmag' => $row["absmag"],
+                'absmag' => number_format((float)$row["absmag"], 2),
                 'distance' => number_format(Units::fromParsecs((float)$row["dist"], $unit), 3),
                 'distance_from_center' => number_format($distance_from_center, 3),
-                'x' => number_format($x_ui, 3),
-                'y' => number_format($y_ui, 3),
-                'z' => number_format($z_ui, 3),
+                'x' => number_format($x_ui, 4),
+                'y' => number_format($y_ui, 4),
+                'z' => number_format($z_ui, 4),
             ];
         }
 
