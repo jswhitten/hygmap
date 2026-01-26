@@ -731,7 +731,7 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
         mergeChunks()
       }
     }
-  }, [queueChunk, processQueue, mergeChunks, onStarsLoaded, cancelDistantRequests])
+  }, [queueChunk, processQueue, mergeChunks, onStarsLoaded, cancelDistantRequests, loadImmediateArea])
 
   // Jump to a new position immediately (for search/centering)
   const jumpToPosition = useCallback((position: THREE.Vector3) => {

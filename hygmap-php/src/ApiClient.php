@@ -11,14 +11,21 @@ final class ApiClient
 {
     private string $baseUrl;
     private int $timeout;
+    private int $retries;
+    private string $userAgent;
 
     /** @var ApiClient|null Singleton instance */
     private static ?ApiClient $instance = null;
 
-    public function __construct(?string $baseUrl = null, int $timeout = 30)
+    public function __construct(?string $baseUrl = null, int $timeout = 30, int $retries = 2)
     {
         $this->baseUrl = $baseUrl ?? (getenv('API_BASE_URL') ?: 'http://hygmap-api:8000');
         $this->timeout = $timeout;
+        $this->retries = max(0, $retries);
+        $this->userAgent = sprintf(
+            'hygmap-php/ApiClient (+https://github.com/jswhitten/hygmap) php/%s',
+            PHP_VERSION
+        );
     }
 
     /**
@@ -184,52 +191,70 @@ final class ApiClient
             $url .= '?' . http_build_query($params);
         }
 
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'header' => "Accept: application/json\r\n",
-                'timeout' => $this->timeout,
-                'ignore_errors' => true,
-            ],
-        ]);
+        $attempts = 0;
+        $lastError = '';
 
-        $response = @file_get_contents($url, false, $context);
+        while ($attempts <= $this->retries) {
+            $attempts++;
 
-        if ($response === false) {
-            $error = error_get_last();
-            throw new RuntimeException(
-                "API request failed: " . ($error['message'] ?? 'Unknown error') . " (URL: {$url})"
-            );
+            $ch = curl_init($url);
+            if ($ch === false) {
+                $lastError = 'Failed to initialize HTTP request';
+                break;
+            }
+
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Accept: application/json',
+                    'User-Agent: ' . $this->userAgent,
+                ],
+                CURLOPT_TIMEOUT => $this->timeout,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_ENCODING => '', // enable gzip/deflate if available
+            ]);
+
+            $response = curl_exec($ch);
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($response === false) {
+                $lastError = ($error ?: 'Unknown error') . " (URL: {$url})";
+            } elseif ($statusCode >= 500 || $statusCode === 429) {
+                // Retry on transient server or rate-limit errors
+                $lastError = "HTTP {$statusCode}: {$response}";
+            } elseif ($statusCode >= 400) {
+                // Do not retry on client errors
+                throw new RuntimeException($this->formatApiError($url, $statusCode, $response));
+            } else {
+                $data = json_decode((string)$response, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $lastError = 'Failed to parse API response: ' . json_last_error_msg();
+                } else {
+                    return $data;
+                }
+            }
+
+            // Backoff before retrying (simple linear backoff: 100ms * attempts)
+            if ($attempts <= $this->retries) {
+                usleep(100000 * $attempts);
+            }
         }
 
-        // Check HTTP status code from response headers
-        $statusCode = $this->getHttpStatusCode($http_response_header ?? []);
-        if ($statusCode >= 400) {
-            throw new RuntimeException(
-                "API returned error status {$statusCode}: {$response}"
-            );
-        }
-
-        $data = json_decode($response, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException(
-                "Failed to parse API response: " . json_last_error_msg()
-            );
-        }
-
-        return $data;
+        throw new RuntimeException("API request failed after {$attempts} attempt(s): {$lastError}");
     }
 
     /**
-     * Extract HTTP status code from response headers
+     * Format API error including JSON body when available
      */
-    private function getHttpStatusCode(array $headers): int
+    private function formatApiError(string $url, int $status, string $body): string
     {
-        foreach ($headers as $header) {
-            if (preg_match('/^HTTP\/[\d.]+ (\d+)/', $header, $matches)) {
-                return (int)$matches[1];
-            }
+        $decoded = json_decode($body, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $detail = $decoded['detail'] ?? $decoded['message'] ?? $body;
+            return sprintf('API error %d at %s: %s', $status, $url, is_string($detail) ? $detail : json_encode($detail));
         }
-        return 200;
+        return sprintf('API error %d at %s: %s', $status, $url, $body);
     }
 }
