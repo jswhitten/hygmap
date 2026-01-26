@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/ApiClient.php';
 
 session_start();
 
@@ -9,8 +9,8 @@ $q = trim($_GET['q'] ?? '');
 if ($q === '') { header('Location: index.php'); exit; }
 
 try {
-    $row = Database::searchStar($q);
-} catch (PDOException $e) {
+    $row = ApiClient::instance()->searchStar($q);
+} catch (RuntimeException $e) {
     error_log("Search error: " . $e->getMessage());
     echo '<!DOCTYPE html><html><head><title>Search Error</title></head>';
     echo '<body style="font-family:sans-serif;margin:2rem;">';

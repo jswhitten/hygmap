@@ -33,9 +33,13 @@ class GlowMaterial extends THREE.ShaderMaterial {
       vertexShader: `
         varying vec2 vUv;
         varying vec3 vColor;
+        varying vec3 vSeed;
+
+        attribute vec3 instanceSeed;
 
         void main() {
           vUv = uv * 2.0 - 1.0;
+          vSeed = instanceSeed;
 
           // instanceColor is provided by Three.js for InstancedMesh
           // It's only available when USE_INSTANCING_COLOR is defined
@@ -63,6 +67,7 @@ class GlowMaterial extends THREE.ShaderMaterial {
 
         varying vec2 vUv;
         varying vec3 vColor;
+        varying vec3 vSeed;
 
         void main() {
           float dist = length(vUv);
@@ -82,17 +87,28 @@ class GlowMaterial extends THREE.ShaderMaterial {
           // Create subtle uneven rays - ONLY additive, clamp negatives to 0
           float rays = 0.0;
 
-          // Primary rays (6 rays, faster spin)
-          rays += max(0.0, sin(angle * 6.0 + uTime * 0.85)) * 0.14;
+          // Instance-driven variation to break uniform flow
+          float spin1 = mix(0.6, 1.1, vSeed.x);   // base spin speed
+          float spin2 = mix(0.5, 1.3, vSeed.y) * (vSeed.x > 0.5 ? -1.0 : 1.0);
+          float spin3 = mix(0.8, 1.6, vSeed.z) * (vSeed.y > 0.5 ? 1.0 : -1.0);
+          float angleJitter = (vSeed.x - 0.5) * 0.8;
 
-          // Secondary rays (4 rays, opposite rotation, faster)
-          rays += max(0.0, sin(angle * 4.0 - uTime * 0.65)) * 0.1;
+          // Local per-ray direction flip and bend based on angle to avoid uniform flow
+          float rayCurve = sin(angle * 7.0 + vSeed.z * 5.0) * 0.6;      // bends rays differently around the star
+          float rayDir = sign(sin(angle * 5.0 + vSeed.y * 9.0));        // +/- per angular slice
+          float phaseJitter = sin(angle * 12.0 + vSeed.x * 6.0) * 0.5;  // small phase change per ray
 
-          // Tertiary rays (8 rays, high-frequency shimmer)
-          rays += max(0.0, sin(angle * 8.0 + uTime * 1.1)) * 0.06;
+          // Primary rays (6 rays) with per-ray curvature and direction
+          rays += max(0.0, sin(angle * 6.0 + angleJitter + phaseJitter + uTime * 0.85 * spin1 * rayDir + rayCurve)) * 0.14;
 
-          // Swirling aurora-style halo (angle + radius interaction)
-          float swirl = max(0.0, sin(angle * 10.0 + dist * 14.0 + uTime * 1.4)) * 0.07;
+          // Secondary rays (4 rays) with flipped direction and angle noise
+          rays += max(0.0, sin(angle * 4.0 - angleJitter - phaseJitter + uTime * 0.65 * spin2 * (-rayDir) + rayCurve * 0.5)) * 0.1;
+
+          // Tertiary rays (8 rays) independent variation and bend
+          rays += max(0.0, sin(angle * 8.0 + phaseJitter * 1.5 + uTime * 1.1 * spin3 * rayDir - rayCurve * 0.3)) * 0.06;
+
+          // Swirling aurora-style halo (angle + radius interaction) with per-star drift
+          float swirl = max(0.0, sin(angle * (8.0 + vSeed.x * 4.0) + dist * 14.0 + uTime * (1.0 + vSeed.y))) * 0.07;
 
           // Add slight pulsing (faster beat)
           float pulse = 1.0 + sin(uTime * 2.0 + dist * 3.0) * 0.1;
@@ -148,6 +164,13 @@ const tempScale = new THREE.Vector3()
 const tempUp = new THREE.Vector3(0, 1, 0)
 const tempLookAt = new THREE.Vector3()
 const tempColor = new THREE.Color()
+const tempSeed = new THREE.Vector3()
+
+// Deterministic per-star seed so animation stays consistent across frames
+function hashToUnit(id: number): number {
+  // Simple hash -> [0,1)
+  return (Math.sin(id * 12.9898 + 78.233) * 43758.5453) % 1
+}
 
 interface StarGlowData {
   star: Star
@@ -162,6 +185,8 @@ export default function StarGlow({ stars, starsInitializedRef, viewMode }: StarG
   const lastFocusRef = useRef<THREE.Vector3 | null>(null) // null = force recalc on first frame
   const lastStarsLengthRef = useRef(0) // Track when stars change
   const lastViewModeRef = useRef<ViewMode>(viewMode)
+  const seedArrayRef = useRef<Float32Array | null>(null)
+  const seedAttrRef = useRef<THREE.InstancedBufferAttribute | null>(null)
 
   const maxInstances = 2000
 
@@ -210,6 +235,13 @@ export default function StarGlow({ stars, starsInitializedRef, viewMode }: StarG
       mesh.instanceColor.needsUpdate = true
     }
     mesh.instanceMatrix.needsUpdate = true
+
+    // Create per-instance seed attribute for shader variation
+    const seedArray = new Float32Array((mesh.count || 1) * 3)
+    const seedAttr = new THREE.InstancedBufferAttribute(seedArray, 3)
+    mesh.geometry.setAttribute('instanceSeed', seedAttr)
+    seedArrayRef.current = seedArray
+    seedAttrRef.current = seedAttr
   }, [])
 
   // Handle empty stars - clear mesh immediately to match InstancedStars timing
@@ -355,11 +387,24 @@ export default function StarGlow({ stars, starsInitializedRef, viewMode }: StarG
 
       tempColor.set(data.color)
       mesh.setColorAt(index, tempColor)
+
+      if (seedArrayRef.current) {
+        const seedX = hashToUnit(data.star.id)
+        const seedY = hashToUnit(data.star.id * 1.3 + 7.1)
+        const seedZ = hashToUnit(data.star.id * 2.1 + 3.7)
+        tempSeed.set(seedX, seedY, seedZ)
+        seedArrayRef.current[index * 3 + 0] = tempSeed.x
+        seedArrayRef.current[index * 3 + 1] = tempSeed.y
+        seedArrayRef.current[index * 3 + 2] = tempSeed.z
+      }
     })
 
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) {
       mesh.instanceColor.needsUpdate = true
+    }
+    if (seedAttrRef.current) {
+      seedAttrRef.current.needsUpdate = true
     }
   })
 

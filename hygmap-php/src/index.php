@@ -126,7 +126,7 @@ $profiler->flag('FINISH');
           </tr>
           <tr>
             <td>Spectral type</td>
-            <td><?= htmlspecialchars($star_info['spect'], ENT_QUOTES) ?></td>
+            <td><?= htmlspecialchars($star_info['spect'] ?: 'Unknown', ENT_QUOTES) ?></td>
           </tr>
           <tr>
             <td>Distance from Sol</td>
