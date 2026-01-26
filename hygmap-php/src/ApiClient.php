@@ -212,10 +212,13 @@ final class ApiClient
                 CURLOPT_TIMEOUT => $this->timeout,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_ENCODING => '', // enable gzip/deflate if available
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 3,
             ]);
 
             $response = curl_exec($ch);
             $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
             $error = curl_error($ch);
             curl_close($ch);
 
@@ -230,7 +233,14 @@ final class ApiClient
             } else {
                 $data = json_decode((string)$response, true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    $lastError = 'Failed to parse API response: ' . json_last_error_msg();
+                    $snippet = substr((string)$response, 0, 200);
+                    $lastError = sprintf(
+                        'Failed to parse API response: %s (status %d, content-type %s, body snippet: %s)',
+                        json_last_error_msg(),
+                        $statusCode,
+                        $contentType ?: 'unknown',
+                        $snippet === '' ? '[empty]' : $snippet
+                    );
                 } else {
                     return $data;
                 }
