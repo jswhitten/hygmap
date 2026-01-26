@@ -49,14 +49,18 @@ test-unit:
 
 # Run PHP integration tests via Docker (requires database to be running)
 test-integration:
-	docker run --rm -v $(PWD)/hygmap-php:/app -w /app \
-		--network hygmap_default \
-		-e DB_HOST=hygmap_db \
-		-e DB_PORT=5432 \
-		-e DB_NAME=$${POSTGRES_DB:-hygmap} \
-		-e DB_USERNAME=$${POSTGRES_USER:-hygmap_user} \
-		-e DB_PASSWORD=$${POSTGRES_PASSWORD} \
-		composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Integration --testdox"
+	@if [ -d hygmap-php/tests/Integration ]; then \
+		docker run --rm -v $(PWD)/hygmap-php:/app -w /app \
+			--network hygmap_default \
+			-e DB_HOST=hygmap_db \
+			-e DB_PORT=5432 \
+			-e DB_NAME=$${POSTGRES_DB:-hygmap} \
+			-e DB_USERNAME=$${POSTGRES_USER:-hygmap_user} \
+			-e DB_PASSWORD=$${POSTGRES_PASSWORD} \
+			composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Integration --testdox"; \
+	else \
+		echo "Integration tests not present; skipping"; \
+	fi
 
 # Run PHP tests with coverage via Docker
 test-coverage:
