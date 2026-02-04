@@ -150,7 +150,9 @@ $profiler->flag('FINISH');
               <br/>
               [ <a href="http://www.stellar-database.com/Scripts/find_neighbors.exe?ly=2&X=<?= urlencode((string)$star_info['x_ly']) ?>&Y=<?= urlencode((string)$star_info['y_ly']) ?>&Z=<?= urlencode((string)$star_info['z_ly']) ?>" target="_blank">Look up this star at stellar-database.com</a> ]<br/>
               <br/>
-              [ <a href="http://simbad.u-strasbg.fr/sim-id.pl?protocol=html&Ident=<?= urlencode((string)$star_info['selected_ra_deg']) ?>+<?= urlencode((string)$star_info['selected_dec_simbad']) ?>&NbIdent=1&Radius=1&Radius.unit=arcmin&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&output.max=all&o.catall=on&output.mesdisp=N&Bibyear1=1983&Bibyear2=2004&Frame1=FK5&Frame2=FK4&Frame3=G&Equi1=2000.0&Equi2=1950.0&Equi3=2000.0&Epoch1=2000.0&Epoch2=1950.0&Epoch3=2000.0" target="_blank">Look up this star in SIMBAD</a> ]<br/>
+              <?php if ($star_info['simbad_url']): ?>
+              [ <a href="<?= htmlspecialchars($star_info['simbad_url'], ENT_QUOTES) ?>" target="_blank">Look up this star in SIMBAD</a> ]<br/>
+              <?php endif; ?>
               <br/>
               [ <a href="http://www.fourmilab.ch/cgi-bin/uncgi/Yourtel?lon=<?= urlencode((string)$star_info['ra']) ?>h&lat=<?= urlencode((string)$star_info['selected_dec_av']) ?>&ns=<?= urlencode($star_info['selected_dec_ns']) ?>&date=0&fov=45&coords=1&moonp=1&deep=1&deepm=7&consto=1&constn=1&constb=1&limag=6.5&starn=1&starnm=3.5&starb=1&starbm=4.5&imgsize=512&scheme=0" target="_blank">Plot a sky map centered on this star at fourmilab.ch</a> ]<br/>
               <?= $star_info['memory_alpha'] ?>

@@ -218,6 +218,46 @@ class TestSearchStars:
         response = await client.get("/api/stars/search")
         assert response.status_code == 422  # Validation error
 
+    async def test_search_by_gj_id(self, client: AsyncClient):
+        """Should find stars by GJ catalog ID"""
+        response = await client.get("/api/stars/search", params={"q": "GJ 551"})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert len(data["data"]) > 0
+        assert data["data"][0]["gj"] == "551"
+
+    async def test_search_by_gl_alias(self, client: AsyncClient):
+        """Should find stars using GL alias for GJ"""
+        response = await client.get("/api/stars/search", params={"q": "GL 551"})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert len(data["data"]) > 0
+        assert data["data"][0]["gj"] == "551"
+
+    async def test_search_by_cns5_id(self, client: AsyncClient):
+        """Should find stars by CNS5 catalog ID"""
+        response = await client.get("/api/stars/search", params={"q": "CNS5 5500"})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert len(data["data"]) > 0
+        assert data["data"][0]["cns5"] == "5500"
+
+    async def test_search_by_gj_high_number(self, client: AsyncClient):
+        """Should find CNS5-only stars with GJ numbers above 10000"""
+        response = await client.get("/api/stars/search", params={"q": "GJ 10999"})
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["result"] == "success"
+        assert len(data["data"]) > 0
+        assert data["data"][0]["gj"] == "10999"
+
     async def test_search_minimum_length(self, client: AsyncClient):
         """Should require minimum query length"""
         response = await client.get("/api/stars/search", params={"q": "a"})
@@ -487,7 +527,7 @@ class TestSecurityValidation:
         # These tests verify the ALLOWED_CATALOG_FIELDS allowlist works
 
         # Valid catalog prefixes should work (if ID exists)
-        valid_searches = ["HIP 1", "HD 1", "HR 1", "GJ 1", "GL 1"]
+        valid_searches = ["HIP 1", "HD 1", "HR 1", "GJ 1", "GL 1", "CNS5 1"]
         for search in valid_searches:
             response = await client.get(
                 "/api/stars/search",

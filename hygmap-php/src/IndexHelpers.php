@@ -92,7 +92,20 @@ final class IndexHelpers
         $selected_ra_deg = (float)$selected_star["ra"] * 360 / 24;
         $selected_dec_av = abs((float)$selected_star["dec"]);
         $selected_dec_ns = ((float)$selected_star["dec"] >= 0) ? 'North' : 'South';
-        $selected_dec_simbad = ((float)$selected_star["dec"] >= 0) ? '%2B' . $selected_dec_av : $selected_star["dec"];
+
+        // Build SIMBAD URL using catalog IDs (preferred), proper name, or coordinates
+        $simbad_url = null;
+        if (!empty($selected_star["hip"])) {
+            $simbad_url = 'https://simbad.cds.unistra.fr/simbad/sim-id?Ident=' . urlencode('HIP ' . $selected_star["hip"]);
+        } elseif (!empty($selected_star["hd"])) {
+            $simbad_url = 'https://simbad.cds.unistra.fr/simbad/sim-id?Ident=' . urlencode('HD ' . $selected_star["hd"]);
+        } elseif (!empty($selected_star["proper"])) {
+            $simbad_url = 'https://simbad.cds.unistra.fr/simbad/sim-id?Ident=' . urlencode($selected_star["proper"]);
+        } else {
+            $simbad_url = 'https://simbad.cds.unistra.fr/simbad/sim-coo?Coord='
+                . urlencode($selected_ra_deg . ' ' . (float)$selected_star["dec"])
+                . '&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Radius=1&Radius.unit=arcmin';
+        }
 
         $distance_ui = number_format(Units::fromParsecs((float)$selected_star["dist"], $unit), 3);
         $x_ui = number_format(Units::fromParsecs((float)$selected_star["x"], $unit), 4);
@@ -122,7 +135,7 @@ final class IndexHelpers
             'selected_ra_deg' => $selected_ra_deg,
             'selected_dec_av' => $selected_dec_av,
             'selected_dec_ns' => $selected_dec_ns,
-            'selected_dec_simbad' => $selected_dec_simbad,
+            'simbad_url' => $simbad_url,
             'memory_alpha' => $memory_alpha,
         ];
     }

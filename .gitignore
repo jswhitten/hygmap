@@ -1,6 +1,9 @@
 .env
 .claude/
 /db/data/athyg_v*
+/db/scripts/cns5.dat
+/db/scripts/ReadMe.txt
+/db/scripts/table*
 /vendor/
 /hygmap-php/vendor/
 /hygmap-frontend/node_modules/
@@ -15,3 +18,15 @@ __pycache__/
 *.swp
 *.swo
 *~
+
+-rw-rw-r-- 1 jswhitten jswhitten   4502658 Dec 16 19:51 cns5.dat
+-rw-rw-r-- 1 jswhitten jswhitten       882 Jan 27 01:55 import_cns5_results.txt
+-rw-rw-r-- 1 jswhitten jswhitten     20451 Jan 27 00:55 match_cns5.py
+-rw-rw-r-- 1 jswhitten jswhitten     24309 Jan 27 03:14 match_gcns.py
+drwxrwxr-x 2 jswhitten jswhitten      4096 Jan 27 03:18 __pycache__
+drwxrwxr-x 3 jswhitten jswhitten      4096 Jan 26 14:08 .pytest_cache
+-rw-rw-r-- 1 jswhitten jswhitten     10530 Dec 16 19:51 ReadMe.txt
+-rw-rw-r-- 1 jswhitten jswhitten        16 Jan 26 02:19 requirements.txt
+-rw-rw-r-- 1 jswhitten jswhitten 252128432 Jan 27 01:56 table1c.dat
+-rw-rw-r-- 1 jswhitten jswhitten      5941 Jan 27 01:54 table1c.format
+

@@ -23,6 +23,7 @@ export interface StarDetail extends Star {
   hr?: string | null
   gj?: string | null
   tyc?: string | null
+  cns5?: string | null
   gaia?: string | null
   ra?: number | null
   dec?: number | null
@@ -83,8 +84,20 @@ export function getStarDisplayName(star: Star | StarDetail): string {
   if (detail.hd) {
     return `HD ${detail.hd}`
   }
+  if (detail.hr) {
+    return `HR ${detail.hr}`
+  }
   if (detail.gj) {
     return `GJ ${detail.gj}`
+  }
+  if (detail.cns5) {
+    return `CNS5 ${detail.cns5}`
+  }
+  if (detail.tyc) {
+    return `TYC ${detail.tyc}`
+  }
+  if (detail.gaia) {
+    return `Gaia ${detail.gaia}`
   }
 
   return `ID ${star.id}`

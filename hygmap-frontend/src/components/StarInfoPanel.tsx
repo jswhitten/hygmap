@@ -69,6 +69,10 @@ export default function StarInfoPanel() {
     if (star.proper) {
       return `https://simbad.cds.unistra.fr/simbad/sim-id?Ident=${encodeURIComponent(star.proper)}`
     }
+    if (detail.ra != null && detail.dec != null) {
+      const raDeg = detail.ra * 360 / 24
+      return `https://simbad.cds.unistra.fr/simbad/sim-coo?Coord=${encodeURIComponent(raDeg + ' ' + detail.dec)}&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Radius=1&Radius.unit=arcmin`
+    }
     return null
   }
 
@@ -128,7 +132,7 @@ export default function StarInfoPanel() {
           {starDetail?.ra !== null && starDetail?.ra !== undefined && (
             <div className="star-info-row">
               <span className="star-info-label">RA:</span>
-              <span className="star-info-value">{starDetail.ra.toFixed(4)}°</span>
+              <span className="star-info-value">{starDetail.ra.toFixed(4)}h</span>
             </div>
           )}
           {starDetail?.dec !== null && starDetail?.dec !== undefined && (
@@ -188,6 +192,12 @@ export default function StarInfoPanel() {
               <div className="star-info-row">
                 <span className="star-info-label">GJ:</span>
                 <span className="star-info-value">{starDetail.gj}</span>
+              </div>
+            )}
+            {starDetail.cns5 && (
+              <div className="star-info-row">
+                <span className="star-info-label">CNS5:</span>
+                <span className="star-info-value">{starDetail.cns5}</span>
               </div>
             )}
             {starDetail.gaia && (

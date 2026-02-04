@@ -9,6 +9,7 @@ CREATE TABLE athyg (
   hd TEXT,
   hr TEXT,
   gj TEXT,
+  cns5 TEXT,
   bayer TEXT,
   flam TEXT,
   con TEXT,
