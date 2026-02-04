@@ -154,6 +154,8 @@ $profiler->flag('FINISH');
               [ <a href="<?= htmlspecialchars($star_info['simbad_url'], ENT_QUOTES) ?>" target="_blank">Look up this star in SIMBAD</a> ]<br/>
               <?php endif; ?>
               <br/>
+              [ <a href="<?= htmlspecialchars(getenv('FRONTEND_URL') ?: 'http://localhost:5173', ENT_QUOTES) ?>/?star=<?= (int)$select_star ?>" target="_blank">View in 3D</a> ]<br/>
+              <br/>
               [ <a href="http://www.fourmilab.ch/cgi-bin/uncgi/Yourtel?lon=<?= urlencode((string)$star_info['ra']) ?>h&lat=<?= urlencode((string)$star_info['selected_dec_av']) ?>&ns=<?= urlencode($star_info['selected_dec_ns']) ?>&date=0&fov=45&coords=1&moonp=1&deep=1&deepm=7&consto=1&constn=1&constb=1&limag=6.5&starn=1&starnm=3.5&starb=1&starbm=4.5&imgsize=512&scheme=0" target="_blank">Plot a sky map centered on this star at fourmilab.ch</a> ]<br/>
               <?= $star_info['memory_alpha'] ?>
             </td>

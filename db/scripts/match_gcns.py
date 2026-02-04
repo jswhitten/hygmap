@@ -223,6 +223,7 @@ def estimate_spectral_type(bp_rp, absmag):
             return None  # ambiguous without absmag
 
     # Spectral letter + expected main-sequence absolute magnitude
+    # BP-RP boundaries based on Gaia EDR3 color-spectral type calibrations
     if bp_rp < -0.3:
         letter, ms_mv = "O", -4.0
     elif bp_rp < 0.0:
@@ -231,9 +232,9 @@ def estimate_spectral_type(bp_rp, absmag):
         letter, ms_mv = "A", 1.5
     elif bp_rp < 0.65:
         letter, ms_mv = "F", 3.5
-    elif bp_rp < 0.9:
+    elif bp_rp < 1.0:
         letter, ms_mv = "G", 5.0
-    elif bp_rp < 1.4:
+    elif bp_rp < 1.85:
         letter, ms_mv = "K", 7.0
     else:
         letter, ms_mv = "M", 11.0

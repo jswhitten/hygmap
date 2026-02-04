@@ -160,10 +160,18 @@ function App() {
 
     // Fetch and select star from URL
     if (urlState.star) {
+      const hasCamera = urlState.cx !== undefined && urlState.cy !== undefined && urlState.cz !== undefined
       fetchStarById(urlState.star)
         .then((response) => {
           if (response.data) {
             setSelectedStar(response.data)
+            // Center on the star if no explicit camera position was provided
+            if (!hasCamera) {
+              const [x, y, z] = projectStarToScene(response.data, urlState.view ?? viewMode)
+              const lookAt = new THREE.Vector3(x, y, z)
+              const position = lookAt.clone().add(new THREE.Vector3(0, 0, DEFAULT_CAMERA_OFFSET_PC))
+              setCameraTarget({ position, lookAt, key: Date.now() })
+            }
           }
         })
         .catch(console.error)
