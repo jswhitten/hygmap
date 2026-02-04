@@ -1,0 +1,10 @@
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  === CNS5 Import Summary ===
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  Stars with CNS5 IDs:      5906
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  Matched (updated):        2471
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  New (inserted):           3437
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  Total stars with GJ IDs:  7005
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  New stars with galactic coords: 3440
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  New stars with spect type: 2829
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  Matched stars with spect:  2454
+psql:/docker-entrypoint-initdb.d/06_import_cns5.sql:268: NOTICE:  Total athyg rows:         2555605
+

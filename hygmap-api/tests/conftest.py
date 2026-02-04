@@ -70,6 +70,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 hd TEXT,
                 hr TEXT,
                 gj TEXT,
+                cns5 TEXT,
                 tyc TEXT,
                 gaia TEXT,
                 ra REAL,
@@ -127,7 +128,16 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (7, 'Altair', 'Alp', 'Aql', 'A7V', 2.21, 2.37, 4.44, -1.52, '97649', '187642'),
                 (8, 'Deneb', 'Alp', 'Cyg', 'A2Ia', -8.73, 556.38, 1312.99, 432.82, '102098', '197345'),
                 (9, 'Barnard Star', NULL, 'Oph', 'M4Ve', 13.22, -0.01, -1.82, 0.03, '87937', NULL),
-                (10, 'Wolf 359', 'CN', 'Leo', 'M6.5Ve', 16.55, -2.20, -0.61, 1.13, '54035', NULL)
+                (10, 'Wolf 359', 'CN', 'Leo', 'M6.5Ve', 16.55, -2.20, -0.61, 1.13, '54035', NULL),
+                (11, NULL, NULL, NULL, NULL, 14.50, 3.00, 2.00, 1.50, NULL, NULL)
+        """))
+
+        # Set GJ and CNS5 IDs for test stars
+        await conn.execute(text("""
+            UPDATE athyg SET gj = '551' WHERE id = 2
+        """))
+        await conn.execute(text("""
+            UPDATE athyg SET gj = '10999', cns5 = '5500' WHERE id = 11
         """))
 
         await conn.execute(text("""

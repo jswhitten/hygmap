@@ -31,7 +31,7 @@ final class StarFormatter
      * 2. Proper name (e.g., "Sirius", "Vega")
      * 3. Bayer designation (e.g., "Alpha Centauri")
      * 4. Flamsteed number (e.g., "61 Cygni")
-     * 5. Catalog IDs: GJ, HD, HIP, Gaia
+     * 5. Catalog IDs: GJ, HD, HIP, CNS5, Gaia
      * 6. Spectral type as fallback
      *
      * @param array $row Star data from database
@@ -82,6 +82,14 @@ final class StarFormatter
         } elseif (!empty($row["hip"])) {
             $name = "HIP " . $row["hip"];
             $labelcolor = self::getCatalogLabelColor($mag, $colors);
+            $printcolor = $colors['darkgrey'] ?? 0;
+        } elseif (!empty($row["cns5"])) {
+            $name = "CNS5 " . $row["cns5"];
+            $labelcolor = $colors['darkgrey'] ?? 0;
+            $printcolor = $colors['darkgrey'] ?? 0;
+        } elseif (!empty($row["tyc"])) {
+            $name = "TYC " . $row["tyc"];
+            $labelcolor = $colors['darkgrey'] ?? 0;
             $printcolor = $colors['darkgrey'] ?? 0;
         } elseif (!empty($row["gaia"])) {
             $name = "Gaia " . $row["gaia"];

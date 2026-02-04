@@ -128,6 +128,7 @@ async def get_stars(
             a.hd,
             a.hr,
             a.gj,
+            a.cns5,
             a.gaia,
             a.tyc,
             COALESCE(f.name, '') AS name
@@ -205,6 +206,7 @@ async def search_stars(
         'hr': 'hr',
         'gj': 'gj',
         'gl': 'gj',  # Gliese alternate
+        'cns5': 'cns5',
         'gaia': 'gaia',
         'tyc': 'tyc',
     }
@@ -228,32 +230,37 @@ async def search_stars(
         CATALOG_QUERIES = {
             'hip': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc
                 FROM athyg WHERE hip = :catalog_value LIMIT :limit
             """),
             'hd': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc
                 FROM athyg WHERE hd = :catalog_value LIMIT :limit
             """),
             'hr': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc
                 FROM athyg WHERE hr = :catalog_value LIMIT :limit
             """),
             'gj': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc
                 FROM athyg WHERE gj = :catalog_value LIMIT :limit
+            """),
+            'cns5': text("""
+                SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
+                       hip, hd, hr, gj, cns5, gaia, tyc
+                FROM athyg WHERE cns5 = :catalog_value LIMIT :limit
             """),
             'gaia': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc
                 FROM athyg WHERE gaia = :catalog_value LIMIT :limit
             """),
             'tyc': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc
                 FROM athyg WHERE tyc = :catalog_value LIMIT :limit
             """),
         }
@@ -277,7 +284,7 @@ async def search_stars(
         query = text("""
             SELECT
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                hip, hd, hr, gj, gaia, tyc
+                hip, hd, hr, gj, cns5, gaia, tyc
             FROM athyg
             WHERE LOWER(COALESCE(proper, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
@@ -411,6 +418,7 @@ async def get_star_by_id(
             a.hd,
             a.hr,
             a.gj,
+            a.cns5,
             a.tyc,
             a.gaia,
             a.ra,

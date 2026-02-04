@@ -22,6 +22,8 @@ COPY data/athyg_supplement.csv /data/
 COPY data/athyg_tycho_trek.csv /data/
 COPY data/athyg_tycho_b5.csv /data/
 COPY data/signals.csv /data/
+COPY data/cns5.csv /data/
+COPY data/gcns.csv /data/
 
 # Copy initialization scripts (run in alphabetical order on first start)
 COPY sql/ /docker-entrypoint-initdb.d/

@@ -260,32 +260,7 @@ curl http://localhost:8000/health
 curl -I http://localhost:3000/
 ```
 
-### Test from External (Temporarily Open Ports)
-
-```bash
-# Temporarily allow direct access
-sudo ufw allow 8080/tcp
-sudo ufw allow 8000/tcp
-sudo ufw allow 3000/tcp
-```
-
-Then from your local machine:
-
-```bash
-curl http://YOUR_DROPLET_IP:8080/
-curl http://YOUR_DROPLET_IP:8000/health
-curl http://YOUR_DROPLET_IP:3000/
-```
-
-Once verified, remove temporary rules:
-
-```bash
-sudo ufw delete allow 8080/tcp
-sudo ufw delete allow 8000/tcp
-sudo ufw delete allow 3000/tcp
-```
-
-## 6. Install and Configure Nginx
+## 5. Install and Configure Nginx
 
 ### Install Nginx
 

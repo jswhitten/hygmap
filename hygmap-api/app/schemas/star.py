@@ -24,6 +24,7 @@ class StarBase(BaseModel):
     hd: Optional[str] = None
     hr: Optional[str] = None
     gj: Optional[str] = None
+    cns5: Optional[str] = None
     gaia: Optional[str] = None
     tyc: Optional[str] = None
     # Fictional name (populated when world_id is provided)
@@ -56,10 +57,12 @@ class StarBase(BaseModel):
             return f"HR {self.hr}"
         if self.gj:
             return f"GJ {self.gj}"
-        if self.gaia:
-            return f"Gaia {self.gaia}"
+        if self.cns5:
+            return f"CNS5 {self.cns5}"
         if self.tyc:
             return f"TYC {self.tyc}"
+        if self.gaia:
+            return f"Gaia {self.gaia}"
         return f"ID {self.id}"
 
 
@@ -70,6 +73,7 @@ class StarDetail(StarBase):
     hd: Optional[str] = None
     hr: Optional[str] = None
     gj: Optional[str] = None
+    cns5: Optional[str] = None
     tyc: Optional[str] = None
     gaia: Optional[str] = None
     ra: Optional[float] = None
@@ -102,6 +106,12 @@ class StarDetail(StarBase):
             return f"HD {self.hd}"
         if self.gj:
             return f"GJ {self.gj}"
+        if self.cns5:
+            return f"CNS5 {self.cns5}"
+        if self.tyc:
+            return f"TYC {self.tyc}"
+        if self.gaia:
+            return f"Gaia {self.gaia}"
         return f"ID {self.id}"
 
 
