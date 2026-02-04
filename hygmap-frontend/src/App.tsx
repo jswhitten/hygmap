@@ -167,7 +167,7 @@ function App() {
             setSelectedStar(response.data)
             // Center on the star if no explicit camera position was provided
             if (!hasCamera) {
-              const [x, y, z] = projectStarToScene(response.data, urlState.view ?? viewMode)
+              const [x, y, z] = projectStarToScene(response.data, urlState.view ?? DEFAULT_VIEW_MODE)
               const lookAt = new THREE.Vector3(x, y, z)
               const position = lookAt.clone().add(new THREE.Vector3(0, 0, DEFAULT_CAMERA_OFFSET_PC))
               setCameraTarget({ position, lookAt, key: Date.now() })
