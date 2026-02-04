@@ -32,6 +32,7 @@ services:
       - DB_HOST=hygmap-db    # Container name
       - DB_PORT=5432
       - DB_NAME=${POSTGRES_DB:-hygmap}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
