@@ -111,6 +111,20 @@ Search for stars by name or catalog ID.
 | Tycho-2 | `TYC 5949-2777-1` | Tycho catalog ID |
 | Yale Bright Star | `HR 2491` | HR catalog number |
 
+**Matching semantics:**
+
+Name searches (everything that is not a catalog ID) match case-insensitively against
+proper names, Bayer and Flamsteed designations, and constellation abbreviations.
+
+- **Three characters or more** match anywhere in the name, so `elgeu` finds Betelgeuse.
+- **One or two characters** match only the *start* of a name, so `ve` finds Vega but
+  `ol` does not find Sol. Short terms are anchored because the trigram indexes backing
+  this endpoint cannot filter on fewer than three characters; without anchoring a
+  two-character search scans the whole 2.8M-row table.
+- **Bayer designations accept either form** of the Greek letter — `Alpha Cen` and
+  `Alp Cen` both find Alpha Centauri, including systems stored with a component suffix
+  such as `Alp-1 Cen`.
+
 **Example:**
 ```bash
 curl "http://localhost:8000/api/stars/search?q=Sirius"

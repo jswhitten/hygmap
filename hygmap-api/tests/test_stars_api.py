@@ -684,3 +684,77 @@ class TestSecurityValidation:
             params={"q": "a"}  # Single character, below min_length=2
         )
         assert response.status_code == 422  # Validation error
+
+
+class TestSearchGreekLetters:
+    """
+    Greek-letter Bayer handling and short-term anchoring in /api/stars/search.
+
+    athyg.bayer stores abbreviations ("Alp"), sometimes with a component suffix
+    ("Alp-1 Cen"). These tests lock in that both the spelled-out and the abbreviated
+    first token reach the same stars, and that short terms stay anchored so the
+    pg_trgm indexes can filter (see db/sql/02_create_indexes.sql).
+    """
+
+    async def test_spelled_out_greek_letter_matches_abbreviation(
+        self, client: AsyncClient
+    ):
+        """'alpha cma' should reach Sirius, stored as bayer 'Alp' con 'CMa'"""
+        response = await client.get(
+            "/api/stars/search", params={"q": "alpha cma"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert any(s["proper"] == "Sirius" for s in data["data"])
+
+    async def test_abbreviated_greek_letter_matches(self, client: AsyncClient):
+        """
+        'alp cma' must work too.
+
+        Regression test: before this was handled, only the spelled-out form was
+        expanded, so a user typing the exact form stored in the database got nothing.
+        """
+        response = await client.get("/api/stars/search", params={"q": "alp cma"})
+        assert response.status_code == 200
+        data = response.json()
+        assert any(s["proper"] == "Sirius" for s in data["data"])
+
+    async def test_both_greek_forms_agree(self, client: AsyncClient):
+        """The spelled-out and abbreviated forms must return the same stars"""
+        spelled = await client.get("/api/stars/search", params={"q": "beta ori"})
+        abbrev = await client.get("/api/stars/search", params={"q": "bet ori"})
+        assert spelled.status_code == abbrev.status_code == 200
+        assert (
+            [s["id"] for s in spelled.json()["data"]]
+            == [s["id"] for s in abbrev.json()["data"]]
+        )
+
+    async def test_greek_letter_alone_still_matches(self, client: AsyncClient):
+        """A bare Greek letter should still find its stars"""
+        response = await client.get("/api/stars/search", params={"q": "bet"})
+        assert response.status_code == 200
+        assert any(s["proper"] == "Rigel" for s in response.json()["data"])
+
+    async def test_short_term_is_prefix_anchored(self, client: AsyncClient):
+        """
+        A two-character term matches the START of a name, not anywhere inside it.
+
+        Below three characters pg_trgm cannot filter, so these terms are anchored.
+        'ol' appears inside 'Sol' but does not start it, so it must not match --
+        that is the documented semantic trade for keeping short searches fast.
+        """
+        response = await client.get("/api/stars/search", params={"q": "ol"})
+        assert response.status_code == 200
+        assert not any(s["proper"] == "Sol" for s in response.json()["data"])
+
+    async def test_short_term_matches_prefix(self, client: AsyncClient):
+        """The anchored form still finds names that start with the term"""
+        response = await client.get("/api/stars/search", params={"q": "ve"})
+        assert response.status_code == 200
+        assert any(s["proper"] == "Vega" for s in response.json()["data"])
+
+    async def test_longer_term_still_matches_substring(self, client: AsyncClient):
+        """At three characters and above, substring matching is unchanged"""
+        response = await client.get("/api/stars/search", params={"q": "elgeu"})
+        assert response.status_code == 200
+        assert any(s["proper"] == "Betelgeuse" for s in response.json()["data"])

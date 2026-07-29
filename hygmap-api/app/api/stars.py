@@ -55,6 +55,15 @@ GREEK_LETTER_ABBREV = {
     "omega": "ome",
 }
 
+# The abbreviations themselves, so a user who types the stored form ("alp cen") gets
+# the same treatment as one who types it out ("alpha cen").
+GREEK_ABBREV_VALUES = frozenset(GREEK_LETTER_ABBREV.values())
+
+# Shortest search term that produces a usable pg_trgm trigram. Below this, name
+# searches are anchored to a prefix so the GIN indexes can still filter — see the
+# comment in search_stars().
+TRIGRAM_MIN_CHARS = 3
+
 # Maximum allowed spatial range per dimension (parsecs)
 # Set to 3000 to accommodate distant stars in the AT-HYG catalog
 MAX_SPATIAL_RANGE = 3000.0
@@ -311,18 +320,39 @@ async def search_stars(
                     .replace("%", "\\%")
                     .replace("_", "\\_"))
 
-        like_pattern = f"%{escape_like(search_lower)}%"
+        # Substring search below TRIGRAM_MIN_CHARS is anchored to a prefix instead.
+        #
+        # The name-search predicates are backed by pg_trgm GIN indexes, which need a
+        # full trigram to filter on. A '%xx%' pattern of 1-2 characters yields none,
+        # so every bitmap index scan returns all ~2.8M rows and the query is slower
+        # than the sequential scan the index replaced (measured: 1.4s -> 3.3s for
+        # 'zz'). An anchored 'xx%' pattern does produce an indexable trigram, so it
+        # stays fast (measured: 0.05s).
+        #
+        # The semantics tighten for 1-2 character queries only: they match the start
+        # of a name rather than anywhere inside it. That is both the faster and the
+        # more useful reading of a two-letter query against 2.8M stars.
+        anchored = len(search_lower) < TRIGRAM_MIN_CHARS
+        escaped_term = escape_like(search_lower)
+        like_pattern = f"{escaped_term}%" if anchored else f"%{escaped_term}%"
 
         # If the query starts with a spelled-out Greek letter (e.g. "alpha cen"),
         # also try a pattern matched against the abbreviated Bayer form used in
         # the DB (e.g. "alp%cen", matching "alp-1 cen"), since a plain substring
         # match against "alpha cen" never matches "Alp-1 Cen".
+        # Accept both the spelled-out name and the abbreviation as the first token.
+        # athyg.bayer stores a component suffix on multiple systems ("Alp-1 Cen"), so a
+        # plain substring match on "alp cen" finds nothing even though the user typed
+        # the exact stored abbreviation. Splitting on '%' bridges the suffix either way.
         bayer_pattern = like_pattern
         tokens = search_lower.split(None, 1)
-        if tokens and tokens[0] in GREEK_LETTER_ABBREV:
-            abbrev = GREEK_LETTER_ABBREV[tokens[0]]
+        first = tokens[0] if tokens else ""
+        if first in GREEK_LETTER_ABBREV or first in GREEK_ABBREV_VALUES:
+            abbrev = GREEK_LETTER_ABBREV.get(first, first)
             rest = escape_like(tokens[1]) if len(tokens) > 1 else ""
-            bayer_pattern = f"%{abbrev}%{rest}%" if rest else f"%{abbrev}%"
+            # Anchored for the same indexability reason as above; every abbreviation
+            # is 2-3 characters, so an unanchored '%alp%' would not filter either.
+            bayer_pattern = f"{abbrev}%{rest}%" if rest else f"{abbrev}%"
 
         query = text("""
             SELECT

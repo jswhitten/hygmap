@@ -99,7 +99,43 @@ CREATE INDEX idx_athyg_gaia ON athyg(gaia) WHERE gaia IS NOT NULL;
 CREATE INDEX idx_athyg_proper_lower ON athyg(LOWER(proper)) WHERE proper IS NOT NULL;
 CREATE INDEX idx_athyg_bayer_con ON athyg (bayer, con);
 CREATE INDEX idx_athyg_flam_con ON athyg (flam, con);
+
+-- Name search (trigram; see below)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_athyg_proper_trgm
+  ON athyg USING gin ((LOWER(COALESCE(proper, ''))) gin_trgm_ops);
+CREATE INDEX idx_athyg_bayer_con_trgm
+  ON athyg USING gin ((LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, ''))) gin_trgm_ops);
+CREATE INDEX idx_athyg_flam_con_trgm
+  ON athyg USING gin ((LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, ''))) gin_trgm_ops);
+CREATE INDEX idx_athyg_con_trgm
+  ON athyg USING gin ((LOWER(COALESCE(con, ''))) gin_trgm_ops);
 ```
+
+### Trigram indexes for name search
+
+`/api/stars/search` matches names with `LIKE '%term%'`. A leading wildcard makes every
+B-tree index unusable, including `idx_athyg_proper_lower`, so the query fell back to a
+parallel sequential scan of the whole table — **1.2–3.4 seconds per search**, measured
+at 2.83M rows. The `pg_trgm` GIN indexes above bring that to **0.04–0.07 seconds** with
+identical result sets.
+
+Two things to know before changing them:
+
+- **The indexed expression must match the query predicate exactly.** These mirror the
+  `WHERE` clause in `hygmap-api/app/api/stars.py` character for character. Change one
+  and you must change the other, then confirm with `EXPLAIN ANALYZE` that the planner
+  still picks the index — a mismatched expression is silently ignored, and the only
+  symptom is that search gets slow again.
+- **Trigrams need three characters.** A `'%xx%'` pattern shorter than that produces no
+  usable trigram, so every bitmap index scan returns all ~2.8M rows and the query ends
+  up *slower* than the scan the index replaced. The API therefore anchors terms under
+  three characters to a prefix (`'xx%'`), which does yield an indexable trigram. That is
+  why a two-letter search matches the start of a name rather than anywhere inside it.
+
+Cost, measured at 2.83M rows: about 16 seconds of build time and 48MB on disk (15MB each
+for the three concatenated-expression indexes, 3MB for `proper`) against a 1795MB table.
+Writes happen only at import, so the trade is one-sided here.
 
 ## Coordinate System
 
