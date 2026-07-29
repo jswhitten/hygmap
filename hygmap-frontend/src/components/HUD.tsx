@@ -6,10 +6,8 @@ import {
   useUnit,
   useCoordinateSystem,
 } from '../state/store'
+import { PC_TO_LY } from '../domain/coordinates'
 import './HUD.css'
-
-// Conversion: 1 parsec = 3.26156 light-years
-const PC_TO_LY = 3.26156
 
 /**
  * Heads-up display showing current position and selected star info

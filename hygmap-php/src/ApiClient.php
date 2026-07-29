@@ -14,6 +14,21 @@ final class ApiClient
     private int $retries;
     private string $userAgent;
 
+    /**
+     * Per-request memo of GET responses, keyed by URL.
+     *
+     * A single page render asks for the same data more than once — index.php builds
+     * both the star table and the interactive overlay from an identical bbox query,
+     * via two separate public helpers. Memoizing here fixes that for every caller
+     * without threading results through their signatures.
+     *
+     * Safe because the API is read-only and a PHP request is short-lived: nothing can
+     * change between two calls within one render. The cache dies with the instance.
+     *
+     * @var array<string, array>
+     */
+    private array $responseCache = [];
+
     /** @var ApiClient|null Singleton instance */
     private static ?ApiClient $instance = null;
 
@@ -77,7 +92,9 @@ final class ApiClient
             'limit' => 10000,
         ];
 
-        $response = $this->get('/api/stars', $params);
+        // Trailing slash matters: FastAPI mounts this route at /api/stars/, and
+        // requesting it without the slash costs a 307 redirect on every call.
+        $response = $this->get('/api/stars/', $params);
         return $response['data'] ?? [];
     }
 
@@ -118,7 +135,7 @@ final class ApiClient
             'limit' => 1000,
         ];
 
-        $response = $this->get('/api/signals', $params);
+        $response = $this->get('/api/signals/', $params);
         return $response['data'] ?? [];
     }
 
@@ -191,6 +208,10 @@ final class ApiClient
             $url .= '?' . http_build_query($params);
         }
 
+        if (array_key_exists($url, $this->responseCache)) {
+            return $this->responseCache[$url];
+        }
+
         $attempts = 0;
         $lastError = '';
 
@@ -242,6 +263,7 @@ final class ApiClient
                         $snippet === '' ? '[empty]' : $snippet
                     );
                 } else {
+                    $this->responseCache[$url] = $data;
                     return $data;
                 }
             }

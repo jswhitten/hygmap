@@ -62,15 +62,24 @@ export function calculateDistance(star1: Star, star2: Star): number {
 }
 
 /**
+ * Light-years per parsec.
+ *
+ * The single source of this factor for the React app — mirrors `Units::LY_PER_PC` in
+ * hygmap-php/src/Units.php. Import this (or the two helpers below) rather than
+ * redeclaring the literal in a component.
+ */
+export const PC_TO_LY = 3.26156
+
+/**
  * Convert parsecs to light-years
  */
 export function parsecsToLightYears(parsecs: number): number {
-  return parsecs * 3.26156
+  return parsecs * PC_TO_LY
 }
 
 /**
  * Convert light-years to parsecs
  */
 export function lightYearsToParsecs(ly: number): number {
-  return ly / 3.26156
+  return ly / PC_TO_LY
 }

@@ -1,7 +1,7 @@
 import { useAppStore } from '../state/store'
+import { parsecsToLightYears } from '../domain/coordinates'
 import './SignalInfoPanel.css'
 
-const PC_TO_LY = 3.26156
 const formatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -23,7 +23,7 @@ export default function SignalInfoPanel() {
       activeSignal.y * activeSignal.y +
       activeSignal.z * activeSignal.z
   )
-  const distanceLy = distancePc * PC_TO_LY
+  const distanceLy = parsecsToLightYears(distancePc)
 
   const timestamp = activeSignal.time ? new Date(activeSignal.time) : null
   const formattedTime = timestamp ? formatter.format(timestamp) : 'Unknown'

@@ -34,6 +34,7 @@ import {
   useUpdateGridSettings,
   useViewMode,
 } from '../state/store'
+import { parsecsToLightYears, lightYearsToParsecs } from '../domain/coordinates'
 import type { ViewMode } from '../domain/viewMode'
 import './Settings.css'
 
@@ -103,11 +104,8 @@ export default function Settings() {
     return spectralFilter.length === 0 || spectralFilter.includes(type)
   }
 
-  // Conversion: 1 parsec = 3.26156 light-years
-  const PC_TO_LY = 3.26156
-
   // Convert spacing for display based on current unit
-  const displaySpacing = unit === 'ly' ? gridSettings.spacing * PC_TO_LY : gridSettings.spacing
+  const displaySpacing = unit === 'ly' ? parsecsToLightYears(gridSettings.spacing) : gridSettings.spacing
   const unitLabel = unit === 'ly' ? 'ly' : 'pc'
   const [activeTab, setActiveTab] = useState<TabId>('filters')
 
@@ -293,7 +291,7 @@ export default function Settings() {
           onChange={(e) => {
             const value = parseFloat(e.target.value) || 10
             // Convert back to parsecs for storage
-            const spacingPc = unit === 'ly' ? value / PC_TO_LY : value
+            const spacingPc = unit === 'ly' ? lightYearsToParsecs(value) : value
             updateGridSettings({ spacing: Math.max(1, Math.min(100, spacingPc)) })
           }}
           aria-label={`Grid spacing in ${unitLabel}`}

@@ -37,7 +37,7 @@ import type { MeasurePoint } from '../state/store'
 import { useChunkLoader } from '../hooks/useChunkLoader'
 import { InstancedStars, StarGlow, GPUPicker, GalacticGrid, StarLabels, SelectionIndicator, SignalsLayer, MilkyWayGlow } from '../render'
 import MeasureLine from '../render/MeasureLine'
-import { galacticToScene, sceneBoundsToGalactic } from '../domain/coordinates'
+import { galacticToScene, sceneBoundsToGalactic, lightYearsToParsecs } from '../domain/coordinates'
 import { projectSceneCoords, projectStarToScene } from '../domain/viewMode'
 import type { Star, BoundingBox } from '../types/star'
 import type { Signal } from '../types/signal'
@@ -250,8 +250,6 @@ export default function StarField() {
     }
   })
 
-  // Conversion factor for distance filter
-  const PC_TO_LY = 3.26156
 
   // Debounce filter values to prevent excessive re-filtering on slider adjustments
   // 300ms delay provides smooth UX while reducing CPU usage
@@ -271,7 +269,7 @@ export default function StarField() {
   const filteredStars = useMemo(() => {
     // Convert maxDistance to parsecs if needed
     const maxDistPc = debouncedFilters.maxDistance !== null
-      ? (unit === 'ly' ? debouncedFilters.maxDistance / PC_TO_LY : debouncedFilters.maxDistance)
+      ? (unit === 'ly' ? lightYearsToParsecs(debouncedFilters.maxDistance) : debouncedFilters.maxDistance)
       : null
 
     const filtered = stars.filter((star) => {

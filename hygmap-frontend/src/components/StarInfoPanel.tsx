@@ -8,10 +8,9 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '../state/store'
 import { fetchStarById } from '../api/stars'
 import type { StarDetail } from '../types/star'
+import { parsecsToLightYears } from '../domain/coordinates'
 import './StarInfoPanel.css'
 
-// Conversion: 1 parsec = 3.26156 light-years
-const PC_TO_LY = 3.26156
 
 export default function StarInfoPanel() {
   const { selectedStar, setSelectedStar, unit } = useAppStore()
@@ -45,7 +44,7 @@ export default function StarInfoPanel() {
 
   // Calculate distance from coordinates
   const distPc = Math.sqrt(star.x * star.x + star.y * star.y + star.z * star.z)
-  const distLy = distPc * PC_TO_LY
+  const distLy = parsecsToLightYears(distPc)
   const displayDist = unit === 'ly' ? distLy : distPc
   const distUnit = unit === 'ly' ? 'ly' : 'pc'
 
