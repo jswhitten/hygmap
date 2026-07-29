@@ -167,7 +167,7 @@ $profiler->flag('FINISH');
     </div>
 
     <!-- CENTER + ZOOM FORM -->
-    <form method="GET" action="index.php">
+    <form method="GET" action="">
       <fieldset class="menupanel">
         <legend>Center (<?= htmlspecialchars($unit, ENT_QUOTES) ?>)</legend>
         <label for="x_c">X</label> <input name="x_c" id="x_c" size="6" value="<?= htmlspecialchars((string)$x_c, ENT_QUOTES) ?>"><br>
@@ -192,7 +192,7 @@ $profiler->flag('FINISH');
      <legend>Search for star</legend>
 
      <!-- Proper names dropdown -->
-     <form method="GET" action="index.php">
+     <form method="GET" action="">
        <input type="hidden" name="select_center" value="1">
        <select name="select_star">
          <option value="">(Proper names)</option>
@@ -204,7 +204,7 @@ $profiler->flag('FINISH');
 
      <!-- Fictional names dropdown -->
      <?php if ($fic_names > 0): ?>
-       <form method="GET" action="index.php">
+       <form method="GET" action="">
          <input type="hidden" name="select_center" value="1">
          <select name="select_star">
            <option value="">(Fictional names)</option>

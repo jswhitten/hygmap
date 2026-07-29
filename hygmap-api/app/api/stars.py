@@ -26,6 +26,35 @@ router = APIRouter()
 # Rate limiter instance (uses settings from app.config)
 limiter = Limiter(key_func=get_remote_address, enabled=settings.RATE_LIMIT_ENABLED)
 
+# Maps spelled-out Bayer designation names to the abbreviated form stored in
+# athyg.bayer (e.g. "Alp", "Alp-1"), so a search like "alpha cen" can match.
+GREEK_LETTER_ABBREV = {
+    "alpha": "alp",
+    "beta": "bet",
+    "gamma": "gam",
+    "delta": "del",
+    "epsilon": "eps",
+    "zeta": "zet",
+    "eta": "eta",
+    "theta": "the",
+    "iota": "iot",
+    "kappa": "kap",
+    "lambda": "lam",
+    "mu": "mu",
+    "nu": "nu",
+    "xi": "xi",
+    "omicron": "omi",
+    "pi": "pi",
+    "rho": "rho",
+    "sigma": "sig",
+    "tau": "tau",
+    "upsilon": "ups",
+    "phi": "phi",
+    "chi": "chi",
+    "psi": "psi",
+    "omega": "ome",
+}
+
 # Maximum allowed spatial range per dimension (parsecs)
 # Set to 3000 to accommodate distant stars in the AT-HYG catalog
 MAX_SPATIAL_RANGE = 3000.0
@@ -276,24 +305,41 @@ async def search_stars(
     else:
         # Search by name (proper, bayer, constellation)
         # Use LOWER() for case-insensitive search (works with both PostgreSQL and SQLite)
-        escaped = (search_term.lower()
-                   .replace("\\", "\\\\")
-                   .replace("%", "\\%")
-                   .replace("_", "\\_"))
-        like_pattern = f"%{escaped}%"
+        def escape_like(value: str) -> str:
+            return (value
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_"))
+
+        like_pattern = f"%{escape_like(search_lower)}%"
+
+        # If the query starts with a spelled-out Greek letter (e.g. "alpha cen"),
+        # also try a pattern matched against the abbreviated Bayer form used in
+        # the DB (e.g. "alp%cen", matching "alp-1 cen"), since a plain substring
+        # match against "alpha cen" never matches "Alp-1 Cen".
+        bayer_pattern = like_pattern
+        tokens = search_lower.split(None, 1)
+        if tokens and tokens[0] in GREEK_LETTER_ABBREV:
+            abbrev = GREEK_LETTER_ABBREV[tokens[0]]
+            rest = escape_like(tokens[1]) if len(tokens) > 1 else ""
+            bayer_pattern = f"%{abbrev}%{rest}%" if rest else f"%{abbrev}%"
+
         query = text("""
             SELECT
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
                 hip, hd, hr, gj, cns5, gaia, tyc
             FROM athyg
             WHERE LOWER(COALESCE(proper, '')) LIKE :pattern ESCAPE '\\'
-               OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
+               OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :bayer_pattern ESCAPE '\\'
                OR LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
             ORDER BY absmag ASC NULLS LAST
             LIMIT :limit
         """)
-        result = await db.execute(query, {"pattern": like_pattern, "limit": limit})
+        result = await db.execute(
+            query,
+            {"pattern": like_pattern, "bayer_pattern": bayer_pattern, "limit": limit},
+        )
 
     rows = result.mappings().all()
     stars = [StarBase(**{k: v for k, v in row.items() if k in StarBase.model_fields}) for row in rows]

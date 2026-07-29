@@ -23,7 +23,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hygmap_user}:${POSTGRES_PASSWORD}@hygmap-db:5432/${POSTGRES_DB:-hygmap}
       - DEBUG=False
-      - CORS_ORIGINS=${CORS_ORIGINS_PROD:-http://localhost,http://localhost:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS_PROD:-https://hygmap.space,https://new.hygmap.space}
     restart: always
 
   hygmap-frontend:

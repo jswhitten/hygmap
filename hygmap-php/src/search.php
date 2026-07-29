@@ -6,7 +6,7 @@ require_once __DIR__ . '/ApiClient.php';
 session_start();
 
 $q = trim($_GET['q'] ?? '');
-if ($q === '') { header('Location: index.php'); exit; }
+if ($q === '') { header('Location: /'); exit; }
 
 try {
     $row = ApiClient::instance()->searchStar($q);
@@ -16,16 +16,16 @@ try {
     echo '<body style="font-family:sans-serif;margin:2rem;">';
     echo '<h3>⚠️ Search Error</h3>';
     echo '<p>Unable to search the star database at this time.</p>';
-    echo '<p><a href="index.php">Back to map</a></p>';
+    echo '<p><a href="/">Back to map</a></p>';
     echo '</body></html>';
     exit;
 }
 
 if ($row) {
     $id = (int)$row['id'];
-    $_SESSION['last_map'] = "index.php?select_star=$id&select_center=1";
-    header("Location: index.php?select_star=$id&select_center=1",true,302);
+    $_SESSION['last_map'] = "/?select_star=$id&select_center=1";
+    header("Location: /?select_star=$id&select_center=1",true,302);
 } else {
     echo "<h3>No match for &ldquo;".htmlspecialchars($q)."&rdquo;</h3>";
-    echo '<p><a href="index.php">Back to map</a></p>';
+    echo '<p><a href="/">Back to map</a></p>';
 }
