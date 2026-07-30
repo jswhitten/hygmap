@@ -152,13 +152,15 @@ WHERE gaia IS NOT NULL AND id < 6000000
 -- INSERT new stars (match_method = 'new')
 -- These are GCNS stars not matched to any existing athyg record
 --
-INSERT INTO athyg (id, gaia, ra, dec, dist, mag, absmag, spect, x_eq, y_eq, z_eq)
+-- dist_src set explicitly; see the note on the equivalent INSERT in 06_import_cns5.sql.
+INSERT INTO athyg (id, gaia, ra, dec, dist, dist_src, mag, absmag, spect, x_eq, y_eq, z_eq)
 SELECT
   s.athyg_id,
   NULLIF(s.source_id, ''),
   s.ra_j2000,
   s.dec_j2000,
   s.dist,
+  'GCNS',
   s.mag,
   s.absmag,
   NULLIF(s.spect, ''),

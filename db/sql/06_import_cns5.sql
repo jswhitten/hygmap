@@ -198,7 +198,11 @@ WHERE cns5 IS NOT NULL AND id < 5000000
 --
 -- INSERT new stars (match_method = 'new')
 --
-INSERT INTO athyg (id, cns5, gj, gaia, hip, ra, dec, dist, mag, absmag, spect, x_eq, y_eq, z_eq)
+-- dist_src is set explicitly: these rows' distances come from CNS5, and without it they
+-- landed with a NULL provenance. ~281,300 stars inserted by this script and the GCNS one
+-- had no recorded distance source at all, which also made the quality check unable to
+-- tell a CNS5-supplied distance from an unexplained one.
+INSERT INTO athyg (id, cns5, gj, gaia, hip, ra, dec, dist, dist_src, mag, absmag, spect, x_eq, y_eq, z_eq)
 SELECT
   s.athyg_id,
   s.cns5_id::TEXT,
@@ -208,6 +212,7 @@ SELECT
   s.ra_j2000,
   s.dec_j2000,
   s.dist,
+  'CNS5',
   s.mag,
   s.absmag,
   NULLIF(s.spect, ''),
