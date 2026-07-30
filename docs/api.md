@@ -44,6 +44,8 @@ Get stars within specified 3D spatial bounds. Returns stars ordered by absolute 
 | `zmax` | float | 50 | Maximum Z coordinate (parsecs) |
 | `mag_max` | float | null | Maximum absolute magnitude (LOD filter) |
 | `limit` | int | 10000 | Maximum stars to return (max: 50000) |
+| `world_id` | int | 0 | Fictional universe for the `name` field; `0` means no fictional names |
+| `order` | string | `absmag asc` | Sort order: `absmag`, `mag`, `proper` or `dist`, each `asc` or `desc`. Validated against an allowlist. |
 
 **Constraints:**
 - Coordinates must be within ±10,000 parsecs

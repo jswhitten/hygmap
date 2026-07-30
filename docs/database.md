@@ -6,7 +6,7 @@ HYGMap uses PostgreSQL to store star data from the AT-HYG database and fictional
 
 ### `athyg` - Main Star Catalog
 
-Contains 2.5+ million stars from multiple astronomical catalogs.
+Contains 2.84 million stars (2,839,957 as of AT-HYG 4.0) from multiple astronomical catalogs.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -55,10 +55,41 @@ Maps real stars to their fictional names in various universes.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | SERIAL | Primary key |
-| `star_id` | INTEGER | References `athyg.id` |
+| `star_id` | INTEGER | References `athyg.id` (foreign key, `ON DELETE CASCADE`) |
 | `world_id` | INTEGER | References `fic_worlds.id` |
 | `name` | TEXT | Fictional name |
 | `notes` | TEXT | Optional notes/description |
+
+### How fictional names survive a catalog upgrade
+
+`fic.star_id` points at `athyg.id`, which looks fragile because catalog ids are reassigned
+wholesale on every AT-HYG release — 100% of comparable stars were renumbered between v3.3
+and 4.0. Fictional names are nonetheless safe, for a reason worth knowing before changing
+anything here: **`star_id` is derived, not stored.** `04_import_fic.sql` drops and rebuilds
+the table on every image build, resolving each id by joining `athyg` on the **Tycho-2 id**
+held in `db/data/athyg_tycho_*.csv`. Tycho ids do not move.
+
+The foreign key added 2026-07-30 guards a different failure — a partial or reordered import
+leaving names attached to the wrong stars — not the renumbering. Verified after a clean
+rebuild: 191 rows, zero orphans, and Vulcan → Keid (40 Eridani), Babylon 5 → Ran
+(Epsilon Eridani).
+
+### Catalog import safety
+
+Two protections exist because the pipeline has silently lost a designation before. CNS5 723
+(Teegarden's Star) went missing for months when `athyg_supplement.csv` was renumbered and
+`cns5.csv` was not regenerated: matched updates then targeted rows that did not exist, and an
+unrelated new star overwrote the id.
+
+- **The matcher scripts refuse to emit a CSV containing a duplicate `athyg_id`**, and their
+  new-id allocators step over ids already claimed by a real match or already present in
+  `athyg`. Regression tests in `db/scripts/test_match_cns5.py` cover the exact historical
+  collision.
+- **The import scripts refuse to run against a stale CSV.** If a matched row references an
+  `athyg_id` that does not exist, `06`/`07` raise rather than silently applying nothing.
+
+Neither condition is detectable after the fact — the import and the application both behave
+normally — so both checks fail loudly by design.
 
 ### `signals` - SETI Signal Data
 

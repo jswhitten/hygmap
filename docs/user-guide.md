@@ -39,6 +39,23 @@ The React frontend provides an interactive 3D star map built with Three.js.
 - **Arrow keys** - Pan view
 - **+/-** - Zoom in/out
 
+### Jumping to coordinates
+
+The crosshair button in the toolbar opens a small form for going straight to a position.
+
+Enter **galactic** coordinates — the same frame the star info panel shows, with Sol at
+0, 0, 0: **X** toward the galactic centre, **Y** toward galactic longitude 90° (in Cygnus),
+**Z** toward the north galactic pole. Values are in whichever unit you have selected, parsecs
+or light-years, and the form says which.
+
+This means you can read a star's coordinates off its info panel and type them straight back
+in, or share a position with someone using a different unit setting and have it land in the
+same place.
+
+Coordinates further than 10,000 parsecs from Sol are refused, because the map cannot load a
+region that far out — you will get a message rather than a silent trip to nowhere. Press
+**Escape** to close the form without moving.
+
 ### SETI Signals
 
 The 3D frontend displays SETI signal data:
