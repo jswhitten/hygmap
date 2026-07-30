@@ -13,7 +13,9 @@ The database container must be running with the base AT-HYG data loaded:
 docker compose up -d hygmap-db
 ```
 
-Then install Python dependencies (a venv is recommended):
+Then install Python dependencies. **Create the venv locally — it is not in the repo.** It was
+committed once (1,035 files, 26MB of platform-specific binaries) and untracked again on
+2026-07-30; `.gitignore` now keeps it out.
 
 ```
 cd db/scripts
@@ -133,6 +135,20 @@ Run `check_distance_quality.py` after any import. It catches the three failure m
 pipeline has actually had: an unknown-distance sentinel read as a measurement, a
 volume-complete catalogue contradicted by AT-HYG, and physically impossible absolute
 magnitudes.
+
+## Constellations
+
+```
+python compute_constellations.py --verify   # self-check against known stars, no DB needed
+python compute_constellations.py            # writes ../data/constellations.csv
+```
+
+Fills `con` for stars that arrived with positions but no constellation. Computed offline from
+RA/Dec, not fetched — see docs/database.md for why the B1875/FK4 detail matters. `--verify`
+checks both implementations against ten known stars and exits without touching the database.
+
+This is the only script here that needs astropy. It runs once and commits its output, so the
+dependency never reaches the application.
 
 ## A note on regenerating the cross-match CSVs
 

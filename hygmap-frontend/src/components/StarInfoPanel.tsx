@@ -4,7 +4,7 @@
  * Shows catalog IDs, distance, spectral type, and links to external databases.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../state/store'
 import { fetchStarById } from '../api/stars'
 import type { StarDetail } from '../types/star'
@@ -37,6 +37,18 @@ export default function StarInfoPanel() {
         setLoading(false)
       })
   }, [selectedStar])
+
+  // Escape closes the panel. Without it a keyboard user who opens the panel has no way to
+  // dismiss it except tabbing to the close button.
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        setSelectedStar(null)
+      }
+    },
+    [setSelectedStar]
+  )
 
   if (!selectedStar) return null
 
@@ -88,13 +100,23 @@ export default function StarInfoPanel() {
   const isdUrl = getIsdUrl()
 
   return (
-    <div className="star-info-panel">
+    // role=complementary with a name so the panel is an addressable landmark: a screen-reader
+    // user can jump to it directly instead of tabbing through the toolbar to find it.
+    <div
+      className="star-info-panel"
+      role="complementary"
+      aria-label={`Star information: ${star.display_name}`}
+      onKeyDown={handleKeyDown}
+    >
       <div className="star-info-header">
         <h3>{star.display_name}</h3>
         <button
           className="star-info-close"
           onClick={() => setSelectedStar(null)}
           title="Close"
+          // The button's only content is a multiplication sign, which assistive tech reads
+          // as "times" or skips entirely. It needs a real name.
+          aria-label={`Close star information for ${star.display_name}`}
         >
           &times;
         </button>

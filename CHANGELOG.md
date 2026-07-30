@@ -16,6 +16,11 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- Filled in constellations for 281,300 stars that arrived from the CNS5 and GCNS imports with
+  positions but no `con`, making them unfindable by constellation search. Computed offline from
+  RA/Dec via astropy, with an independent IAU-1976 implementation kept as a cross-check
+  (99.993% agreement; divergence only within ~1 arcsec of a boundary). Sol is excluded, being
+  the coordinate origin rather than a position on the sky.
 - Added direct coordinate entry to the React app: a toolbar control that moves the view to a
   typed galactic X/Y/Z, in the currently selected unit, validated against the API's
   coordinate domain. Parsing lives in `src/domain/coordinateInput.ts` and is unit-tested

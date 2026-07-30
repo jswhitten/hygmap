@@ -45,3 +45,23 @@ input:focus-visible {
 *:focus:not(:focus-visible) {
   outline: none;
 }
+
+/*
+ * Visible to assistive technology, not to the eye.
+ *
+ * Used by the live region that announces selection changes. Deliberately not
+ * `display: none` or `visibility: hidden` — both remove the element from the accessibility
+ * tree, so a screen reader would never see the announcement. This is the standard clip
+ * technique, which keeps it in the tree while taking no visual space.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -17,6 +17,7 @@ import {
 } from '../state/store'
 import { searchStars } from '../api/stars'
 import CoordinateJump from './CoordinateJump'
+import SelectionAnnouncer from './SelectionAnnouncer'
 import { parsecsToLightYears } from '../domain/coordinates'
 import { generateShareURL, copyToClipboard } from '../utils/urlState'
 import { captureScreenshot, generateScreenshotFilename } from '../utils/screenshot'
@@ -206,6 +207,14 @@ export default function Toolbar({ onHome, onJumpToCoordinates, onCenter, getCame
           </div>
         )}
       </div>
+
+      {/*
+        Mounted from the toolbar because the toolbar is always rendered, so the live region
+        persists across selections. Both info panels return null when nothing is selected, so
+        a region living inside one of them would appear at the same moment as its text — and
+        screen readers routinely stay silent in that case.
+      */}
+      <SelectionAnnouncer />
 
       {/* Navigation buttons */}
       <div className="toolbar-buttons">

@@ -1,1 +1,7 @@
 psycopg2-binary
+# Only used by compute_constellations.py, which runs offline once and commits its output.
+# It is the reference implementation for constellation lookup and correctly handles that
+# B1875.0 is a Besselian epoch in the FK4 frame -- a hand-rolled IAU-1976 precession agrees
+# with it on 99.993% of stars but differs for those within about an arcsecond of a boundary.
+# Never reaches the application or its runtime.
+astropy

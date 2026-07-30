@@ -23,6 +23,8 @@ COPY data/cns5.csv /data/
 COPY data/gcns.csv /data/
 COPY data/gaia_distances.csv /data/
 COPY data/athyg_overrides.csv /data/
+COPY data/constellations.csv /data/
+COPY data/constellation_boundaries.csv /data/
 
 # Copy initialization scripts (run in alphabetical order on first start)
 COPY sql/ /docker-entrypoint-initdb.d/

@@ -30,3 +30,9 @@ drwxrwxr-x 3 jswhitten jswhitten      4096 Jan 26 14:08 .pytest_cache
 -rw-rw-r-- 1 jswhitten jswhitten 252128432 Jan 27 01:56 table1c.dat
 -rw-rw-r-- 1 jswhitten jswhitten      5941 Jan 27 01:54 table1c.format
 
+# Python virtualenv for the data-import scripts.
+#
+# db/scripts/.venv was committed in 83bd9662 -- 1,035 files, 26MB -- which bloats every clone
+# with platform-specific binaries that are useless to anyone else. Untracked 2026-07-30;
+# recreate it with the instructions in db/scripts/README.md.
+db/scripts/.venv/

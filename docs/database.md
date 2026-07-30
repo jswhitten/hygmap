@@ -74,6 +74,37 @@ leaving names attached to the wrong stars — not the renumbering. Verified afte
 rebuild: 191 rows, zero orphans, and Vulcan → Keid (40 Eridani), Babylon 5 → Ran
 (Epsilon Eridani).
 
+### Constellations are computed, not looked up
+
+281,301 stars arrived from the CNS5 and GCNS imports with positions but no `con`, which made
+them unfindable by constellation: searching "Cyg" cannot return a star the database does not
+know is in Cygnus. `10_import_constellations.sql` fills them from
+`db/scripts/compute_constellations.py`, and only where `con` is NULL — a value from the source
+catalog is never overruled.
+
+It is computed rather than fetched because a constellation is a pure function of sky position.
+Two details make it non-obvious:
+
+- **The boundaries are defined in the B1875.0 equinox**, which is what Delporte used when the
+  IAU fixed them in 1930, so a J2000 position must be transformed before comparison. Skipping
+  that step misplaces stars near boundaries.
+- **B1875.0 is a *Besselian* epoch in the FK4 frame**, so the transform is not merely a
+  precession rotation — it includes the FK4/FK5 equinox correction and the E-terms of
+  aberration. Both are sub-arcsecond and only matter for stars sitting essentially on a
+  boundary, but that is exactly where the answer changes.
+
+The script therefore uses astropy's `get_constellation` as authoritative, and keeps an
+independent implementation (IAU 1976 precession plus a scan of Roman's VI/42 boundary table,
+committed as `db/data/constellation_boundaries.csv`) as a cross-check. They agree on 99.993%
+of a 30,000-star sample; every disagreement was within about an arcsecond of a boundary.
+
+Sol is excluded: it sits at RA 0 Dec 0 because it *is* the coordinate origin, not because it
+lies there on the sky, so the lookup would place the Sun in Pisces. It is the only row at the
+exact origin, and it is the one star that legitimately has no constellation.
+
+Attribution: Roman, N.G. (1987), "Identification of a Constellation from a Position",
+PASP 99, 695 — VizieR VI/42.
+
 ### Catalog import safety
 
 Two protections exist because the pipeline has silently lost a designation before. CNS5 723

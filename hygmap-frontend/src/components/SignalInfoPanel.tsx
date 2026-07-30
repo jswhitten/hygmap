@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useAppStore } from '../state/store'
 import { parsecsToLightYears } from '../domain/coordinates'
 import './SignalInfoPanel.css'
@@ -11,6 +12,19 @@ export default function SignalInfoPanel() {
   const { selectedSignal, hoveredSignal, setSelectedSignal, setHoveredSignal, showSignals } = useAppStore()
 
   const activeSignal = hoveredSignal || selectedSignal
+
+  // Declared before the early return: hooks must run in the same order on every render, and
+  // ESLint's rules-of-hooks correctly rejected this sitting further down.
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation()
+        setSelectedSignal(null)
+        setHoveredSignal(null)
+      }
+    },
+    [setSelectedSignal, setHoveredSignal]
+  )
 
   if (!activeSignal || !showSignals) {
     return null
@@ -41,16 +55,27 @@ export default function SignalInfoPanel() {
 
   const typeLabel = activeSignal.type === 'transmit' ? 'Transmission' : 'Detection'
 
+  const signalName =
+    activeSignal.display_name || activeSignal.name || `Signal ${activeSignal.id}`
+
   const handleClose = () => {
     setSelectedSignal(null)
     setHoveredSignal(null)
   }
 
   return (
-    <div className="signal-panel" role="complementary" aria-live="polite">
+    // aria-live removed: this root is conditionally rendered, so the region and its content
+    // appeared in the same tick and screen readers said nothing. SelectionAnnouncer holds a
+    // persistent region instead, which is the arrangement that actually speaks.
+    <div
+      className="signal-panel"
+      role="complementary"
+      aria-label={`Signal information: ${signalName}`}
+      onKeyDown={handleKeyDown}
+    >
       <div className="signal-panel__header">
         <div>
-          <h3>{activeSignal.display_name || activeSignal.name || `Signal ${activeSignal.id}`}</h3>
+          <h3>{signalName}</h3>
           <span className={`signal-panel__type signal-panel__type--${activeSignal.type}`}>
             {typeLabel}
           </span>

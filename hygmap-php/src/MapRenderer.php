@@ -68,9 +68,18 @@ class MapRenderer
     }
 
     /**
-     * Main rendering pipeline - orchestrates the entire map generation process
+     * Draw the map.
+     *
+     * Takes its data rather than fetching it. This class used to call
+     * ApiClient::instance() from inside render(), which meant it could not be exercised at
+     * all without a live API -- and nothing ever exercised it, so a blank map and a correct
+     * map were indistinguishable to the test suite. The caller now owns fetching and its
+     * failure handling; this owns drawing.
+     *
+     * @param array $stars   Star rows for the current view, brightest first
+     * @param array $signals Signal rows, or [] when signals are hidden
      */
-    public function render(): void
+    public function render(array $stars, array $signals = []): void
     {
         // Set up output buffering and headers
         while (ob_get_level() > 0) {
@@ -90,29 +99,11 @@ class MapRenderer
         $this->allocateColors();
         $this->fillBackground();
 
-        // Query data
-        $bbox = $this->buildBoundingBox();
-
-        try {
-            $rows = ApiClient::instance()->queryAll($bbox, $this->m_limit, $this->fic_names, 'absmag desc');
-        } catch (RuntimeException $e) {
-            error_log("Map generation error: " . $e->getMessage());
-            $this->createErrorImage("API error - unable to load stars");
-            return;
-        }
-
-        try {
-            $signal_rows = $this->show_signals ? ApiClient::instance()->querySignals($bbox) : [];
-        } catch (RuntimeException $e) {
-            error_log("Signal query error: " . $e->getMessage());
-            $signal_rows = [];
-        }
-
         // Render all elements
         $this->drawGrid();
-        $this->plotConnectingLines($rows);
-        $this->plotStars($rows);
-        $this->plotSignals($signal_rows);
+        $this->plotConnectingLines($stars);
+        $this->plotStars($stars);
+        $this->plotSignals($signals);
 
         // Output
         $this->output();
@@ -171,7 +162,12 @@ class MapRenderer
     /**
      * Build bounding box in parsecs for database queries
      */
-    private function buildBoundingBox(): array
+    /**
+     * The bounding box for the current view.
+     *
+     * Public because the caller fetches the data now and needs to know what to ask for.
+     */
+    public function buildBoundingBox(): array
     {
         return MapGeometry::buildBoundingBox(
             $this->x_c,
@@ -570,19 +566,6 @@ class MapRenderer
     private function labelSignal(string $name, float $screen_x, float $screen_y): void
     {
         ImageString($this->image, 2, (int)$screen_x + 12, (int)$screen_y - 8, $name, $this->colors['lightblue']);
-    }
-
-    /**
-     * Create an error image with message (uses existing image if available)
-     */
-    private function createErrorImage(string $message): void
-    {
-        // Image already exists from render(), just overwrite with error
-        $errorColor = ImageColorAllocate($this->image, 255, 0, 0);
-        $bgColor = ImageColorAllocate($this->image, 255, 255, 255);
-        ImageFill($this->image, 0, 0, $bgColor);
-        ImageString($this->image, 3, 10, 10, $message, $errorColor);
-        $this->output();
     }
 
     /**
