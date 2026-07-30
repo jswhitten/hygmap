@@ -1,0 +1,232 @@
+{
+  "_comment": [
+    "Canonical display-name cases, shared by all three implementations.",
+    "",
+    "The rule 'what is this star called?' was implemented four times -- PHP",
+    "(StarFormatter::getDisplayName), the API twice (StarBase and StarDetail), and React",
+    "(getStarDisplayName) -- and they disagreed. This file is the single source of truth",
+    "they lacked. It is mounted into every test container at /fixtures (see the Makefile).",
+    "",
+    "CANONICAL ORDER, decided by the maintainer 2026-07-29 (DISPLAY-NAME-CANON):",
+    "",
+    "  fictional name (only when world_id > 0)",
+    "  proper",
+    "  bayer + con      (both required; trimmed)",
+    "  flam + con       (both required; trimmed)",
+    "  GJ               <- Gliese-Jahreiss first: this is a map of the solar",
+    "  HD                  neighbourhood, so the nearby-star catalog is the most",
+    "  HIP                 useful identifier to show. The API and React previously",
+    "  HR                  led with HIP, which favours bright stars.",
+    "  CNS5",
+    "  TYC",
+    "  Gaia",
+    "  spect            (informative for an anonymous star)",
+    "  ID <id>          (last resort, so a name is never empty)",
+    "",
+    "If a case here has a 'world_id' key, pass it to the implementation; otherwise 0."
+  ],
+  "cases": [
+    {
+      "name": "proper name wins over everything",
+      "star": {
+        "id": 1,
+        "proper": "Sirius",
+        "bayer": "Alp",
+        "con": "CMa",
+        "hip": "32349",
+        "hd": "48915"
+      },
+      "expected": "Sirius"
+    },
+    {
+      "name": "bayer plus constellation when there is no proper name",
+      "star": {
+        "id": 2,
+        "proper": null,
+        "bayer": "Alp",
+        "con": "Cen",
+        "hip": "71683"
+      },
+      "expected": "Alp Cen"
+    },
+    {
+      "name": "flamsteed plus constellation when there is no bayer",
+      "star": {
+        "id": 3,
+        "proper": null,
+        "bayer": null,
+        "flam": "61",
+        "con": "Cyg",
+        "hip": "104214"
+      },
+      "expected": "61 Cyg"
+    },
+    {
+      "name": "bayer without a constellation cannot form a name and falls through",
+      "star": {
+        "id": 4,
+        "proper": null,
+        "bayer": "Alp",
+        "con": null,
+        "hip": "12345"
+      },
+      "expected": "HIP 12345",
+      "note": "PHP used to return 'Alp ' with a trailing space. A bayer letter needs its constellation to form a name."
+    },
+    {
+      "name": "hipparcos only",
+      "star": {
+        "id": 5,
+        "hip": "439"
+      },
+      "expected": "HIP 439"
+    },
+    {
+      "name": "henry draper only",
+      "star": {
+        "id": 6,
+        "hd": "225213"
+      },
+      "expected": "HD 225213"
+    },
+    {
+      "name": "yale bright star only",
+      "star": {
+        "id": 7,
+        "hr": "2491"
+      },
+      "expected": "HR 2491",
+      "note": "PHP had no hr branch at all and returned an empty string; StarDetail returned 'ID 7'. Both fixed."
+    },
+    {
+      "name": "gliese only",
+      "star": {
+        "id": 8,
+        "gj": "551"
+      },
+      "expected": "GJ 551"
+    },
+    {
+      "name": "cns5 only",
+      "star": {
+        "id": 9,
+        "cns5": "723"
+      },
+      "expected": "CNS5 723"
+    },
+    {
+      "name": "tycho only",
+      "star": {
+        "id": 10,
+        "tyc": "6995-1264-1"
+      },
+      "expected": "TYC 6995-1264-1"
+    },
+    {
+      "name": "gaia only",
+      "star": {
+        "id": 11,
+        "gaia": "2306965202564744064"
+      },
+      "expected": "Gaia 2306965202564744064"
+    },
+    {
+      "name": "star 7301: gj and hip both present -- the real divergence",
+      "star": {
+        "id": 7301,
+        "proper": null,
+        "bayer": null,
+        "flam": null,
+        "con": "Scl",
+        "hip": "439",
+        "hd": "225213",
+        "hr": null,
+        "gj": "1",
+        "cns5": "19",
+        "tyc": "6995-1264-1",
+        "gaia": "2306965202564744064"
+      },
+      "expected": "GJ 1",
+      "note": "The row that exposed the original bug. GJ-first is the canonical order, so GJ 1 is correct and the API's old HIP 439 was wrong."
+    },
+    {
+      "name": "gj and hd both present",
+      "star": {
+        "id": 12,
+        "gj": "581",
+        "hd": "147379"
+      },
+      "expected": "GJ 581"
+    },
+    {
+      "name": "hr and gj both present",
+      "star": {
+        "id": 13,
+        "hr": "2491",
+        "gj": "244"
+      },
+      "expected": "GJ 244"
+    },
+    {
+      "name": "empty strings are not names",
+      "star": {
+        "id": 14,
+        "proper": "",
+        "bayer": "",
+        "con": "",
+        "hip": "999"
+      },
+      "expected": "HIP 999",
+      "note": "The catalog contains empty strings as well as nulls; both must fall through."
+    },
+    {
+      "name": "leading whitespace in bayer is trimmed",
+      "star": {
+        "id": 15,
+        "proper": null,
+        "bayer": " Alp",
+        "con": "Lyr"
+      },
+      "expected": "Alp Lyr",
+      "note": "The source data carries padding. All three stacks now trim."
+    },
+    {
+      "name": "spectral type is the last informative fallback",
+      "star": {
+        "id": 20,
+        "spect": "M2V"
+      },
+      "expected": "M2V",
+      "note": "Better than a bare database id for an otherwise anonymous star."
+    },
+    {
+      "name": "a star with nothing at all still gets a name",
+      "star": {
+        "id": 21
+      },
+      "expected": "ID 21",
+      "note": "Guarantees the name is never empty. PHP used to return '' here."
+    },
+    {
+      "name": "fictional name wins over the proper name when a world is selected",
+      "star": {
+        "id": 22,
+        "proper": "40 Eridani",
+        "name": "Vulcan"
+      },
+      "world_id": 1,
+      "expected": "Vulcan",
+      "note": "The API ignored the fictional name entirely, which is why PHP forked the whole chain."
+    },
+    {
+      "name": "fictional name is ignored when no world is selected",
+      "star": {
+        "id": 23,
+        "proper": "40 Eridani",
+        "name": "Vulcan"
+      },
+      "world_id": 0,
+      "expected": "40 Eridani"
+    }
+  ]
+}

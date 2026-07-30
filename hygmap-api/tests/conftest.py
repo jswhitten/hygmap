@@ -62,9 +62,11 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 con TEXT,
                 spect TEXT,
                 absmag REAL,
-                x REAL NOT NULL,
-                y REAL NOT NULL,
-                z REAL NOT NULL,
+                -- Nullable, like the real table: a star with no usable parallax has no
+                -- 3D position. See the sentinel note in db/sql/03_import_data.sql.
+                x REAL,
+                y REAL,
+                z REAL,
                 hyg INTEGER,
                 hip TEXT,
                 hd TEXT,
@@ -129,7 +131,14 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (8, 'Deneb', 'Alp', 'Cyg', 'A2Ia', -8.73, 556.38, 1312.99, 432.82, '102098', '197345'),
                 (9, 'Barnard Star', NULL, 'Oph', 'M4Ve', 13.22, -0.01, -1.82, 0.03, '87937', NULL),
                 (10, 'Wolf 359', 'CN', 'Leo', 'M6.5Ve', 16.55, -2.20, -0.61, 1.13, '54035', NULL),
-                (11, NULL, NULL, NULL, NULL, 14.50, 3.00, 2.00, 1.50, NULL, NULL)
+                (11, NULL, NULL, NULL, NULL, 14.50, 3.00, 2.00, 1.50, NULL, NULL),
+                -- Positionless: no usable parallax, so no distance and no coordinates.
+                -- A real star (compare Polis) that cannot be drawn on a 3D map.
+                (12, 'Positionless Star', NULL, 'Sgr', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+                -- Beyond the coordinate domain the API can express (MAX_COORDINATE_VALUE
+                -- is 10000 pc). A broken Gaia parallax yields a huge distance and, with it,
+                -- an absurdly bright absolute magnitude that sorts to the top.
+                (13, NULL, NULL, 'Sgr', 'B2III', -13.50, 325046.0, -90701.0, -2810.0, NULL, NULL)
         """))
 
         # Set GJ and CNS5 IDs for test stars

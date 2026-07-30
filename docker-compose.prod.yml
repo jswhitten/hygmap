@@ -4,9 +4,14 @@
 
 services:
   hygmap-db:
-    # Use alternate port to avoid conflict with host PostgreSQL
-    # Only accessible from localhost; containers use internal Docker networking
-    ports:
+    # Use alternate port to avoid conflict with host PostgreSQL.
+    # Only accessible from localhost; containers use internal Docker networking.
+    #
+    # !override is load-bearing. Compose MERGES port lists across files rather than
+    # replacing them, so without it the base file's public "5432:5432" survived alongside
+    # this entry and Postgres stayed exposed on every interface — the exact opposite of
+    # what the comment above claimed. Verified 2026-07-29 with `docker compose config`.
+    ports: !override
       - "127.0.0.1:15432:5432"
     restart: always
 
@@ -19,18 +24,48 @@ services:
     build:
       context: ./hygmap-api
       dockerfile: Dockerfile.prod
+    # Bind to loopback only, so the API is reachable exclusively through the nginx vhost
+    # (docs/digitalocean-deployment.md proxies api.hygmap.space to 127.0.0.1:8000).
+    #
+    # This overrides the base file's public "8000:8000". Two reasons it matters:
+    #   1. A publicly bound API bypasses nginx, and therefore TLS and anything else
+    #      configured at that layer.
+    #   2. It is the precondition for FORWARDED_ALLOW_IPS below. Trusting a forwarded
+    #      client IP is only safe when the sender cannot be an arbitrary internet client.
+    # If you republish this port, remove FORWARDED_ALLOW_IPS at the same time.
+    #
+    # !override is required: Compose merges port lists rather than replacing them, so a
+    # plain `ports:` here would leave the base file's public "8000:8000" in place and the
+    # loopback binding would be decorative.
+    ports: !override
+      - "127.0.0.1:8000:8000"
     volumes: []  # No volume mounts in production
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hygmap_user}:${POSTGRES_PASSWORD}@hygmap-db:5432/${POSTGRES_DB:-hygmap}
       - DEBUG=False
       - CORS_ORIGINS=${CORS_ORIGINS_PROD:-https://hygmap.space,https://new.hygmap.space}
+      # Trust X-Forwarded-For so per-IP rate limiting sees the real caller.
+      #
+      # Without this, uvicorn's proxy-header handling only trusts 127.0.0.1, which is
+      # never the peer inside a container -- every request arrives from the Docker bridge
+      # gateway, so slowapi counted all callers as one client and the per-IP limit was a
+      # single shared bucket. Verified 2026-07-29: every request logged client_ip
+      # 172.20.0.1 regardless of origin.
+      #
+      # Safe here ONLY because the port above is bound to loopback: the sole thing that
+      # can open a connection is the local nginx. See the warning on the ports entry.
+      - FORWARDED_ALLOW_IPS=*
     restart: always
 
   hygmap-frontend:
     build:
       context: ./hygmap-frontend
       dockerfile: Dockerfile.prod
-    ports:
+    # !override for the same reason as the other services: without it the base file's
+    # "5173:5173" was still published in production. 5173 is the dev Vite port, and the
+    # production image serves nginx on 80 instead, so it was an open port with nothing
+    # useful behind it. Verified 2026-07-29 with `docker compose config`.
+    ports: !override
       - "3000:80"  # nginx serves on 80 inside container, expose as 3000
     volumes: []  # No volume mounts in production
     restart: always

@@ -137,6 +137,60 @@ Cost, measured at 2.83M rows: about 16 seconds of build time and 48MB on disk (1
 for the three concatenated-expression indexes, 3MB for `proper`) against a 1795MB table.
 Writes happen only at import, so the trade is one-sided here.
 
+### Known limits of `dist` and `absmag`
+
+Distances come from the source catalog and are not uniformly trustworthy. Three things to
+know before relying on them:
+
+**An unusable parallax used to arrive as a distance of 100,000 pc.** HYG floors a
+non-positive or missing parallax at 0.01 mas, which inverts to exactly 100000 pc. It is a
+placeholder, not a measurement, and it is documented nowhere upstream. 143 rows carried it,
+all with `dist_src = 'H'`. The import now clears `dist`, `absmag` and the coordinates for
+these — a star with no distance has no position on a 3D map — while keeping `ra`/`dec`, so
+the direction is still on record. Such stars are excluded from list and search results
+because they cannot be drawn; a direct `/api/stars/{id}` request still returns them with
+nulls.
+
+Left as data this did real damage: `absmag` is derived from the distance, so these stars
+had absolute magnitudes down to −16.16, and because `/api/stars/search` has no bounding box
+and orders brightest-first, they came back *first*. Searching "Cen" landed the classic UI on
+one of them, and since its coordinates were ~100 kpc out the resulting map request exceeded
+the API's coordinate limit and the page returned 503.
+
+**CNS5 and GCNS override an implausible AT-HYG distance.** Both are volume-complete (25 pc
+and 100 pc), so a star they list cannot be further away than that. Where AT-HYG disagrees by
+more than a factor of two, the catalogue's value wins and `dist_src` records which one
+supplied it. Comparing every CNS5 star against AT-HYG: 97.6% agree within 2%, and the 15
+contradictions past 200% were all bad Gaia DR3 parallaxes — the worst being an M2 dwarf
+AT-HYG placed at 97,010 pc that CNS5 puts at 17.19 pc.
+
+**Bailer-Jones distances fill the gap beyond 100 pc.** `08_import_gaia_distances.sql` adopts
+median geometric distances from VizieR I/352 (Bailer-Jones+ 2021) for stars AT-HYG could not
+place, marking them `dist_src = 'GAIA_BJ'` — deliberately distinct from AT-HYG's own
+`'G_R3'`, so it is always clear whose number is on screen. `absmag` and the coordinates are
+recomputed from the adopted distance in the same step. 77 stars corrected; the implausible
+count fell from 53 to 1.
+
+The geometric distance (`rgeo`) is used rather than the photogeometric one (`rpgeo`), which
+is generally more precise but assumes the star lies where the colour-magnitude diagram
+expects. This target list is made of exactly the stars that do not — bright supergiants,
+binaries and astrometrically difficult objects. `rpgeo` is recorded in the CSV for reference.
+
+**What still cannot be fixed.** Bailer-Jones needs a Gaia parallax, and 87 of the 164
+candidates have none. These are mostly bright Hipparcos stars: Gaia's astrometry degrades
+above roughly magnitude 3–4. Polis (μ Sagittarii) is the type case — Gaia DR3 lists it with
+photometry and an **empty** parallax, and SIMBAD carries only the Hipparcos value of
+0.09 ± 0.28 mas, a parallax smaller than its own error. Such stars need a literature or
+association distance, which nothing in this pipeline supplies. One further star (id 364061)
+has a Gaia DR2-derived distance with no entry in the EDR3-based catalogue.
+
+Stars left without a distance keep their `ra`/`dec` but have no position, so they are
+excluded from list and search results. That means a handful of real, named stars — Polis
+among them — are currently not findable by search.
+
+Run `db/scripts/check_distance_quality.py` after an import to verify all of the above; it
+exits non-zero if any check regresses.
+
 ## Coordinate System
 
 HYGMap uses galactic coordinates centered on Sol:

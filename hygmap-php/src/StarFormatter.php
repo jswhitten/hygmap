@@ -54,7 +54,10 @@ final class StarFormatter
         $labelcolor = $colors['darkgrey'] ?? 0;
         $printcolor = $colors['darkgrey'] ?? 0;
 
-        // Priority order for name selection
+        // Canonical priority order, decided 2026-07-29 (DISPLAY-NAME-CANON). This chain
+        // must stay in step with StarBase.display_name in hygmap-api/app/schemas/star.py
+        // and getStarDisplayName in hygmap-frontend/src/types/star.ts. All three are
+        // asserted against tests/fixtures/display-names.json; change that table first.
         if ($fic_names > 0 && !empty($row["name"])) {
             $name = $row["name"];
             $labelcolor = $colors['yellow'] ?? 0;
@@ -63,12 +66,14 @@ final class StarFormatter
             $name = $row["proper"];
             $labelcolor = $colors['white'] ?? 0;
             $printcolor = $colors['black'] ?? 0;
-        } elseif (!empty($row["bayer"])) {
-            $name = ltrim($row["bayer"]) . " " . $row["con"];
+        } elseif (!empty($row["bayer"]) && !empty($row["con"])) {
+            // The constellation is required: a bare Greek letter is not a designation.
+            // This used to emit "Alp " with a trailing space instead of falling through.
+            $name = trim($row["bayer"]) . " " . trim($row["con"]);
             $labelcolor = $colors['grey'] ?? 0;
             $printcolor = $colors['darkgrey'] ?? 0;
-        } elseif (!empty($row["flam"])) {
-            $name = ltrim($row["flam"]) . " " . $row["con"];
+        } elseif (!empty($row["flam"]) && !empty($row["con"])) {
+            $name = trim($row["flam"]) . " " . trim($row["con"]);
             $labelcolor = $colors['grey'] ?? 0;
             $printcolor = $colors['darkgrey'] ?? 0;
         } elseif (!empty($row["gj"])) {
@@ -81,6 +86,12 @@ final class StarFormatter
             $printcolor = $colors['darkgrey'] ?? 0;
         } elseif (!empty($row["hip"])) {
             $name = "HIP " . $row["hip"];
+            $labelcolor = self::getCatalogLabelColor($mag, $colors);
+            $printcolor = $colors['darkgrey'] ?? 0;
+        } elseif (!empty($row["hr"])) {
+            // This branch was missing entirely, so a star whose only designation was a
+            // Yale Bright Star number rendered with an EMPTY label on the map.
+            $name = "HR " . $row["hr"];
             $labelcolor = self::getCatalogLabelColor($mag, $colors);
             $printcolor = $colors['darkgrey'] ?? 0;
         } elseif (!empty($row["cns5"])) {
@@ -97,6 +108,12 @@ final class StarFormatter
             $printcolor = $colors['darkgrey'] ?? 0;
         } elseif (!empty($row["spect"])) {
             $name = $row["spect"];
+            $labelcolor = $colors['darkgrey'] ?? 0;
+            $printcolor = $colors['darkgrey'] ?? 0;
+        } else {
+            // Last resort, so the name is never empty. A star that matched nothing above
+            // used to render as a blank label.
+            $name = "ID " . ($row["id"] ?? '?');
             $labelcolor = $colors['darkgrey'] ?? 0;
             $printcolor = $colors['darkgrey'] ?? 0;
         }

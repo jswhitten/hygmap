@@ -201,9 +201,25 @@ class CommonIncTest extends TestCase
 
     public function testGetStarDisplayNameEmpty(): void
     {
+        // This used to assert '' -- it encoded the bug. A star matching no branch
+        // rendered as a blank label on the map. The chain now always yields something;
+        // with no id available at all, that is "ID ?".
         $row = [];
         $name = \StarFormatter::getDisplayName($row);
-        $this->assertEquals('', $name);
+        $this->assertEquals('ID ?', $name);
+    }
+
+    public function testGetStarDisplayNameFallsBackToId(): void
+    {
+        $row = ['id' => 4242];
+        $this->assertEquals('ID 4242', \StarFormatter::getDisplayName($row));
+    }
+
+    public function testGetStarDisplayNameHandlesYaleBrightStar(): void
+    {
+        // There was no hr branch at all before 2026-07-29, so this returned ''.
+        $row = ['id' => 1, 'hr' => '2491'];
+        $this->assertEquals('HR 2491', \StarFormatter::getDisplayName($row));
     }
 
     public function testGetStarDisplayNamePriority(): void

@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fetchStars, fetchStarById, searchStars, ApiError } from './stars'
+import { STAR_BASE_KEYS, solListRow, starListResponse } from '../test/fixtures'
 
 describe('API client', () => {
   const mockFetch = vi.fn()
@@ -20,11 +21,9 @@ describe('API client', () => {
 
   describe('fetchStars', () => {
     it('should fetch stars within bounds', async () => {
-      const mockResponse = {
-        result: 'success',
-        data: [{ id: 1, x: 0, y: 0, z: 0, display_name: 'Sol' }],
-        length: 1,
-      }
+      // Uses a fixture copied from a real API response rather than a hand-written
+      // stub, so this asserts the client preserves the actual contract.
+      const mockResponse = starListResponse([solListRow])
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -195,5 +194,59 @@ describe('API client', () => {
       const error = new ApiError('Timeout', undefined, false, true)
       expect(error.isTimeout).toBe(true)
     })
+  })
+})
+
+describe('API contract shape', () => {
+  const mockFetch = vi.fn()
+  const originalFetch = global.fetch
+
+  beforeEach(() => {
+    global.fetch = mockFetch
+    mockFetch.mockReset()
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  it('preserves every field the API returns on a list row', async () => {
+    // The `Star` TypeScript interface declares only the subset the UI reads, so tsc
+    // cannot catch a field being dropped in transit. This can.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(starListResponse([solListRow])),
+    })
+
+    const result = await fetchStars({
+      bounds: { xmin: -10, xmax: 10, ymin: -10, ymax: 10, zmin: -10, zmax: 10 },
+    })
+
+    for (const key of STAR_BASE_KEYS) {
+      expect(
+        Object.prototype.hasOwnProperty.call(result.data[0], key),
+        `client dropped the "${key}" field returned by the API`
+      ).toBe(true)
+    }
+  })
+
+  it('keeps null catalog IDs as null rather than coercing them', async () => {
+    // Sol has no catalog IDs. Coercing null to '' or 0 here would silently change
+    // which branch the display-name fallback chain takes.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(starListResponse([solListRow])),
+    })
+
+    const result = await fetchStars({
+      bounds: { xmin: -10, xmax: 10, ymin: -10, ymax: 10, zmin: -10, zmax: 10 },
+    })
+
+    const star = result.data[0] as Record<string, unknown>
+    expect(star.hip).toBeNull()
+    expect(star.gj).toBeNull()
+    expect(star.proper).toBe('Sol')
   })
 })

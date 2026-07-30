@@ -272,4 +272,87 @@ class IndexHelpersTest extends TestCase
         $this->assertStringNotContainsString('&"', $html);
         $this->assertStringNotContainsString('<script', $html);
     }
+
+    // =========================================================================
+    // buildStarImageMap - the no-JavaScript click-to-select path
+    // =========================================================================
+
+    /** @return array<int, array<string, mixed>> */
+    private function imageMapStars(): array
+    {
+        return [
+            ['id' => 1, 'name' => 'Sirius', 'sx' => 100.4, 'sy' => 200.6, 'absmag' => 1.4],
+            ['id' => 2, 'name' => 'Vega', 'sx' => 50.0, 'sy' => 75.0, 'absmag' => 0.6],
+            ['id' => 3, 'name' => 'Faint One', 'sx' => 10.0, 'sy' => 10.0, 'absmag' => 14.0],
+        ];
+    }
+
+    public function testBuildStarImageMapEmitsAnAreaPerLabelledStar(): void
+    {
+        $html = \IndexHelpers::buildStarImageMap($this->imageMapStars(), 8.0);
+
+        $this->assertStringContainsString('<map name="starmap">', $html);
+        $this->assertSame(2, substr_count($html, '<area '), 'Expected one area per labelled star');
+        $this->assertStringContainsString('href="?select_star=1&amp;select_center=1"', $html);
+        $this->assertStringContainsString('href="?select_star=2&amp;select_center=1"', $html);
+    }
+
+    public function testBuildStarImageMapSkipsStarsTooDimToBeLabelled(): void
+    {
+        // Emitting an area for every rendered star cost 10,000 elements and 1.3MB of
+        // HTML at wide zoom. Only labelled stars are clickable without JS.
+        $html = \IndexHelpers::buildStarImageMap($this->imageMapStars(), 8.0);
+
+        $this->assertStringNotContainsString('select_star=3', $html);
+        $this->assertStringNotContainsString('Faint One', $html);
+    }
+
+    public function testBuildStarImageMapRoundsCoordinatesAndUsesTheHitRadius(): void
+    {
+        $html = \IndexHelpers::buildStarImageMap($this->imageMapStars(), 8.0);
+
+        // 100.4, 200.6 -> 100, 201; radius matches HOVER_RADIUS in map-interactive.js
+        $this->assertStringContainsString('coords="100,201,15"', $html);
+    }
+
+    public function testBuildStarImageMapEscapesStarNames(): void
+    {
+        // Star names come from third-party catalogs, so they are untrusted here.
+        $stars = [['id' => 9, 'name' => '<script>alert(1)</script>', 'sx' => 1, 'sy' => 2, 'absmag' => 1.0]];
+        $html = \IndexHelpers::buildStarImageMap($stars, 8.0);
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testBuildStarImageMapReturnsEmptyStringWhenNothingQualifies(): void
+    {
+        $this->assertSame('', \IndexHelpers::buildStarImageMap([], 8.0));
+        // All stars dimmer than the label limit: no map element at all, so the img gets
+        // no usemap attribute pointing at nothing.
+        $this->assertSame('', \IndexHelpers::buildStarImageMap($this->imageMapStars(), -5.0));
+    }
+
+    public function testBuildStarImageMapCapsTheNumberOfAreas(): void
+    {
+        $stars = [];
+        for ($i = 1; $i <= 2000; $i++) {
+            $stars[] = ['id' => $i, 'name' => "S{$i}", 'sx' => $i % 500, 'sy' => $i % 400, 'absmag' => 1.0];
+        }
+
+        $html = \IndexHelpers::buildStarImageMap($stars, 8.0);
+
+        $this->assertSame(750, substr_count($html, '<area '), 'The hard cap on areas is not being applied');
+    }
+
+    public function testBuildMapHtmlAddsUsemapOnlyWhenAsked(): void
+    {
+        $params = ['x_c' => 0, 'y_c' => 0, 'z_c' => 0, 'xy_zoom' => 25];
+
+        $without = \IndexHelpers::buildMapHtml('normal', 600, $params);
+        $with = \IndexHelpers::buildMapHtml('normal', 600, $params, 'starmap');
+
+        $this->assertStringNotContainsString('usemap', $without);
+        $this->assertStringContainsString('usemap="#starmap"', $with);
+    }
 }

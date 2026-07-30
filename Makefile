@@ -2,7 +2,7 @@
 # Provides standard commands for development and CI
 
 .PHONY: test test-php test-unit test-integration test-api test-frontend test-coverage \
-        analyse ci ci-php ci-api ci-frontend help up down logs rebuild
+        analyse ci ci-full ci-php ci-api ci-frontend help up down logs rebuild
 
 # Default target
 help:
@@ -21,7 +21,8 @@ help:
 	@echo "  make lint-frontend    Run ESLint on frontend (via Docker)"
 	@echo ""
 	@echo "CI Pipelines:"
-	@echo "  make ci               Run full CI pipeline (all components)"
+	@echo "  make ci               Run full CI pipeline (no running stack needed)"
+	@echo "  make ci-full          make ci + integration tests (needs docker compose up)"
 	@echo "  make ci-php           Run PHP CI pipeline (analyse + test)"
 	@echo "  make ci-api           Run API CI pipeline (test)"
 	@echo "  make ci-frontend      Run Frontend CI pipeline (lint + test)"
@@ -41,26 +42,23 @@ help:
 
 # Run PHP unit tests via Docker (integration tests require database - use test-integration)
 test-php:
-	docker run --rm -v $(PWD)/hygmap-php:/app -w /app composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Unit --testdox"
+	docker run --rm -v $(PWD)/hygmap-php:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Unit --testdox"
 
 # Run PHP unit tests only via Docker
 test-unit:
-	docker run --rm -v $(PWD)/hygmap-php:/app -w /app composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Unit --testdox"
+	docker run --rm -v $(PWD)/hygmap-php:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Unit --testdox"
 
 # Run PHP integration tests via Docker (requires database to be running)
+# Integration tests run against the live stack (API + database), so `docker compose up`
+# must be running first. There is deliberately no "skip if absent" guard: this target
+# previously checked only that tests/Integration existed, so an empty directory reported
+# success while running nothing, for months. --fail-on-empty-test-suite makes that
+# impossible — if there are no tests, this fails.
 test-integration:
-	@if [ -d hygmap-php/tests/Integration ]; then \
-		docker run --rm -v $(PWD)/hygmap-php:/app -w /app \
-			--network hygmap_default \
-			-e DB_HOST=hygmap_db \
-			-e DB_PORT=5432 \
-			-e DB_NAME=$${POSTGRES_DB:-hygmap} \
-			-e DB_USERNAME=$${POSTGRES_USER:-hygmap_user} \
-			-e DB_PASSWORD=$${POSTGRES_PASSWORD} \
-			composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Integration --testdox"; \
-	else \
-		echo "Integration tests not present; skipping"; \
-	fi
+	docker run --rm -v $(PWD)/hygmap-php:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app \
+		--network hygmap_default \
+		-e API_BASE_URL=$${API_BASE_URL:-http://hygmap-api:8000} \
+		composer:2 sh -c "composer install --quiet && vendor/bin/phpunit --testsuite Integration --testdox --fail-on-empty-test-suite"
 
 # Run PHP tests with coverage via Docker
 test-coverage:
@@ -76,7 +74,7 @@ analyse:
 
 # Run FastAPI backend tests via Docker
 test-api:
-	docker run --rm -v $(PWD)/hygmap-api:/app -w /app python:3.11-slim sh -c \
+	docker run --rm -v $(PWD)/hygmap-api:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app python:3.11-slim sh -c \
 		"pip install --quiet --root-user-action=ignore -r requirements.txt && python -m pytest tests/ -v"
 
 # =============================================================================
@@ -85,7 +83,7 @@ test-api:
 
 # Run React frontend tests via Docker
 test-frontend:
-	docker run --rm -v $(PWD)/hygmap-frontend:/app -w /app node:20-slim sh -c \
+	docker run --rm -v $(PWD)/hygmap-frontend:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app node:20-slim sh -c \
 		"npm ci --silent && npm test -- --run"
 
 # Run ESLint on frontend via Docker
@@ -107,7 +105,23 @@ ci-api: test-api
 ci-frontend: lint-frontend test-frontend
 
 # Full CI pipeline (all components)
+# `make ci` runs everything that does NOT need a running stack: static analysis, PHP
+# unit tests, API tests, frontend lint and tests. It is what you can run from a cold
+# checkout.
+#
+# GitHub Actions runs all of that AND an `integration` job that brings the stack up and
+# runs `make test-integration` plus HTTP smoke tests. So a green `make ci` is strictly
+# weaker evidence than a green CI run, and that gap used to be invisible. Use
+# `make ci-full` before pushing anything that touches the API contract, the PHP data
+# path, or the renderer.
 ci: ci-php ci-api ci-frontend
+	@echo ""
+	@echo "make ci passed. NOTE: this did not run integration tests, which need the"
+	@echo "stack up. CI runs them. For the same coverage locally: make ci-full"
+
+# Everything `make ci` runs, plus the integration suite against a live stack.
+# Requires: docker compose up -d
+ci-full: ci test-integration
 
 # Legacy alias for backwards compatibility
 test: test-php test-api test-frontend

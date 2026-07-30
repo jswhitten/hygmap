@@ -118,7 +118,10 @@
     function showTooltip(star, pageX, pageY) {
         // Build tooltip content - escape all dynamic values for XSS prevention
         let html = `<strong>${escapeHtml(star.name)}</strong><br>`;
-        html += `Mag: ${escapeHtml(String(star.mag))}`;
+        // "mag" here carries ABSOLUTE magnitude (IndexHelpers sends $row['absmag']).
+        // It was labelled a bare "Mag:", which reads as apparent magnitude -- a different
+        // quantity. React and PHP's own info panel both distinguish the two.
+        html += `Abs Mag: ${escapeHtml(String(star.absmag))}`;
         if (star.spect) {
             html += ` • ${escapeHtml(star.spect)}`;
         }

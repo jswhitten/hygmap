@@ -66,7 +66,6 @@ $baseParams = [
     'image_size' => $image_size,
     'max_line' => (float)$cfg['max_line'],
 ];
-$map_html = buildMapHtml($image_type, $image_size, $baseParams);
 
 // Fetch star search options
 $profiler->flag("Querying star proper names");
@@ -86,6 +85,17 @@ $interactive_stars = buildInteractiveStarData(
     $bbox, $m_limit, $m_limit_label, $fic_names, $unit, $view_coords,
     $xy_zoom, $z_zoom, $image_size, $image_type
 );
+
+// Build the map image last: in non-stereo mode it carries an image map built from the
+// interactive star positions, which gives a working click-to-select without JavaScript.
+$star_image_map = $image_type === 'stereo' ? '' : buildStarImageMap($interactive_stars, $m_limit_label);
+$map_html = buildMapHtml(
+    $image_type,
+    $image_size,
+    $baseParams,
+    $star_image_map === '' ? null : 'starmap'
+);
+
 $profiler->flag("Query complete");
 
 $profiler->flag('FINISH');
@@ -228,6 +238,7 @@ $profiler->flag('FINISH');
   <div class="main">
     <div class="map-container" id="map-container" role="application" aria-label="Interactive 3D star map - use arrow keys to pan, +/- to zoom" tabindex="0">
       <?= $map_html ?>
+      <?= $star_image_map ?>
       <div id="star-tooltip" class="star-tooltip" role="tooltip" aria-live="polite"></div>
     </div>
     <div class="map-status">

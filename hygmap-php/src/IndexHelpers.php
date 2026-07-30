@@ -16,6 +16,14 @@ require_once __DIR__ . '/ApiClient.php';
 final class IndexHelpers
 {
     /**
+     * Hard cap on <area> elements in the no-JS star image map.
+     *
+     * Bounds page size regardless of zoom and label settings. Stars are emitted
+     * brightest-first, so the cap drops the dimmest.
+     */
+    private const IMAGE_MAP_MAX_AREAS = 750;
+
+    /**
      * Fetch selected star and update view center if requested
      *
      * @param int $select_star Star ID to select
@@ -45,8 +53,17 @@ final class IndexHelpers
             }
 
             return $selected_star;
+        } catch (ApiNotFoundException $e) {
+            // A bad id in the URL, or a bookmark from before a catalog renumbering. The
+            // service is fine, so say what is actually wrong and answer 404.
+            error_log("HYGMap: star not found: {$select_star} ({$e->getMessage()})");
+            ErrorHandler::handleNotFound(sprintf(
+                'No star with id %d. It may have been a stale link — star ids change when the '
+                . 'catalog is updated. Try searching for the star by name instead.',
+                $select_star
+            ));
         } catch (RuntimeException $e) {
-            ErrorHandler::handleError("Unable to retrieve star information from API.", $e);
+            ErrorHandler::handleError('Unable to retrieve star information: the star database is not responding.', $e);
         }
     }
 
@@ -148,8 +165,12 @@ final class IndexHelpers
      * @param array $baseParams Query parameters for map.php
      * @return string HTML for map image(s)
      */
-    public static function buildMapHtml(string $image_type, int $image_size, array $baseParams): string
-    {
+    public static function buildMapHtml(
+        string $image_type,
+        int $image_size,
+        array $baseParams,
+        ?string $usemap = null
+    ): string {
         // Build descriptive alt text for accessibility
         $x_c = $baseParams['x_c'] ?? 0;
         $y_c = $baseParams['y_c'] ?? 0;
@@ -172,10 +193,101 @@ final class IndexHelpers
                    'width="' . $image_size . '" height="' . $image_size . '">';
         } else {
             $src = 'map.php?' . http_build_query($baseParams);
+            // usemap gives a no-JavaScript path to star selection; see buildStarImageMap.
+            $usemapAttr = $usemap !== null
+                ? ' usemap="#' . htmlspecialchars($usemap, ENT_QUOTES) . '"'
+                : '';
             return '<img src="' . htmlspecialchars($src) . '" ' .
                    'alt="' . htmlspecialchars($altText) . '" ' .
-                   'width="' . ($image_size * 2) . '" height="' . $image_size . '">';
+                   'width="' . ($image_size * 2) . '" height="' . $image_size . '"' .
+                   $usemapAttr . '>';
         }
+    }
+
+    /**
+     * Build an HTML image map so stars can be selected without JavaScript.
+     *
+     * Clicking a star was implemented only as a JS click handler on the map image
+     * (js/map-interactive.js), so with scripting off the classic UI's headline
+     * interaction simply did not exist. The sidebar forms still worked, but the thing
+     * the app is for did not.
+     *
+     * This reuses the screen positions already computed for the JS overlay — no new
+     * geometry — and emits one <area> per star pointing at the same URL the click
+     * handler would have navigated to. The JS path is untouched and still provides hover
+     * tooltips and cursor feedback, which an image map cannot.
+     *
+     * Only non-stereo layouts get a map: in stereo mode the page shows two images and a
+     * single set of screen coordinates does not address either of them unambiguously.
+     *
+     * Scope: only stars bright enough to be labelled, and never more than
+     * IMAGE_MAP_MAX_AREAS of them. See the inline notes for the measurements behind that.
+     *
+     * @param array $stars Interactive star data from buildInteractiveStarData()
+     * @param float $magLimitLabel Label magnitude limit; stars dimmer than this are skipped
+     * @param string $name Map name, referenced by the img usemap attribute
+     * @param int $radius Click radius in pixels; matches HOVER_RADIUS in the JS
+     * @param int $maxAreas Hard cap on emitted areas, so page size stays bounded
+     *
+     * One behavioural difference worth knowing: the JS picks the *nearest* star within
+     * the radius, while overlapping <area> elements resolve to the *first* in document
+     * order. Stars are emitted brightest-first (the query orders by absolute magnitude),
+     * so in a crowded field the no-JS path favours the brighter star — a defensible
+     * tie-break, but not identical to the scripted one.
+     * @return string HTML <map> element, or '' if there is nothing to map
+     */
+    public static function buildStarImageMap(
+        array $stars,
+        float $magLimitLabel = 8.0,
+        string $name = 'starmap',
+        int $radius = 15,
+        int $maxAreas = self::IMAGE_MAP_MAX_AREAS
+    ): string {
+        if ($stars === []) {
+            return '';
+        }
+
+        $areas = [];
+        foreach ($stars as $star) {
+            $id = (int)($star['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            // Only labelled stars get an <area>. Emitting one per rendered star cost
+            // 10,000 elements and 1.3MB of HTML at wide zoom (measured 2026-07-29) --
+            // more than a quarter of the page for stars the user cannot see a name for.
+            // A star with a visible label is the one a no-JS user is trying to click.
+            if ((float)($star['absmag'] ?? 99.0) >= $magLimitLabel) {
+                continue;
+            }
+
+            if (count($areas) >= $maxAreas) {
+                break;
+            }
+
+            $sx = (int)round((float)($star['sx'] ?? 0));
+            $sy = (int)round((float)($star['sy'] ?? 0));
+            $label = (string)($star['name'] ?? ('Star ' . $id));
+
+            $areas[] = sprintf(
+                '<area shape="circle" coords="%d,%d,%d" href="?select_star=%d&amp;select_center=1" alt="%s" title="%s">',
+                $sx,
+                $sy,
+                $radius,
+                $id,
+                htmlspecialchars($label, ENT_QUOTES),
+                htmlspecialchars($label, ENT_QUOTES)
+            );
+        }
+
+        if ($areas === []) {
+            return '';
+        }
+
+        return '<map name="' . htmlspecialchars($name, ENT_QUOTES) . '">'
+            . implode('', $areas)
+            . '</map>';
     }
 
     /**
@@ -194,7 +306,7 @@ final class IndexHelpers
         try {
             $rows = ApiClient::instance()->queryAll($bbox, $m_limit, $fic_names, 'absmag asc');
         } catch (RuntimeException $e) {
-            ErrorHandler::handleError("Unable to query stars in the current map area.", $e);
+            ErrorHandler::handleError('Unable to query stars in the current map area: the star database is not responding.', $e);
         }
 
         $star_data = [];
@@ -401,7 +513,9 @@ final class IndexHelpers
                 'z' => round($z_ui, 3),
                 'sx' => round($screen_x, 1),
                 'sy' => round($screen_y, 1),
-                'mag' => round((float)$row['absmag'], 2),
+                // Named absmag, not mag: this is absolute magnitude, and the tooltip
+                // labels it as such. The old key 'mag' invited the confusion.
+                'absmag' => round((float)$row['absmag'], 2),
                 'spect' => $row['spect'] ?? '',
             ];
         }
@@ -424,9 +538,14 @@ function buildSelectedStarData(?array $selected_star, int $fic_names, string $un
     return IndexHelpers::buildSelectedStarData($selected_star, $fic_names, $unit);
 }
 
-function buildMapHtml(string $image_type, int $image_size, array $baseParams): string
+function buildMapHtml(string $image_type, int $image_size, array $baseParams, ?string $usemap = null): string
 {
-    return IndexHelpers::buildMapHtml($image_type, $image_size, $baseParams);
+    return IndexHelpers::buildMapHtml($image_type, $image_size, $baseParams, $usemap);
+}
+
+function buildStarImageMap(array $stars, float $magLimitLabel = 8.0, string $name = 'starmap'): string
+{
+    return IndexHelpers::buildStarImageMap($stars, $magLimitLabel, $name);
 }
 
 function fetchStarTableData(array $bbox, float $m_limit, float $m_limit_label, int $fic_names, string $unit, array $view_coords): array

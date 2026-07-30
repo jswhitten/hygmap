@@ -14,6 +14,13 @@ export interface Star {
   y: number
   z: number
   display_name: string
+  /**
+   * Fictional name, populated by the API only when a world_id was requested.
+   * The React UI has no world selector yet, so this is normally absent — but the
+   * display-name rule accounts for it so all three stacks share one chain.
+   */
+  name?: string | null
+  spect?: string | null
 }
 
 export interface StarDetail extends Star {
@@ -52,43 +59,52 @@ export interface BoundingBox {
 }
 
 /**
- * Get display name for a star with priority:
- * 1. Proper name (e.g., "Vega")
- * 2. Bayer designation + constellation (e.g., "Alp Lyr")
- * 3. Flamsteed designation + constellation (e.g., "51 Peg")
- * 4. Catalog IDs (HIP, HD, GJ)
- * 5. Database ID
+ * Get the display name for a star.
+ *
+ * Prefers the server-computed display_name; falls back to the canonical chain below.
+ * See tests/fixtures/display-names.json for the authoritative table.
  */
 export function getStarDisplayName(star: Star | StarDetail): string {
-  // Use server-computed display_name if available
+  // The server computes this too, and its value wins — see StarBase.display_name in
+  // hygmap-api/app/schemas/star.py. This local chain is the fallback for rows that
+  // arrive without one, and it must stay in step with the server and with PHP's
+  // StarFormatter. All three are asserted against tests/fixtures/display-names.json;
+  // change that table first.
+  //
+  // Canonical order (decided 2026-07-29): fictional > proper > bayer+con > flam+con >
+  // GJ > HD > HIP > HR > CNS5 > TYC > Gaia > spect > ID. GJ leads because this is a map
+  // of the solar neighbourhood; this chain used to lead with HIP.
   if (star.display_name) {
     return star.display_name
   }
 
-  // Fallback computation (shouldn't be needed with new API)
+  if (star.name) {
+    return star.name
+  }
   if (star.proper) {
     return star.proper
   }
+  // Source data carries padding on bayer/flam, and the constellation is required —
+  // a bare Greek letter is not a designation.
   if (star.bayer && star.con) {
-    return `${star.bayer} ${star.con}`
+    return `${star.bayer.trim()} ${star.con.trim()}`
   }
   if (star.flam && star.con) {
-    return `${star.flam} ${star.con}`
+    return `${star.flam.trim()} ${star.con.trim()}`
   }
 
-  // For StarDetail, check catalog IDs
   const detail = star as StarDetail
-  if (detail.hip) {
-    return `HIP ${detail.hip}`
+  if (detail.gj) {
+    return `GJ ${detail.gj}`
   }
   if (detail.hd) {
     return `HD ${detail.hd}`
   }
+  if (detail.hip) {
+    return `HIP ${detail.hip}`
+  }
   if (detail.hr) {
     return `HR ${detail.hr}`
-  }
-  if (detail.gj) {
-    return `GJ ${detail.gj}`
   }
   if (detail.cns5) {
     return `CNS5 ${detail.cns5}`
@@ -99,6 +115,10 @@ export function getStarDisplayName(star: Star | StarDetail): string {
   if (detail.gaia) {
     return `Gaia ${detail.gaia}`
   }
+  if (star.spect) {
+    return star.spect
+  }
 
   return `ID ${star.id}`
 }
+

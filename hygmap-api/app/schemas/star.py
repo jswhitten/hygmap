@@ -16,9 +16,14 @@ class StarBase(BaseModel):
     absmag: Optional[float] = None
     mag: Optional[float] = None
     dist: Optional[float] = None
-    x: float
-    y: float
-    z: float
+    # Optional because a star with no usable parallax has no 3D position. The import
+    # clears dist/absmag/x/y/z for those (see the sentinel note in
+    # db/sql/03_import_data.sql) rather than placing them at a fabricated 100 kpc.
+    # List and search results exclude them, since they cannot be drawn; a direct
+    # /stars/{id} request still returns them, with nulls, rather than failing.
+    x: Optional[float] = None
+    y: Optional[float] = None
+    z: Optional[float] = None
     # Catalog IDs for display_name fallback
     hip: Optional[str] = None
     hd: Optional[str] = None
@@ -34,35 +39,58 @@ class StarBase(BaseModel):
     @property
     def display_name(self) -> str:
         """
-        Generate display name with priority:
-        1. Proper name (e.g., "Vega")
-        2. Bayer designation + constellation (e.g., "Alp Lyr")
-        3. Flamsteed designation + constellation (e.g., "51 Peg")
-        4. HIP catalog number
-        5. HD catalog number
-        6. Other catalog IDs
-        7. Database ID
+        The star's display name.
+
+        This is the ONE implementation of this rule. It previously existed four times
+        (here, on StarDetail, in PHP's StarFormatter, and in React's getStarDisplayName)
+        and the copies disagreed: a star with both a GJ and a HIP number was called
+        "GJ 1" by PHP and "HIP 439" here. See tests/fixtures/display-names.json, which
+        every suite asserts against.
+
+        Canonical order, decided 2026-07-29:
+
+            fictional name (only when a world is selected)
+            proper
+            bayer + con      (both required, trimmed)
+            flam + con       (both required, trimmed)
+            GJ               Gliese-Jahreiss leads because this is a map of the solar
+            HD               neighbourhood, so the nearby-star catalog is the most
+            HIP              useful identifier to show. This used to lead with HIP.
+            HR
+            CNS5
+            TYC
+            Gaia
+            spect            informative for an anonymous star
+            ID <id>          last resort, so the name is never empty
         """
+        # The fictional name is only populated when the query passed a world_id, so its
+        # presence is the signal. Without this branch the API could not express the name
+        # PHP needed, which is why PHP reimplemented the whole chain.
+        if self.name:
+            return self.name
         if self.proper:
             return self.proper
+        # Source data carries padding on bayer/flam; trim so the three stacks agree.
         if self.bayer and self.con:
-            return f"{self.bayer} {self.con}"
+            return f"{self.bayer.strip()} {self.con.strip()}"
         if self.flam and self.con:
-            return f"{self.flam} {self.con}"
-        if self.hip:
-            return f"HIP {self.hip}"
-        if self.hd:
-            return f"HD {self.hd}"
-        if self.hr:
-            return f"HR {self.hr}"
+            return f"{self.flam.strip()} {self.con.strip()}"
         if self.gj:
             return f"GJ {self.gj}"
+        if self.hd:
+            return f"HD {self.hd}"
+        if self.hip:
+            return f"HIP {self.hip}"
+        if self.hr:
+            return f"HR {self.hr}"
         if self.cns5:
             return f"CNS5 {self.cns5}"
         if self.tyc:
             return f"TYC {self.tyc}"
         if self.gaia:
             return f"Gaia {self.gaia}"
+        if self.spect:
+            return self.spect
         return f"ID {self.id}"
 
 
@@ -81,38 +109,10 @@ class StarDetail(StarBase):
     dist: Optional[float] = None
     mag: Optional[float] = None
 
-    @computed_field
-    @property
-    def display_name(self) -> str:
-        """
-        Generate display name with full priority order:
-        1. Proper name (e.g., "Vega")
-        2. Bayer designation + constellation (e.g., "Alp Lyr")
-        3. Flamsteed designation + constellation (e.g., "51 Peg")
-        4. HIP catalog number
-        5. HD catalog number
-        6. Gliese catalog number
-        7. Database ID
-        """
-        if self.proper:
-            return self.proper
-        if self.bayer and self.con:
-            return f"{self.bayer} {self.con}"
-        if self.flam and self.con:
-            return f"{self.flam} {self.con}"
-        if self.hip:
-            return f"HIP {self.hip}"
-        if self.hd:
-            return f"HD {self.hd}"
-        if self.gj:
-            return f"GJ {self.gj}"
-        if self.cns5:
-            return f"CNS5 {self.cns5}"
-        if self.tyc:
-            return f"TYC {self.tyc}"
-        if self.gaia:
-            return f"Gaia {self.gaia}"
-        return f"ID {self.id}"
+    # display_name is inherited from StarBase deliberately. It used to be a second
+    # hand-written copy of the chain, and the copies had already drifted -- StarBase
+    # checked hr and this one did not, so an HR-only star was "HR 2491" in a list row
+    # and "ID 7" in a detail row.
 
 
 class StarListResponse(BaseModel):

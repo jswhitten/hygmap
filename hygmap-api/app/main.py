@@ -97,6 +97,11 @@ app = FastAPI(
     title="HYGMap API",
     description="Backend API for interactive 3D star mapping with AT-HYG database",
     version="2.0.0",
+    # Explicit rather than relying on FastAPI's defaults, so exposing the interactive
+    # docs is a recorded decision. See ENABLE_DOCS in app/config.py for the reasoning.
+    docs_url="/docs" if settings.ENABLE_DOCS else None,
+    redoc_url="/redoc" if settings.ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if settings.ENABLE_DOCS else None,
 )
 
 # Attach limiter to app state and add exception handler

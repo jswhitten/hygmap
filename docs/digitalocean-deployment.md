@@ -311,6 +311,18 @@ EOF
 
 **api.hygmap.space (FastAPI):**
 
+> **The `X-Forwarded-For` header below is load-bearing.** The API's per-IP rate limit
+> reads the client address from it. Uvicorn only trusts that header from an address listed
+> in `FORWARDED_ALLOW_IPS`, which `docker-compose.prod.yml` sets to `*` — safe only
+> because the same file binds the API to `127.0.0.1:8000`, so nginx is the only thing that
+> can connect. **If you publish port 8000 publicly, remove `FORWARDED_ALLOW_IPS` at the
+> same time**, or any client will be able to forge its own address and sidestep the rate
+> limit entirely.
+>
+> Without this header, every caller looks like the Docker bridge gateway and the per-IP
+> limit degrades into one bucket shared by the whole internet — which is what it was doing
+> until 2026-07-29.
+
 ```bash
 sudo tee /etc/nginx/sites-available/api.hygmap.space << 'EOF'
 server {

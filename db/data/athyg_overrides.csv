@@ -1,0 +1,2 @@
+gaia,hip,expect_proper,dist,source
+4093933487636355968,89341,Polis,1500,"Sgr OB1 association membership; maintainer-supplied. Gaia DR3 has photometry but no parallax for this star (G=3.76), and Hipparcos gives 0.09 +/- 0.28 mas -- smaller than its own error -- so no astrometric distance exists. A bibcode would be better than this note."

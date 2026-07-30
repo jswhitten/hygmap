@@ -86,6 +86,45 @@ curl "http://localhost:8000/api/stars/?xmin=-10&xmax=10&ymin=-10&ymax=10&zmin=-1
 
 ---
 
+### Star names (`display_name`)
+
+Every star response carries a server-computed `display_name`. **It is the authoritative
+name** — clients should display it rather than deriving their own, and both front ends do
+(PHP keeps a parallel implementation only because its map labels are colour-coded by
+which kind of designation matched).
+
+Resolution order:
+
+| # | Source | Example |
+|---|---|---|
+| 1 | Fictional name (only when `world_id` is set) | `Vulcan` |
+| 2 | Proper name | `Sirius` |
+| 3 | Bayer + constellation (both required) | `Alp Cen` |
+| 4 | Flamsteed + constellation (both required) | `61 Cyg` |
+| 5 | Gliese-Jahreiss | `GJ 1` |
+| 6 | Henry Draper | `HD 225213` |
+| 7 | Hipparcos | `HIP 439` |
+| 8 | Yale Bright Star | `HR 2491` |
+| 9 | CNS5 | `CNS5 19` |
+| 10 | Tycho-2 | `TYC 6995-1264-1` |
+| 11 | Gaia DR3 | `Gaia 2306965202564744064` |
+| 12 | Spectral type | `M2V` |
+| 13 | Database id | `ID 7323` |
+
+**GJ leads the catalog designations deliberately.** HYGMap is a map of the solar
+neighbourhood, so the nearby-star catalog is the most useful identifier to show. Until
+2026-07-29 this endpoint led with HIP while the PHP UI led with GJ, so the same star was
+named two different things depending on which interface you opened.
+
+Bayer and Flamsteed values are trimmed (the source catalog carries padding), and a
+designation is only used when its constellation is present — a bare Greek letter is not a
+name. The name is never empty.
+
+The canonical table of cases lives in `tests/fixtures/display-names.json` and is asserted
+by all three test suites. **Change that file first** if this order ever needs to move.
+
+---
+
 #### Search Stars (`/api/stars/search`)
 
 **GET** `/api/stars/search`

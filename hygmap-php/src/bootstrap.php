@@ -41,12 +41,10 @@ try {
     // Quick API health check by fetching worlds list (small response)
     ApiClient::instance()->queryWorlds();
 } catch (RuntimeException $e) {
-    error_log("API connection error: " . $e->getMessage());
-    echo '<!DOCTYPE html><html><head><title>API Error</title></head>';
-    echo '<body style="font-family:sans-serif;margin:2rem;">';
-    echo '<h1>⚠️ API Connection Error</h1>';
-    echo '<p>Unable to connect to the star API. Please check that the API service is running.</p>';
-    echo '<p>Technical details have been logged.</p>';
-    echo '</body></html>';
-    exit(1);
+    // Answer 503, not 200. This page used to return success while telling the user the
+    // service was down, so monitors, crawlers and caches all treated an outage as content.
+    ErrorHandler::handleError(
+        'Unable to connect to the star database. Please try again shortly.',
+        $e
+    );
 }

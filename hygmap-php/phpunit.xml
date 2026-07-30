@@ -12,6 +12,15 @@
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
+        <!--
+            Integration tests run against the live API and database (see the
+            test-integration target in the Makefile). Without this entry, running
+            phpunit with the Integration suite name matched nothing and exited 0,
+            which is how an empty directory passed for a test suite for months.
+        -->
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

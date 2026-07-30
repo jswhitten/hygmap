@@ -359,16 +359,31 @@ async def search_stars(
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
                 hip, hd, hr, gj, cns5, gaia, tyc
             FROM athyg
-            WHERE LOWER(COALESCE(proper, '')) LIKE :pattern ESCAPE '\\'
+            -- Exclude stars that cannot be placed on the map: those with no position at
+            -- all (no usable parallax), and those beyond the coordinate domain this API
+            -- can even express. Returning them produced results that could not be opened
+            -- -- selecting one drove the view outside MAX_COORDINATE_VALUE and the PHP
+            -- page answered 503. They also sort first, because a broken parallax yields an
+            -- absurdly bright absolute magnitude.
+            WHERE x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
+              AND abs(x) <= :max_coord AND abs(y) <= :max_coord AND abs(z) <= :max_coord
+              AND (
+                LOWER(COALESCE(proper, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :bayer_pattern ESCAPE '\\'
                OR LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
+              )
             ORDER BY absmag ASC NULLS LAST
             LIMIT :limit
         """)
         result = await db.execute(
             query,
-            {"pattern": like_pattern, "bayer_pattern": bayer_pattern, "limit": limit},
+            {
+                "pattern": like_pattern,
+                "bayer_pattern": bayer_pattern,
+                "limit": limit,
+                "max_coord": MAX_COORDINATE_VALUE,
+            },
         )
 
     rows = result.mappings().all()

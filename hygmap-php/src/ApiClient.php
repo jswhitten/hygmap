@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/ApiExceptions.php';
+
 /**
  * ApiClient - HTTP client for the FastAPI backend
  *
@@ -248,8 +250,13 @@ final class ApiClient
             } elseif ($statusCode >= 500 || $statusCode === 429) {
                 // Retry on transient server or rate-limit errors
                 $lastError = "HTTP {$statusCode}: {$response}";
+            } elseif ($statusCode === 404) {
+                // Not a fault: the API is healthy and is telling us the thing does not
+                // exist. Callers need this distinct from an outage so they can answer 404
+                // instead of claiming the service is broken.
+                throw new ApiNotFoundException($this->formatApiError($url, $statusCode, $response));
             } elseif ($statusCode >= 400) {
-                // Do not retry on client errors
+                // Do not retry on other client errors
                 throw new RuntimeException($this->formatApiError($url, $statusCode, $response));
             } else {
                 $data = json_decode((string)$response, true);
@@ -274,7 +281,8 @@ final class ApiClient
             }
         }
 
-        throw new RuntimeException("API request failed after {$attempts} attempt(s): {$lastError}");
+        // Connection failure, or 5xx that survived every retry. This is an outage.
+        throw new ApiUnavailableException("API request failed after {$attempts} attempt(s): {$lastError}");
     }
 
     /**

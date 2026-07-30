@@ -758,3 +758,60 @@ class TestSearchGreekLetters:
         response = await client.get("/api/stars/search", params={"q": "elgeu"})
         assert response.status_code == 200
         assert any(s["proper"] == "Betelgeuse" for s in response.json()["data"])
+
+
+class TestSearchExcludesUndisplayableStars:
+    """
+    Search must not return stars the app cannot open.
+
+    Both cases below produced a result that looked fine and then failed: selecting one
+    drove the map view outside MAX_COORDINATE_VALUE, the bbox request was rejected, and
+    the PHP page answered 503. Searching "Cen" did exactly this, because a broken parallax
+    gives an absurdly bright absolute magnitude and search orders brightest-first, so the
+    artifacts came back first.
+    """
+
+    async def test_search_excludes_positionless_stars(self, client: AsyncClient):
+        """A star with no usable parallax has no coordinates and cannot be drawn."""
+        response = await client.get("/api/stars/search", params={"q": "Sgr"})
+        assert response.status_code == 200
+
+        ids = [s["id"] for s in response.json()["data"]]
+        assert 12 not in ids, "a positionless star was returned by search"
+
+    async def test_search_excludes_stars_beyond_the_coordinate_domain(
+        self, client: AsyncClient
+    ):
+        """Beyond MAX_COORDINATE_VALUE the API cannot express a bbox containing the star."""
+        response = await client.get("/api/stars/search", params={"q": "Sgr"})
+        assert response.status_code == 200
+
+        ids = [s["id"] for s in response.json()["data"]]
+        assert 13 not in ids, "a star outside the queryable coordinate domain was returned"
+
+    async def test_search_still_finds_normal_stars_in_that_constellation(
+        self, client: AsyncClient
+    ):
+        """Guard against the exclusions being too broad."""
+        response = await client.get("/api/stars/search", params={"q": "Ori"})
+        assert response.status_code == 200
+        assert len(response.json()["data"]) >= 2
+
+    async def test_star_detail_returns_positionless_stars_without_failing(
+        self, client: AsyncClient
+    ):
+        """
+        A direct request for such a star must still work.
+
+        Excluding it from search is right; making it unfetchable is not, and returning 500
+        because the schema demanded non-null coordinates is certainly not.
+        """
+        response = await client.get("/api/stars/12")
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert data["x"] is None
+        assert data["dist"] is None
+        # The name and the direction survive; only the distance is unknown.
+        assert data["display_name"] == "Positionless Star"
+        assert data["con"] == "Sgr"

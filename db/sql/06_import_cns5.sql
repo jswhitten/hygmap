@@ -103,15 +103,48 @@ BEGIN
 END $$;
 
 --
--- UPDATE matched rows: backfill distance where missing
+-- UPDATE matched rows: take CNS5's distance when ours is missing OR implausible
+--
+-- CNS5 is volume-complete to 25 pc, so a star it lists cannot be further than that.
+-- This step used to require `a.dist IS NULL`, which meant a wrong AT-HYG value blocked a
+-- correct CNS5 one -- and the correct one was already sitting in the CSV. The worst case
+-- was CNS5 788 / GJ 125, an M2 dwarf: AT-HYG 97009.6 pc, CNS5 17.19 pc, a factor of 3900,
+-- with absmag -9.68 instead of +7.29.
+--
+-- The threshold is evidence-based, not arbitrary. Comparing every CNS5-designated star
+-- against AT-HYG (measured 2026-07-30):
+--
+--     within 2%      5,765 (97.58%)
+--     2-10%          63 (1.07%)
+--     10-50%         64 (1.08%)
+--     50-200%        1 (0.02%)
+--     over 200%      15 (0.25%)   <-- all of these are bad Gaia parallaxes
+--
+-- The bulk agrees to within 2% and the contradictions sit past 200% with a clear gap
+-- below, so overriding above a factor of 2 is surgical: it touches the contradictions and
+-- nothing else.
+--
+-- dist and absmag are set in ONE statement deliberately. absmag was derived from the old
+-- distance, so adopting a new distance without it would leave the two inconsistent -- and
+-- it cannot be done in a following statement, because by then a.dist already equals s.dist
+-- and the disagreement test no longer fires. COALESCE keeps our value if CNS5 has none.
 --
 UPDATE athyg a
-SET    dist = s.dist
+SET    dist = s.dist,
+       absmag = COALESCE(s.absmag, a.absmag),
+       -- Record where the adopted value came from. Without this the data cannot say
+       -- whether a distance is AT-HYG's or ours, which makes the quality check unable to
+       -- tell an accepted override from an unresolved contradiction.
+       dist_src = 'CNS5'
 FROM   cns5_stage s
 WHERE  s.athyg_id = a.id
   AND  s.match_method != 'new'
-  AND  a.dist IS NULL
-  AND  s.dist IS NOT NULL;
+  AND  s.dist IS NOT NULL
+  AND  s.dist > 0
+  AND  (
+         a.dist IS NULL
+         OR abs(a.dist - s.dist) / s.dist > 1.0   -- disagrees by more than a factor of 2
+       );
 
 --
 -- UPDATE matched rows: backfill absolute magnitude where missing

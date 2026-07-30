@@ -72,6 +72,40 @@ BEGIN
   RAISE NOTICE 'Cleaned gl prefixes (Gl/GJ) in staging table.';
 END $$;
 
+--
+-- Neutralise the "distance unknown" sentinel.
+--
+-- HYG represents a star with no usable parallax by flooring the parallax at 0.01 mas,
+-- which inverts to a distance of exactly 100000 pc. It is a placeholder, not a
+-- measurement, and it is not documented anywhere upstream that we can find. Verified
+-- 2026-07-30: 143 rows carry it, every one with dist_src = 'H', and every one with an
+-- implied parallax of exactly 0.01000 mas.
+--
+-- Treated as data it does real damage. absmag is derived from it, giving values down to
+-- -16.16 -- brighter than anything real -- and /api/stars/search has no bounding box and
+-- orders by absmag ascending, so these stars come back FIRST. Searching "Cen" landed the
+-- PHP app on one of them, and because its coordinates are ~100 kpc out the resulting map
+-- request exceeded the API's coordinate limit and the page returned 503. A user looking
+-- for Alpha Centauri got an error.
+--
+-- So: distance unknown means unknown. absmag goes too, because it was computed from the
+-- placeholder, and so do the positions, because a star with no distance has no place in a
+-- 3D map. Its ra/dec are untouched, so the direction is still on record.
+--
+UPDATE athyg_stage
+SET    dist = NULL,
+       absmag = NULL,
+       x_eq = NULL,
+       y_eq = NULL,
+       z_eq = NULL
+WHERE  dist = 100000;
+
+DO $$
+BEGIN
+  RAISE NOTICE 'Cleared the 100000 pc unknown-distance sentinel on % rows.',
+    (SELECT COUNT(*) FROM athyg_stage WHERE dist IS NULL AND dist_src = 'H');
+END $$;
+
 INSERT INTO athyg (
   id, tyc, gaia, hyg, hip, hd, hr, gj, bayer, flam, con, proper,
   ra, dec, pos_src, dist, x, y, z, x_eq, y_eq, z_eq,
@@ -98,7 +132,8 @@ SET
   x_eq = dist * cos(radians(dec)) * cos(radians(ra * 15)),
   y_eq = dist * cos(radians(dec)) * sin(radians(ra * 15)),
   z_eq = dist * sin(radians(dec))
-WHERE x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL;
+WHERE (x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL)
+  AND dist IS NOT NULL;  -- no distance, no position (see the sentinel note above)
 
 --
 -- Calculate galactic coordinates for all stars
