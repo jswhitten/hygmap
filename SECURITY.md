@@ -2,8 +2,8 @@
 
 ## Reporting a Vulnerability
 - Please report suspected vulnerabilities privately. Do not create public issues for security reports.
-- Preferred: open a private GitHub Security Advisory for this repository.
-- If you cannot use advisories, email the maintainers at security@hygmap.org with details and reproduction steps.
+- **Open a [private GitHub Security Advisory](https://github.com/jswhitten/hygmap/security/advisories/new) for this repository.** This is the reporting channel; it is private to the maintainers and needs nothing set up on your side beyond a GitHub account.
+- If you do not have a GitHub account, open a public issue saying only that you have a security report and asking for a private contact — **do not include any details** in it.
 - Include the affected service (frontend, API, or PHP), the exact version/commit, and any proof of concept.
 
 ## Response Expectations

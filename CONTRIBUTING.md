@@ -16,12 +16,12 @@ Thank you for your interest in contributing to HYGMap! This guide will help you 
 Before submitting changes, ensure all tests pass. All tests run inside Docker containers - no local installations required.
 
 ```bash
-# Run all tests (PHP + API + Frontend)
+# Run all tests (PHP + API + Frontend + database scripts)
 make test
 
 # PHP tests
 make test-unit        # Unit tests (fast, no database)
-make test-integration # Integration tests (needs database)
+make test-integration # Integration tests (needs the stack up)
 make analyse          # PHPStan static analysis
 
 # API tests
@@ -29,11 +29,22 @@ make test-api
 
 # Frontend tests
 make test-frontend
-make lint-frontend    # ESLint
+make lint-frontend       # ESLint
+make typecheck-frontend  # tsc
+
+# Database scripts (catalog matching, constellations, coordinate consistency)
+make test-scripts
 
 # Full CI pipeline
-make ci
+make ci        # everything that does NOT need a running stack
+make ci-full   # the above plus integration tests (bring the stack up first)
 ```
+
+`make test-scripts` runs the `db/scripts` suite — the code that decides which catalog row
+is which star, and that computes constellations and coordinates. CI runs it as the
+`scripts-test` job, so a change that breaks it fails the build whether or not you ran it
+locally. Note that plain `make ci` deliberately skips the integration tests, which need
+`docker compose up` first; use `make ci-full` for the same coverage CI has.
 
 ### Code Style
 

@@ -18,6 +18,7 @@ Contains 2.84 million stars (2,839,957 as of AT-HYG 4.0) from multiple astronomi
 | `hd` | TEXT | Henry Draper catalog number |
 | `hr` | TEXT | Harvard Revised (Yale Bright Star) number |
 | `gj` | TEXT | Gliese-Jahreiss catalog ID (e.g., "581", "667C") |
+| `cns5` | TEXT | Gliese CNS5 catalog ID (e.g., "788", "1051"), added by `06_import_cns5.sql` |
 | `bayer` | TEXT | Bayer designation letter (e.g., "Alp", "Bet") |
 | `flam` | TEXT | Flamsteed number (e.g., "61", "70") |
 | `con` | TEXT | Constellation abbreviation (e.g., "Cyg", "Cen") |
@@ -147,20 +148,28 @@ Contains historical SETI transmissions and notable received signals.
 
 The database includes indexes optimized for spatial queries and catalog lookups:
 
+This list is the whole of `db/sql/02_create_indexes.sql`; keep the two in step.
+
 ```sql
 -- Spatial queries (bounding box + magnitude)
 CREATE INDEX idx_athyg_galactic ON athyg(x, y, z);
 CREATE INDEX idx_bbox_mag ON athyg (x, y, z, mag);
+CREATE INDEX idx_athyg_mag ON athyg(mag) WHERE mag IS NOT NULL;
 
 -- Catalog ID lookups
+CREATE INDEX idx_athyg_hyg ON athyg(hyg) WHERE hyg IS NOT NULL;
 CREATE INDEX idx_athyg_hip ON athyg(hip) WHERE hip IS NOT NULL;
 CREATE INDEX idx_athyg_hd ON athyg(hd) WHERE hd IS NOT NULL;
 CREATE INDEX idx_athyg_gaia ON athyg(gaia) WHERE gaia IS NOT NULL;
+CREATE INDEX idx_athyg_gj ON athyg(gj) WHERE gj IS NOT NULL;
+CREATE INDEX idx_athyg_cns5 ON athyg(cns5) WHERE cns5 IS NOT NULL;
 
--- Name lookups
+-- Name and classification lookups
 CREATE INDEX idx_athyg_proper_lower ON athyg(LOWER(proper)) WHERE proper IS NOT NULL;
 CREATE INDEX idx_athyg_bayer_con ON athyg (bayer, con);
 CREATE INDEX idx_athyg_flam_con ON athyg (flam, con);
+CREATE INDEX idx_athyg_con ON athyg(con) WHERE con IS NOT NULL;
+CREATE INDEX idx_athyg_spect ON athyg(spect) WHERE spect IS NOT NULL;
 
 -- Name search (trigram; see below)
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
