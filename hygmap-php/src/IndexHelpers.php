@@ -84,22 +84,37 @@ final class IndexHelpers
             ];
         }
 
-        // Calculate display name and links
-        $star_name = StarFormatter::getDisplayName($selected_star, 0);
+        // Calculate display name and links.
+        //
+        // The panel leads with the canonical name -- the same one the API's `display_name`,
+        // the map overlay and the star table give, which means a fictional name wins
+        // outright when a naming layer is on. This used to pass a hardcoded 0 here, so a
+        // single page load could show four different names for one star.
+        //
+        // The catalog name is still worth showing and is still what the Wikipedia link has
+        // to point at: "Alpha" is a Star Trek name, "37 Cet" is the thing Wikipedia knows.
+        $star_name = StarFormatter::getDisplayName($selected_star, $fic_names);
+        $catalog_name = StarFormatter::getDisplayName($selected_star, 0);
         $has_catalog_name = !empty($selected_star["proper"]) || !empty($selected_star["bf"]);
+        $wikipedia_link = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' .
+                          urlencode($catalog_name) . '">' .
+                          htmlspecialchars($catalog_name, ENT_QUOTES) . '</a>';
 
-        if ($has_catalog_name) {
-            $display_name = '<a href="https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=' .
-                           urlencode($star_name) . '">' .
-                           htmlspecialchars($star_name, ENT_QUOTES) . '</a>';
+        if ($star_name === $catalog_name) {
+            $display_name = $has_catalog_name
+                ? $wikipedia_link
+                : htmlspecialchars($star_name, ENT_QUOTES);
         } else {
-            $display_name = htmlspecialchars($star_name, ENT_QUOTES);
+            // A fictional name is in front. Keep the catalog name alongside it as context.
+            $display_name = htmlspecialchars($star_name, ENT_QUOTES) . ' ('
+                . ($has_catalog_name ? $wikipedia_link : htmlspecialchars($catalog_name, ENT_QUOTES))
+                . ')';
         }
 
-        // Add fictional name if present
+        // Link out to the fiction wiki whenever a fictional name is in play -- including
+        // when it is the primary name, which is the common case with a layer on.
         $memory_alpha = '';
-        if ($fic_names && !empty($selected_star["name"]) && $star_name != $selected_star["name"]) {
-            $display_name .= " (" . htmlspecialchars($selected_star["name"], ENT_QUOTES) . ")";
+        if ($fic_names && !empty($selected_star["name"])) {
             $memory_alpha = '<br/>[ <a href="https://memory-alpha.fandom.com/wiki/Special:Search?query=' .
                            urlencode($selected_star["name"]) .
                            '&scope=internal&navigationSearch=true" target="_blank">Search Memory Alpha for this star system</a> ]<br/>';
@@ -334,7 +349,7 @@ final class IndexHelpers
 
             $star_data[] = [
                 'id' => $row['id'],
-                'name' => StarFormatter::getDisplayName($row, 0),
+                'name' => StarFormatter::getDisplayName($row, $fic_names),
                 'con' => $row["con"] ?? '',
                 'spect' => $row["spect"] ?? '',
                 'absmag' => number_format((float)$row["absmag"], 2),

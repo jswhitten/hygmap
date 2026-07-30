@@ -1,7 +1,7 @@
 # HYGMap Makefile
 # Provides standard commands for development and CI
 
-.PHONY: test test-php test-unit test-integration test-api test-frontend test-coverage \
+.PHONY: test test-php test-unit test-integration test-api test-frontend test-scripts test-coverage \
         analyse typecheck-frontend ci ci-full ci-php ci-api ci-frontend help up down logs rebuild
 
 # Default target
@@ -15,6 +15,7 @@ help:
 	@echo "  make test-integration Run PHP integration tests (via Docker, requires database)"
 	@echo "  make test-api         Run FastAPI backend tests (via Docker)"
 	@echo "  make test-frontend    Run React frontend tests (via Docker)"
+	@echo "  make test-scripts     Run db/scripts catalog + constellation tests (via Docker)"
 	@echo ""
 	@echo "Analysis:"
 	@echo "  make analyse          Run PHPStan static analysis (via Docker)"
@@ -79,6 +80,28 @@ test-api:
 		"pip install --quiet --root-user-action=ignore -r requirements.txt && python -m pytest tests/ -v"
 
 # =============================================================================
+# Database Scripts (catalog matching, constellations)
+# =============================================================================
+
+# Run the db/scripts test suite via Docker.
+#
+# These cover match_cns5.py, match_gcns.py and compute_constellations.py -- the code that
+# decides which catalog row is which star. They existed, passed, and were wired into
+# nothing for a full audit cycle, while ROADMAP credited them with closing
+# CATALOG-ID-INTEGRITY. Green tests nobody runs are not evidence.
+#
+# psycopg2-binary is needed because the matchers import it at module scope. astropy is
+# needed by two tests only -- the ones that check the hand-rolled B1875 precession against
+# the authoritative implementation, which is the whole reason the hand-rolled one is
+# trustworthy. Installing it costs about 20s; skipping those two would cost more.
+#
+# Mounts db/ rather than db/scripts/ because the constellation tests load the boundary
+# table from ../data/ at import time.
+test-scripts:
+	docker run --rm -v $(PWD)/db:/app -w /app/scripts python:3.11-slim sh -c \
+		"pip install --quiet --root-user-action=ignore pytest psycopg2-binary astropy && python -m pytest . -v"
+
+# =============================================================================
 # Frontend Tests (React/TypeScript)
 # =============================================================================
 
@@ -124,7 +147,7 @@ ci-frontend: typecheck-frontend lint-frontend test-frontend
 # weaker evidence than a green CI run, and that gap used to be invisible. Use
 # `make ci-full` before pushing anything that touches the API contract, the PHP data
 # path, or the renderer.
-ci: ci-php ci-api ci-frontend
+ci: ci-php ci-api ci-frontend test-scripts
 	@echo ""
 	@echo "make ci passed. NOTE: this did not run integration tests, which need the"
 	@echo "stack up. CI runs them. For the same coverage locally: make ci-full"
@@ -134,7 +157,7 @@ ci: ci-php ci-api ci-frontend
 ci-full: ci test-integration
 
 # Legacy alias for backwards compatibility
-test: test-php test-api test-frontend
+test: test-php test-api test-frontend test-scripts
 
 # =============================================================================
 # Docker commands

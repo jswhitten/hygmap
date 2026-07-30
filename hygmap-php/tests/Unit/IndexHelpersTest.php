@@ -78,6 +78,50 @@ class IndexHelpersTest extends TestCase
         $this->assertNotEmpty($result['memory_alpha']);
     }
 
+    /**
+     * Regression: the info panel used to pass a hardcoded 0 for $fic_names, so with a
+     * naming layer on it led with the catalog name -- "Epsilon Eridani (Vulcan)" -- while
+     * the map overlay, the star table and the API all led with "Vulcan". One page load,
+     * four different names for one star.
+     *
+     * The canonical rule is that a fictional name wins outright. Asserting only that
+     * "Vulcan" appears somewhere does not catch this; the order is the whole bug.
+     */
+    public function testSelectedStarPanelLeadsWithTheFictionalName(): void
+    {
+        $star = [
+            'proper' => 'Epsilon Eridani',
+            'absmag' => 6.19,
+            'spect' => 'K2V',
+            'dist' => 3.22,
+            'x' => -1.0,
+            'y' => 2.0,
+            'z' => 0.5,
+            'mag' => 3.73,
+            'ra' => 3.55,
+            'dec' => -9.46,
+            'name' => 'Vulcan',
+            'bf' => '',
+        ];
+
+        $withLayer = buildSelectedStarData($star, 1, 'pc');
+
+        $vulcanAt = strpos(strip_tags($withLayer['display_name']), 'Vulcan');
+        $catalogAt = strpos(strip_tags($withLayer['display_name']), 'Epsilon Eridani');
+        $this->assertNotFalse($vulcanAt);
+        $this->assertNotFalse($catalogAt, 'the catalog name is still worth showing as context');
+        $this->assertLessThan($catalogAt, $vulcanAt, 'the fictional name must come first');
+
+        // The catalog name is what Wikipedia knows -- the link must not point at "Vulcan".
+        $this->assertStringContainsString('wikipedia', $withLayer['display_name']);
+        $this->assertStringContainsString('Epsilon+Eridani', $withLayer['display_name']);
+
+        // With no layer on, nothing fictional leaks in.
+        $withoutLayer = buildSelectedStarData($star, 0, 'pc');
+        $this->assertStringNotContainsString('Vulcan', $withoutLayer['display_name']);
+        $this->assertEmpty($withoutLayer['memory_alpha']);
+    }
+
     public function testBuildSelectedStarDataUnitConversion(): void
     {
         $star = [

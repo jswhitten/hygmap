@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../state/store'
+import { parsecsToLightYears } from '../domain/coordinates'
 
 export default function SelectionAnnouncer() {
   const selectedStar = useAppStore((state) => state.selectedStar)
@@ -42,7 +43,7 @@ export default function SelectionAnnouncer() {
           selectedStar.y * selectedStar.y +
           selectedStar.z * selectedStar.z
       )
-      const distance = unit === 'ly' ? distPc * 3.26156 : distPc
+      const distance = unit === 'ly' ? parsecsToLightYears(distPc) : distPc
       const unitLabel = unit === 'ly' ? 'light-years' : 'parsecs'
       const spectral = selectedStar.spect ? `, spectral type ${selectedStar.spect}` : ''
 

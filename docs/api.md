@@ -218,6 +218,89 @@ curl "http://localhost:8000/api/stars/12345"
 
 ---
 
+#### List Proper Names (`/api/stars/proper-names`)
+
+**GET** `/api/stars/proper-names`
+
+Every star carrying a proper name, ordered alphabetically. Intended for populating a
+name-picker; takes no parameters and returns the full list in one response.
+
+**Response:**
+```json
+{
+  "result": "success",
+  "data": [
+    { "id": 197326, "proper": "268 G. Cet" },
+    { "id": 223454, "proper": "Acamar" }
+  ],
+  "length": 2
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:8000/api/stars/proper-names"
+```
+
+---
+
+#### List Fictional Worlds (`/api/stars/worlds`)
+
+**GET** `/api/stars/worlds`
+
+The fictional universes available as naming layers, ordered by id. The `id` values are
+what `world_id` and the PHP `fic_names` parameter refer to.
+
+**Response:**
+```json
+{
+  "result": "success",
+  "data": [
+    { "id": 1, "name": "Star Trek" },
+    { "id": 2, "name": "Babylon 5" }
+  ],
+  "length": 2
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:8000/api/stars/worlds"
+```
+
+---
+
+#### List Fictional Names (`/api/stars/fictional-names`)
+
+**GET** `/api/stars/fictional-names`
+
+Every fictional star name belonging to one universe, ordered alphabetically.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `world_id` | int | yes | Fictional world ID (≥ 1); see `/api/stars/worlds` |
+
+**Response:**
+```json
+{
+  "result": "success",
+  "data": [
+    { "star_id": 1561134, "name": "Aaamazzarra" },
+    { "star_id": 223454, "name": "Acamar" }
+  ],
+  "length": 2
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:8000/api/stars/fictional-names?world_id=1"
+```
+
+---
+
 ### Signals API
 
 #### List Signals (`/api/signals/`)
@@ -279,7 +362,8 @@ curl "http://localhost:8000/api/signals/?signal_type=transmit"
 ### Rate Limits
 
 - Scope: per-client IP across all FastAPI endpoints
-- Default allowance: 100 requests per minute (soft reset every 60s)
+- Default allowance: 1000 requests per minute (soft reset every 60s), set by
+  `RATE_LIMIT` in `hygmap-api/app/config.py`
 - Disable entirely with `RATE_LIMIT_ENABLED=false` (environment variable)
 - Exceeding the limit returns HTTP 429 with a structured error body
 

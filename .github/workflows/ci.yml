@@ -43,6 +43,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Type-check frontend
+        run: make typecheck-frontend
+
       - name: Run ESLint
         run: make lint-frontend
 
@@ -50,11 +53,23 @@ jobs:
         run: make test-frontend
 
   # ==========================================================================
+  # Database scripts: catalog matching and constellation computation
+  # ==========================================================================
+  scripts-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run db/scripts tests
+        run: make test-scripts
+
+  # ==========================================================================
   # Integration: Full stack smoke tests
   # ==========================================================================
   integration:
     runs-on: ubuntu-latest
-    needs: [php-test, api-test, frontend-test]
+    needs: [php-test, api-test, frontend-test, scripts-test]
 
     steps:
       - name: Checkout code

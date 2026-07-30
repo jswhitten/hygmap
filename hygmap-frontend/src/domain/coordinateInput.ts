@@ -13,7 +13,7 @@
  * Values are in whichever unit the app is currently displaying (parsecs or light-years).
  */
 
-import { lightYearsToParsecs } from './coordinates'
+import { lightYearsToParsecs, parsecsToLightYears } from './coordinates'
 
 /**
  * Maximum distance from Sol, in parsecs, that the app can actually show.
@@ -76,7 +76,7 @@ export function parseCoordinateInput(
 
   for (let i = 0; i < AXES.length; i++) {
     if (Math.abs(galacticPc[i]) > MAX_COORDINATE_PC) {
-      const limit = unit === 'ly' ? Math.floor(MAX_COORDINATE_PC * 3.26156) : MAX_COORDINATE_PC
+      const limit = unit === 'ly' ? Math.floor(parsecsToLightYears(MAX_COORDINATE_PC)) : MAX_COORDINATE_PC
       return {
         ok: false,
         error: `${AXES[i].toUpperCase()} is outside the mapped region — keep it within ±${limit.toLocaleString()} ${unit}.`,
