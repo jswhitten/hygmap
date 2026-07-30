@@ -6,6 +6,7 @@
 /db/scripts/table*
 /vendor/
 /hygmap-php/vendor/
+/hygmap-php/.phpunit.cache/
 /hygmap-frontend/node_modules/
 /hygmap-frontend/node_modules/.vite/
 node_modules/
