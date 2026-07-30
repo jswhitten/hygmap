@@ -199,7 +199,25 @@ BEGIN
 END $$;
 
 --
--- Recompute coordinates for matched stars that just got distance backfilled
+-- Recompute coordinates for matched stars whose distance this script just changed
+--
+-- The gate is "missing OR disagrees with dist", not "missing". It used to be the latter,
+-- which is only ever true for rows this script INSERTs. A star that already existed and
+-- merely had its distance corrected above kept the coordinates derived from the distance
+-- that had just been rejected: 15 CNS5 stars (and 2 in 07_import_gcns.sql) carried a
+-- correct dist next to a position computed from a bad Gaia parallax. GJ 125 was stored
+-- at 97,011 pc while its dist said 17.19 pc, and every other quality check passed on it
+-- because dist and absmag were both right.
+--
+-- Testing the invariant rather than the trigger is deliberate. Gating on "did we just
+-- change dist?" would work today and break the next time someone adds another way to
+-- change dist -- which is exactly how this bug arrived. Length-equals-distance is a
+-- property of the data that must hold no matter who wrote the row, so the statement is
+-- also idempotent and self-healing: it repairs drift from any source, and rewrites
+-- nothing when there is none.
+--
+-- 0.001 matches COORD_TOLERANCE_FRACTION in db/scripts/check_distance_quality.py, which
+-- fails the build if any row still violates this after the import.
 --
 UPDATE athyg
 SET
@@ -207,9 +225,15 @@ SET
   y_eq = dist * cos(radians(dec)) * sin(radians(ra * 15)),
   z_eq = dist * sin(radians(dec))
 WHERE cns5 IS NOT NULL AND id < 5000000
-  AND (x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL)
-  AND ra IS NOT NULL AND dec IS NOT NULL AND dist IS NOT NULL;
+  AND ra IS NOT NULL AND dec IS NOT NULL AND dist IS NOT NULL
+  AND (
+        x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL
+        OR abs(sqrt(x_eq*x_eq + y_eq*y_eq + z_eq*z_eq) - dist) > 0.001 * dist
+      );
 
+-- Galactic x/y/z are derived FROM the equatorial triple above, so this must run after it
+-- and must use the same staleness test. Checking only "x IS NULL" here would leave the
+-- galactic position stale even once the equatorial one had been repaired.
 UPDATE athyg
 SET
   x = -0.055  * x_eq - 0.8734 * y_eq - 0.4839 * z_eq,
@@ -217,7 +241,11 @@ SET
   z = -0.8677 * x_eq - 0.1979 * y_eq + 0.4560 * z_eq
 WHERE cns5 IS NOT NULL AND id < 5000000
   AND x_eq IS NOT NULL AND y_eq IS NOT NULL AND z_eq IS NOT NULL
-  AND (x IS NULL OR y IS NULL OR z IS NULL);
+  AND (
+        x IS NULL OR y IS NULL OR z IS NULL
+        OR (dist IS NOT NULL AND dist > 0
+            AND abs(sqrt(x*x + y*y + z*z) - dist) > 0.001 * dist)
+      );
 
 --
 -- INSERT new stars (match_method = 'new')

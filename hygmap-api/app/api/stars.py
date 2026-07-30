@@ -4,8 +4,7 @@ Star API endpoints
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.limiter import limiter
 from app.database import get_db
 from app.schemas import (
     StarListResponse,
@@ -22,9 +21,6 @@ from app.schemas import (
 from app.config import settings
 
 router = APIRouter()
-
-# Rate limiter instance (uses settings from app.config)
-limiter = Limiter(key_func=get_remote_address, enabled=settings.RATE_LIMIT_ENABLED)
 
 # Maps spelled-out Bayer designation names to the abbreviated form stored in
 # athyg.bayer (e.g. "Alp", "Alp-1"), so a search like "alpha cen" can match.

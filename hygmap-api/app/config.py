@@ -33,6 +33,32 @@ class Settings(BaseSettings):
     RATE_LIMIT: str = "1000/minute"
     RATE_LIMIT_ENABLED: bool = True
 
+    # The Docker network the services share, and its gateway address.
+    #
+    # These exist because the API cannot tell "a caller on the public internet" from
+    # "another one of our own containers" without knowing what our own network looks
+    # like. Both are pinned in docker-compose.yml (`networks.default.ipam`) precisely so
+    # these defaults stay true; if you change the subnet there, change it here.
+    INTERNAL_NETWORK: str = "172.20.0.0/16"
+    INTERNAL_GATEWAY: str = "172.20.0.1"
+
+    # Skip rate limiting for callers inside INTERNAL_NETWORK.
+    #
+    # The classic PHP UI calls this API server-side, so every one of its users arrives
+    # from the single address of the hygmap-php container. Measured 2026-07-30: 5,010 of
+    # 6,871 requests came from 172.20.0.3. Counting those against one per-IP bucket
+    # throttles real visitors while protecting nothing -- their traffic is already
+    # limited at the nginx hop, one layer out. First-party server-side callers are not
+    # the threat this limiter exists for.
+    #
+    # INTERNAL_GATEWAY is deliberately NOT exempt even though it is inside the network.
+    # It is the address every request collapses to when proxy-header trust is
+    # misconfigured (see FORWARDED_ALLOW_IPS in docker-compose.prod.yml). Exempting it
+    # would turn that misconfiguration from "one shared bucket" -- bad but bounded --
+    # into "no rate limiting at all", silently. The failure mode must degrade toward
+    # more limiting, never less.
+    RATE_LIMIT_EXEMPT_INTERNAL: bool = True
+
     # Interactive API documentation (/docs, /redoc, /openapi.json).
     #
     # Deliberately ON, including in production. This is a public, read-only,

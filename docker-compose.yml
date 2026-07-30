@@ -77,5 +77,25 @@ services:
       - hygmap-api
     restart: unless-stopped
 
+networks:
+  # Pinned rather than left to Docker's address pool, because two security controls
+  # name these addresses literally and both fail quietly if they drift:
+  #
+  #   1. FORWARDED_ALLOW_IPS in docker-compose.prod.yml must equal the gateway, or
+  #      uvicorn stops trusting nginx's X-Forwarded-For and every caller in the world
+  #      collapses into one shared rate-limit bucket.
+  #   2. INTERNAL_NETWORK / INTERNAL_GATEWAY in hygmap-api/app/config.py decide which
+  #      callers are first-party and skip the limiter.
+  #
+  # uvicorn 0.27 matches FORWARDED_ALLOW_IPS by exact string, not CIDR, so an assigned
+  # subnet cannot be expressed there. Docker allocates from its default pool, and this
+  # host already carries a second hygmap network, so the assignment is not stable in
+  # practice. Change these and you must change both places above.
+  default:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
 volumes:
   db_data:

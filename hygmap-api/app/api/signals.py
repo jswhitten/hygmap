@@ -4,15 +4,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
 from app.config import settings
 from app.database import get_db
+from app.limiter import limiter
 from app.schemas import Signal, SignalListResponse
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address, enabled=settings.RATE_LIMIT_ENABLED)
 
 # Spatial validation constants (parsecs)
 MAX_COORDINATE_VALUE = 20000.0

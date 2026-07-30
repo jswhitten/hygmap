@@ -311,17 +311,41 @@ EOF
 
 **api.hygmap.space (FastAPI):**
 
-> **The `X-Forwarded-For` header below is load-bearing.** The API's per-IP rate limit
-> reads the client address from it. Uvicorn only trusts that header from an address listed
-> in `FORWARDED_ALLOW_IPS`, which `docker-compose.prod.yml` sets to `*` — safe only
-> because the same file binds the API to `127.0.0.1:8000`, so nginx is the only thing that
-> can connect. **If you publish port 8000 publicly, remove `FORWARDED_ALLOW_IPS` at the
-> same time**, or any client will be able to forge its own address and sidestep the rate
-> limit entirely.
+> **The two `proxy_set_header` lines below are load-bearing, and so is the fact that
+> `X-Forwarded-For` is *appended* rather than replaced.** The API's per-IP rate limit
+> reads the client address from that header, and it must be able to tell the part nginx
+> added from the part the caller sent.
 >
-> Without this header, every caller looks like the Docker bridge gateway and the per-IP
-> limit degrades into one bucket shared by the whole internet — which is what it was doing
-> until 2026-07-29.
+> `$proxy_add_x_forwarded_for` appends the real peer to whatever the client supplied, so
+> the header arrives as `<client-supplied>, <real peer>`. Only the **last** entry is
+> trustworthy. Uvicorn picks which entry to believe based on `FORWARDED_ALLOW_IPS`:
+>
+> - Set to the proxy's address (`172.20.0.1`, the Docker bridge gateway — what
+>   `docker-compose.prod.yml` now uses), it scans right-to-left for the first entry that
+>   is not a trusted host, which is the address nginx appended. The caller cannot
+>   influence it.
+> - Set to `*`, it takes the **first** entry, which is entirely caller-supplied. That is
+>   what this file recommended until 2026-07-30, and it made the rate limit defeatable by
+>   anyone willing to rotate a header: measured against a live stack, 12 requests with 12
+>   forged values all succeeded under a 5/minute limit.
+>
+> Two consequences for anyone changing this deployment:
+>
+> 1. **If you replace `$proxy_add_x_forwarded_for` with a value that does not append the
+>    real peer, per-IP limiting stops working correctly.** Keep the line as written.
+> 2. **The gateway address is pinned** in `docker-compose.yml` under
+>    `networks.default.ipam`, because uvicorn matches `FORWARDED_ALLOW_IPS` by exact
+>    string and not by CIDR. If you change the subnet there, change `FORWARDED_ALLOW_IPS`
+>    and `INTERNAL_NETWORK`/`INTERNAL_GATEWAY` in `hygmap-api/app/config.py` to match.
+>
+> Binding the API to `127.0.0.1:8000` remains necessary: it is what stops anything other
+> than the local nginx from opening a connection in the first place. **If you publish
+> port 8000 publicly, remove `FORWARDED_ALLOW_IPS` at the same time.**
+>
+> Without the header entirely, every caller looks like the Docker bridge gateway and the
+> per-IP limit degrades into one bucket shared by the whole internet — which is what it
+> was doing until 2026-07-29. That address is deliberately never exempted from rate
+> limiting, so this failure mode stays bounded rather than turning the limiter off.
 
 ```bash
 sudo tee /etc/nginx/sites-available/api.hygmap.space << 'EOF'

@@ -152,7 +152,15 @@ BEGIN
 END $$;
 
 --
--- Recompute coordinates for matched stars that just got distance backfilled
+-- Recompute coordinates for matched stars whose distance this script just changed
+--
+-- Same fix, and the same reasoning, as the equivalent block in 06_import_cns5.sql: the
+-- gate tests whether the stored position still agrees with dist, not whether it is
+-- missing. The old "missing" gate only fired for rows this script INSERTs, so 2 GCNS
+-- stars kept positions derived from the distance that had just been overridden. Read the
+-- longer note in 06_import_cns5.sql for why the invariant is tested instead of the
+-- trigger; 0.001 matches COORD_TOLERANCE_FRACTION in
+-- db/scripts/check_distance_quality.py.
 --
 UPDATE athyg
 SET
@@ -160,9 +168,13 @@ SET
   y_eq = dist * cos(radians(dec)) * sin(radians(ra * 15)),
   z_eq = dist * sin(radians(dec))
 WHERE gaia IS NOT NULL AND id < 6000000
-  AND (x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL)
-  AND ra IS NOT NULL AND dec IS NOT NULL AND dist IS NOT NULL;
+  AND ra IS NOT NULL AND dec IS NOT NULL AND dist IS NOT NULL
+  AND (
+        x_eq IS NULL OR y_eq IS NULL OR z_eq IS NULL
+        OR abs(sqrt(x_eq*x_eq + y_eq*y_eq + z_eq*z_eq) - dist) > 0.001 * dist
+      );
 
+-- Must run after the equatorial update above, and use the same staleness test.
 UPDATE athyg
 SET
   x = -0.055  * x_eq - 0.8734 * y_eq - 0.4839 * z_eq,
@@ -170,7 +182,11 @@ SET
   z = -0.8677 * x_eq - 0.1979 * y_eq + 0.4560 * z_eq
 WHERE gaia IS NOT NULL AND id < 6000000
   AND x_eq IS NOT NULL AND y_eq IS NOT NULL AND z_eq IS NOT NULL
-  AND (x IS NULL OR y IS NULL OR z IS NULL);
+  AND (
+        x IS NULL OR y IS NULL OR z IS NULL
+        OR (dist IS NOT NULL AND dist > 0
+            AND abs(sqrt(x*x + y*y + z*z) - dist) > 0.001 * dist)
+      );
 
 --
 -- INSERT new stars (match_method = 'new')

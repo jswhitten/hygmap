@@ -44,17 +44,36 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hygmap_user}:${POSTGRES_PASSWORD}@hygmap-db:5432/${POSTGRES_DB:-hygmap}
       - DEBUG=False
       - CORS_ORIGINS=${CORS_ORIGINS_PROD:-https://hygmap.space,https://new.hygmap.space}
-      # Trust X-Forwarded-For so per-IP rate limiting sees the real caller.
+      # Trust X-Forwarded-For from the Docker bridge gateway -- that is, from nginx --
+      # so per-IP rate limiting sees the real caller.
       #
-      # Without this, uvicorn's proxy-header handling only trusts 127.0.0.1, which is
-      # never the peer inside a container -- every request arrives from the Docker bridge
-      # gateway, so slowapi counted all callers as one client and the per-IP limit was a
-      # single shared bucket. Verified 2026-07-29: every request logged client_ip
-      # 172.20.0.1 regardless of origin.
+      # Without any value here, uvicorn only trusts 127.0.0.1, which is never the peer
+      # inside a container: every request arrives from the gateway, so slowapi counted
+      # all callers as one client and the per-IP limit was a single shared bucket.
+      # Verified 2026-07-29: every request logged client_ip 172.20.0.1 regardless of
+      # origin.
       #
-      # Safe here ONLY because the port above is bound to loopback: the sole thing that
+      # This MUST NOT be `*`, which it was until 2026-07-30. Traced through the
+      # installed uvicorn 0.27.0 (middleware/proxy_headers.py): with `*`,
+      # get_trusted_client_host returns x_forwarded_for_hosts[0] -- the FIRST entry.
+      # nginx's $proxy_add_x_forwarded_for APPENDS the real peer, so the first entry is
+      # whatever the caller sent. Measured against a live stack: 12 requests with 12
+      # forged X-Forwarded-For values all returned 200 under a 5/minute limit, while a
+      # caller sending an honest header was cut off at 5. Rate limiting was defeatable
+      # by anyone who knew to set a header.
+      #
+      # With a specific address, uvicorn instead scans the header right-to-left and
+      # takes the last entry that is not a trusted host -- the address nginx appended,
+      # which the caller cannot control. Re-measured after the change: forged rotation
+      # shares one bucket and is cut off at 5; a genuinely different client still gets
+      # its own bucket.
+      #
+      # The gateway address is pinned in docker-compose.yml (networks.default.ipam).
+      # uvicorn matches this by exact string, not CIDR, so it cannot be a subnet.
+      #
+      # Still safe only because the port above is bound to loopback: the sole thing that
       # can open a connection is the local nginx. See the warning on the ports entry.
-      - FORWARDED_ALLOW_IPS=*
+      - FORWARDED_ALLOW_IPS=172.20.0.1
     restart: always
 
   hygmap-frontend:
