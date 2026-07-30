@@ -1,8 +1,28 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Technical changelog, for developers. Covers everything: internals, data pipeline, API
+contracts, tooling, test coverage.
+
+**There is a second changelog.** `hygmap-php/src/changelog.html` is served to visitors at
+`/changelog.html` and covers only what a *user* would notice — new features, changed
+behaviour, visible fixes — in plain language, newest first.
+
+Decided 2026-07-30 to keep both, with that division of labour. They drifted apart once
+already: this file went unmaintained for six months while the HTML one stayed current. So:
+
+> **A user-visible change updates BOTH. An internal change updates only this file.**
+
+If you are unsure whether a change is user-visible, ask whether someone using the map would
+notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- Added direct coordinate entry to the React app: a toolbar control that moves the view to a
+  typed galactic X/Y/Z, in the currently selected unit, validated against the API's
+  coordinate domain. Parsing lives in `src/domain/coordinateInput.ts` and is unit-tested
+  separately from the form.
+- `make ci` now type-checks the frontend. `tsc` was only wired into `npm run build`, which no
+  CI step invoked, so TypeScript errors could not fail the build — a duplicate interface
+  member had been sitting in `src/types/star.ts` through several green runs.
 - **Star names are now consistent between the two interfaces.** The display-name rule
   existed in four places and they disagreed: a star with both a Gliese and a Hipparcos
   number was called "GJ 1" by the classic UI and "HIP 439" by the API and React app.

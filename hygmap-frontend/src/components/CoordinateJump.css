@@ -1,0 +1,92 @@
+.coordinate-jump {
+  position: relative;
+  display: inline-flex;
+}
+
+.coordinate-jump-form {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 15rem;
+  padding: 0.75rem;
+  background: rgba(10, 12, 20, 0.96);
+  border: 1px solid rgba(120, 140, 200, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.coordinate-jump-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  /* Kept light enough for contrast against the dark panel rather than the usual muted grey. */
+  color: #b9c4e0;
+}
+
+.coordinate-jump-fields {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.coordinate-jump-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.coordinate-jump-field label {
+  font-size: 0.68rem;
+  color: #b9c4e0;
+}
+
+.coordinate-jump-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #eef2ff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(120, 140, 200, 0.35);
+  border-radius: 4px;
+}
+
+.coordinate-jump-field input:focus {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 1px;
+}
+
+/* Not colour alone: aria-invalid drives this, and the message below states the problem. */
+.coordinate-jump-field input[aria-invalid='true'] {
+  border-color: #ff8a8a;
+}
+
+.coordinate-jump-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: #ffb4b4;
+}
+
+.coordinate-jump-submit {
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.35rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #eef2ff;
+  background: rgba(122, 162, 255, 0.22);
+  border: 1px solid rgba(122, 162, 255, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.coordinate-jump-submit:hover {
+  background: rgba(122, 162, 255, 0.34);
+}
+
+.coordinate-jump-submit:focus-visible {
+  outline: 2px solid #7aa2ff;
+  outline-offset: 1px;
+}

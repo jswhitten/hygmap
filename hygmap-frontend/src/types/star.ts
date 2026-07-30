@@ -20,7 +20,6 @@ export interface Star {
    * display-name rule accounts for it so all three stacks share one chain.
    */
   name?: string | null
-  spect?: string | null
 }
 
 export interface StarDetail extends Star {

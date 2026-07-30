@@ -14,7 +14,17 @@ CREATE TABLE fic (
     world_id INTEGER NOT NULL,    -- References fic_worlds.id
     name TEXT NOT NULL,           -- Fictional name
     notes TEXT,
-    FOREIGN KEY (world_id) REFERENCES fic_worlds(id)
+    FOREIGN KEY (world_id) REFERENCES fic_worlds(id),
+    -- star_id was an unconstrained integer until 2026-07-30. In practice the table is
+    -- rebuilt on every image build and star_id is resolved by joining athyg on Tycho-2 id
+    -- (below), so it has never actually drifted -- but nothing enforced that, and a partial
+    -- or reordered import could have left fictional names pointing at the wrong stars with
+    -- no way to notice. ON DELETE CASCADE keeps the two in step if a star is ever removed.
+    --
+    -- Note this does NOT protect against the catalog renumbering ids between releases: the
+    -- join below re-resolves them from Tycho-2 every build, which is what makes fictional
+    -- names safe across an AT-HYG upgrade. See STABLE-STAR-URLS.
+    FOREIGN KEY (star_id) REFERENCES athyg(id) ON DELETE CASCADE
 );
 
 -- Insert fictional worlds

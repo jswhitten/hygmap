@@ -13,7 +13,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "ci": "npm run format:check && npm run lint && npm run test:run"
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run format:check && npm run typecheck && npm run lint && npm run test:run"
   },
   "dependencies": {
     "@react-three/drei": "^9.93.0",

@@ -221,3 +221,17 @@ Documentation lives in the `docs/` directory. Feel free to:
 ## Questions?
 
 If you have questions about contributing, feel free to open an issue for discussion.
+
+## Changelogs
+
+There are two, deliberately:
+
+| file | audience | contents |
+|---|---|---|
+| `CHANGELOG.md` | developers | everything — internals, data pipeline, API, tooling |
+| `hygmap-php/src/changelog.html` | visitors, at `/changelog.html` | only what a user would notice, in plain language |
+
+**A user-visible change updates both.** An internal change updates only `CHANGELOG.md`.
+
+The pair drifted apart for six months when nobody had written this down, so if you find them
+disagreeing, that is a bug worth fixing rather than a convention to follow.

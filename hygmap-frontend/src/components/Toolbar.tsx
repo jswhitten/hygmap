@@ -16,6 +16,7 @@ import {
   useViewMode,
 } from '../state/store'
 import { searchStars } from '../api/stars'
+import CoordinateJump from './CoordinateJump'
 import { parsecsToLightYears } from '../domain/coordinates'
 import { generateShareURL, copyToClipboard } from '../utils/urlState'
 import { captureScreenshot, generateScreenshotFilename } from '../utils/screenshot'
@@ -24,12 +25,14 @@ import './Toolbar.css'
 
 interface ToolbarProps {
   onHome: () => void
+  /** Move the view to typed galactic coordinates, in parsecs. */
+  onJumpToCoordinates: (galacticPc: [number, number, number]) => void
   onCenter: (star: Star) => void
   getCameraState: () => { position: [number, number, number]; target: [number, number, number] } | null
   getCanvas: () => HTMLCanvasElement | null
 }
 
-export default function Toolbar({ onHome, onCenter, getCameraState, getCanvas }: ToolbarProps) {
+export default function Toolbar({ onHome, onJumpToCoordinates, onCenter, getCameraState, getCanvas }: ToolbarProps) {
   const selectedStar = useSelectedStar()
   const setSelectedStar = useSetSelectedStar()
   const measure = useMeasure()
@@ -206,6 +209,8 @@ export default function Toolbar({ onHome, onCenter, getCameraState, getCanvas }:
 
       {/* Navigation buttons */}
       <div className="toolbar-buttons">
+        <CoordinateJump onJump={onJumpToCoordinates} />
+
         <button
           className="toolbar-button"
           onClick={onHome}

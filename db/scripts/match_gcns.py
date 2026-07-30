@@ -386,6 +386,40 @@ class SpatialIndex:
 # Output row builder
 # ---------------------------------------------------------------------------
 
+def assert_no_duplicate_ids(output_rows):
+    """
+    Refuse to emit a CSV in which two rows claim the same athyg_id.
+
+    The SQL import matches on athyg_id, so a duplicate means one row silently overwrites
+    the other. That is not a hypothetical: CNS5 designation 723 (Teegarden's Star) was lost
+    this way and nobody noticed for months, because both the import and the application
+    behave completely normally afterwards. There is no downstream check that can catch it,
+    so this is the last line of defence -- raise, never warn.
+    """
+    seen = {}
+    duplicates = []
+    for row in output_rows:
+        athyg_id = row["athyg_id"]
+        if athyg_id in seen:
+            duplicates.append((athyg_id, seen[athyg_id], row))
+        else:
+            seen[athyg_id] = row
+
+    if duplicates:
+        lines = [
+            f"{len(duplicates)} duplicate athyg_id(s) in the output -- refusing to write.",
+            "Each of these would silently overwrite the other on import:",
+        ]
+        for athyg_id, first, second in duplicates[:10]:
+            lines.append(
+                f"  athyg_id {athyg_id}: "
+                f"{first.get('match_method')} vs {second.get('match_method')}"
+            )
+        if len(duplicates) > 10:
+            lines.append(f"  ... and {len(duplicates) - 10} more")
+        raise SystemExit("\n".join(lines))
+
+
 def build_output_row(rec, athyg_id, match_method, bright_unmatched):
     """Build one CSV output row dict from a parsed GCNS record."""
     # Propagate position to J2000
@@ -481,6 +515,15 @@ def run():
 
     # Track which athyg IDs have already been claimed (one per star)
     claimed_ids = {}  # athyg_id -> (source_id, match_method) of claimer
+
+    # See the equivalent block in match_cns5.py: allocation must not land on an id that
+    # already belongs to a real star, or the import silently overwrites it.
+    cur.execute("SELECT id FROM athyg WHERE id >= %s", (NEW_ID_START,))
+    existing_ids_in_new_range = {row[0] for row in cur.fetchall()}
+    if existing_ids_in_new_range:
+        print(f"  {len(existing_ids_in_new_range)} existing athyg ids at or above "
+              f"{NEW_ID_START} will be skipped when allocating new ids")
+
     next_new_id = NEW_ID_START
     method_counts = Counter()
     bright_unmatched_count = 0
@@ -560,10 +603,14 @@ def run():
                     "loser": prev_source,
                     "loser_method": prev_method,
                 })
-                # Update the claim to this better match
+                # Update the claim to this better match, and DROP the loser from the
+                # output. The old comment here claimed "the SQL import uses athyg_id as key
+                # so only the last one wins anyway" -- that is false. Postgres
+                # UPDATE ... FROM with several matching source rows picks an unspecified
+                # one, so the winner was not guaranteed to win. Leaving both rows in also
+                # trips the duplicate assertion before the write, which is the point.
                 claimed_ids[athyg_id] = (rec["source_id"], match_method)
-                # Note: this creates a potential duplicate in output, but the SQL import
-                # uses athyg_id as key so only the last one wins anyway
+                output_rows[:] = [r for r in output_rows if r["athyg_id"] != athyg_id]
             else:
                 # Previous claim stands (same priority or previous was better)
                 duplicate_count += 1
@@ -587,7 +634,10 @@ def run():
         # --- Assign new ID if unmatched ---
         if athyg_id is None:
             match_method = "new"
+            while next_new_id in claimed_ids or next_new_id in existing_ids_in_new_range:
+                next_new_id += 1
             athyg_id = next_new_id
+            claimed_ids[athyg_id] = (rec["source_id"], match_method)
             next_new_id += 1
 
         method_counts[match_method] += 1
@@ -595,6 +645,9 @@ def run():
 
     cur.close()
     conn.close()
+
+    # --- Refuse to write a CSV that would silently drop a designation ---
+    assert_no_duplicate_ids(output_rows)
 
     # --- Write CSV ---
     print(f"\nWriting {len(output_rows)} rows to {OUTPUT_FILE} ...")

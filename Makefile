@@ -2,7 +2,7 @@
 # Provides standard commands for development and CI
 
 .PHONY: test test-php test-unit test-integration test-api test-frontend test-coverage \
-        analyse ci ci-full ci-php ci-api ci-frontend help up down logs rebuild
+        analyse typecheck-frontend ci ci-full ci-php ci-api ci-frontend help up down logs rebuild
 
 # Default target
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "Analysis:"
 	@echo "  make analyse          Run PHPStan static analysis (via Docker)"
 	@echo "  make lint-frontend    Run ESLint on frontend (via Docker)"
+	@echo "  make typecheck-frontend Run tsc --noEmit on frontend (via Docker)"
 	@echo ""
 	@echo "CI Pipelines:"
 	@echo "  make ci               Run full CI pipeline (no running stack needed)"
@@ -86,6 +87,15 @@ test-frontend:
 	docker run --rm -v $(PWD)/hygmap-frontend:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app node:20-slim sh -c \
 		"npm ci --silent && npm test -- --run"
 
+# Type-check the frontend via Docker.
+#
+# tsc lived only in `npm run build`, which no CI step invoked -- so TypeScript errors could
+# not fail the build. A duplicate interface member sat in src/types/star.ts through several
+# green `make ci` runs before `tsc --noEmit` was run by hand and found it.
+typecheck-frontend:
+	docker run --rm -v $(PWD)/hygmap-frontend:/app -w /app node:20-slim sh -c \
+		"npm ci --silent && npx tsc --noEmit"
+
 # Run ESLint on frontend via Docker
 lint-frontend:
 	docker run --rm -v $(PWD)/hygmap-frontend:/app -w /app node:20-slim sh -c \
@@ -102,7 +112,7 @@ ci-php: analyse test-php
 ci-api: test-api
 
 # Frontend CI pipeline
-ci-frontend: lint-frontend test-frontend
+ci-frontend: typecheck-frontend lint-frontend test-frontend
 
 # Full CI pipeline (all components)
 # `make ci` runs everything that does NOT need a running stack: static analysis, PHP

@@ -341,3 +341,53 @@ class TestGCNSEpoch:
     def test_epoch_is_2016(self):
         """GCNS uses Gaia EDR3 epoch 2016.0."""
         assert GCNS_EPOCH == 2016.0
+
+
+# ---------------------------------------------------------------------------
+# Duplicate-id protection and the conflict override
+# ---------------------------------------------------------------------------
+
+import pytest
+from match_gcns import assert_no_duplicate_ids
+
+
+class TestAssertNoDuplicateIds:
+    def test_accepts_distinct_ids(self):
+        assert_no_duplicate_ids([{"athyg_id": 1}, {"athyg_id": 2}])
+
+    def test_rejects_duplicates(self):
+        with pytest.raises(SystemExit):
+            assert_no_duplicate_ids([{"athyg_id": 7}, {"athyg_id": 7}])
+
+
+class TestConflictOverrideDropsTheLoser:
+    """
+    When a Gaia-id match supersedes an earlier positional match for the same athyg_id, the
+    losing row must be removed from the output.
+
+    The old code left it in, with a comment asserting "the SQL import uses athyg_id as key so
+    only the last one wins anyway". That is false: Postgres UPDATE ... FROM with several
+    matching source rows picks an unspecified one, so the better match was not guaranteed to
+    win. This reproduces the override without needing a database.
+    """
+
+    @staticmethod
+    def override(output_rows, athyg_id):
+        output_rows[:] = [r for r in output_rows if r["athyg_id"] != athyg_id]
+        return output_rows
+
+    def test_loser_is_removed_before_the_winner_is_added(self):
+        rows = [
+            {"athyg_id": 42, "source_id": "loser", "match_method": "position_j2000"},
+            {"athyg_id": 99, "source_id": "unrelated", "match_method": "new"},
+        ]
+        self.override(rows, 42)
+        rows.append({"athyg_id": 42, "source_id": "winner", "match_method": "gaia_source_id"})
+
+        assert [r["source_id"] for r in rows] == ["unrelated", "winner"]
+        assert_no_duplicate_ids(rows)  # and the result must survive the assertion
+
+    def test_unrelated_rows_are_untouched(self):
+        rows = [{"athyg_id": 1}, {"athyg_id": 2}, {"athyg_id": 3}]
+        self.override(rows, 2)
+        assert [r["athyg_id"] for r in rows] == [1, 3]

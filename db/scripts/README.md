@@ -29,7 +29,7 @@ Download them before running the scripts.
 
 ### AT-HYG (base catalogue)
 
-The base star database (~2.5M stars) is downloaded automatically during the
+The base star database (2.84M stars, AT-HYG 4.0) is downloaded automatically during the
 Docker build. Source:
 
 - https://codeberg.org/astronexus/athyg/
@@ -113,3 +113,31 @@ docker compose up -d --build
 ```
 python -m pytest test_match_cns5.py test_match_gcns.py -v
 ```
+
+## Distance corrections
+
+Two more steps exist beyond the catalog cross-matches, both following the same
+script-then-SQL shape:
+
+```
+python fetch_gaia_distances.py   # queries VizieR I/352, writes ../data/gaia_distances.csv
+python check_distance_quality.py # read-only; exits non-zero if a check regresses
+```
+
+`fetch_gaia_distances.py` supplies Bailer-Jones distances for stars AT-HYG cannot place —
+every source before it stops at 100 pc, so a star with a broken parallax beyond that had no
+fallback. `db/data/athyg_overrides.csv` is the last resort for stars no automated source can
+reach at all (see `db/sql/09_import_overrides.sql`).
+
+Run `check_distance_quality.py` after any import. It catches the three failure modes this
+pipeline has actually had: an unknown-distance sentinel read as a measurement, a
+volume-complete catalogue contradicted by AT-HYG, and physically impossible absolute
+magnitudes.
+
+## A note on regenerating the cross-match CSVs
+
+Both matcher scripts now refuse to write a CSV containing a duplicate `athyg_id`, and both
+SQL imports refuse to run against a stale one. Those guards exist because CNS5 designation
+723 was silently lost for months when `athyg_supplement.csv` was renumbered and `cns5.csv`
+was not regenerated. If a matcher aborts with a duplicate-id error, that is the guard
+working — do not remove it.

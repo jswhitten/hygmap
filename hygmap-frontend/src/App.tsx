@@ -16,7 +16,8 @@ import KeyboardNavigator from './components/KeyboardNavigator'
 import { useAppStore } from './state/store'
 import { fetchStarById } from './api/stars'
 import type { Star } from './types/star'
-import { projectStarToScene, isLockedViewMode, DEFAULT_VIEW_MODE } from './domain/viewMode'
+import { projectStarToScene, projectSceneCoords, isLockedViewMode, DEFAULT_VIEW_MODE } from './domain/viewMode'
+import { galacticToScene } from './domain/coordinates'
 import type { ViewMode } from './domain/viewMode'
 import { decodeStateFromURL } from './utils/urlState'
 import './App.css'
@@ -224,6 +225,22 @@ function App() {
     })
   }, [])
 
+  // Move the camera to typed galactic coordinates.
+  //
+  // Deliberately shaped like handleCenter below: same scene projection, same offset, same
+  // animation path. Jumping to a coordinate and jumping to a star should not feel different,
+  // and in 2D-flat mode both must be flattened the same way or the camera ends up off-plane.
+  const handleJumpToCoordinates = useCallback(
+    (galacticPc: [number, number, number]) => {
+      const [x, y, z] = projectSceneCoords(galacticToScene(...galacticPc), viewMode)
+      const lookAt = new THREE.Vector3(x, y, z)
+      const position = lookAt.clone().add(new THREE.Vector3(0, 0, DEFAULT_CAMERA_OFFSET_PC))
+
+      setCameraTarget({ position, lookAt, key: Date.now() })
+    },
+    [viewMode]
+  )
+
   // Center camera on a star
   const handleCenter = useCallback((star: Star) => {
     const [x, y, z] = projectStarToScene(star, viewMode)
@@ -261,7 +278,7 @@ function App() {
   {!printableView && <SignalInfoPanel />}
       {!printableView && <Settings />}
       {!printableView && (
-        <Toolbar onHome={handleHome} onCenter={handleCenter} getCameraState={getCameraState} getCanvas={getCanvas} />
+        <Toolbar onHome={handleHome} onJumpToCoordinates={handleJumpToCoordinates} onCenter={handleCenter} getCameraState={getCameraState} getCanvas={getCanvas} />
       )}
       {printableView && (
         <PrintableOverlay onExit={() => setPrintableView(false)} />

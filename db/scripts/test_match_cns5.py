@@ -436,3 +436,93 @@ class TestComponentValidation:
         id_to_gj = {}
         athyg_comp = extract_gj_component(id_to_gj.get(100))
         assert athyg_comp is None
+
+
+# ---------------------------------------------------------------------------
+# Duplicate-id protection
+#
+# These cover the defect that lost CNS5 designation 723 (Teegarden's Star) for months.
+# athyg_supplement.csv had assigned ids 5000000-5000002 to three supplement stars, so the
+# new-id allocator handed out an id that already belonged to a real star. The import applies
+# UPDATEs before INSERTs, so the matched star's update targeted a row that did not exist yet
+# and was then overwritten by the unrelated new star. Nothing downstream could detect it:
+# both the import and the app behaved normally afterwards.
+# ---------------------------------------------------------------------------
+
+from match_cns5 import assert_no_duplicate_ids
+
+
+class TestAssertNoDuplicateIds:
+    def test_accepts_distinct_ids(self):
+        rows = [
+            {"athyg_id": 1, "match_method": "gj_id"},
+            {"athyg_id": 2, "match_method": "new"},
+            {"athyg_id": 5000000, "match_method": "new"},
+        ]
+        assert_no_duplicate_ids(rows)  # must not raise
+
+    def test_rejects_the_teegarden_collision(self):
+        """
+        The exact historical shape: a real GJ match and an unrelated new star both claiming
+        athyg_id 5000000. One silently overwrites the other on import.
+        """
+        rows = [
+            {"athyg_id": 5000000, "match_method": "new", "cns5_id": "5239"},
+            {"athyg_id": 5000000, "match_method": "gj_id", "cns5_id": "723"},
+        ]
+        with pytest.raises(SystemExit) as excinfo:
+            assert_no_duplicate_ids(rows)
+        message = str(excinfo.value)
+        assert "5000000" in message
+        assert "refusing to write" in message
+
+    def test_reports_every_duplicate_not_just_the_first(self):
+        rows = [
+            {"athyg_id": 10, "match_method": "gj_id"},
+            {"athyg_id": 10, "match_method": "new"},
+            {"athyg_id": 20, "match_method": "gaia_source_id"},
+            {"athyg_id": 20, "match_method": "new"},
+        ]
+        with pytest.raises(SystemExit) as excinfo:
+            assert_no_duplicate_ids(rows)
+        assert "2 duplicate athyg_id" in str(excinfo.value)
+
+    def test_empty_input_is_fine(self):
+        assert_no_duplicate_ids([])
+
+
+class TestNewIdAllocation:
+    """
+    The allocator must step over ids that are already taken, whether by a match made in this
+    run or by a star that already exists in athyg. This reproduces the loop from the matcher
+    without needing a database.
+    """
+
+    @staticmethod
+    def allocate(start, count, claimed, existing):
+        next_new_id = start
+        out = []
+        for _ in range(count):
+            while next_new_id in claimed or next_new_id in existing:
+                next_new_id += 1
+            out.append(next_new_id)
+            claimed[next_new_id] = "new"
+            next_new_id += 1
+        return out
+
+    def test_skips_ids_that_already_exist_in_athyg(self):
+        # Exactly the historical trap: supplement stars occupying 5000000-5000002.
+        existing = {5000000, 5000001, 5000002}
+        assert self.allocate(5_000_000, 3, {}, existing) == [5000003, 5000004, 5000005]
+
+    def test_skips_ids_claimed_by_a_real_match(self):
+        claimed = {5000000: "723", 5000001: "724"}
+        assert self.allocate(5_000_000, 2, claimed, set()) == [5000002, 5000003]
+
+    def test_allocates_contiguously_when_nothing_is_taken(self):
+        assert self.allocate(5_000_000, 3, {}, set()) == [5000000, 5000001, 5000002]
+
+    def test_never_returns_a_duplicate(self):
+        ids = self.allocate(5_000_000, 50, {5000005: "x", 5000010: "y"}, {5000007})
+        assert len(ids) == len(set(ids))
+        assert 5000005 not in ids and 5000010 not in ids and 5000007 not in ids

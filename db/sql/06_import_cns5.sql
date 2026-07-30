@@ -103,6 +103,30 @@ BEGIN
 END $$;
 
 --
+-- Refuse to proceed on a stale CSV.
+--
+-- A matched row whose athyg_id resolves to no star means cns5.csv was generated against a
+-- different catalog state than the one loaded. That is precisely what lost CNS5 designation
+-- 723: the supplement file was renumbered and cns5.csv was never regenerated, so matched
+-- updates silently hit nothing. Nothing downstream can detect it, so check here.
+--
+DO $$
+DECLARE
+  stale INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO stale
+  FROM   cns5_stage s
+  WHERE  s.match_method != 'new'
+    AND  NOT EXISTS (SELECT 1 FROM athyg a WHERE a.id = s.athyg_id);
+
+  IF stale > 0 THEN
+    RAISE EXCEPTION 'cns5.csv is stale: % matched row(s) reference an athyg_id that does not '
+                    'exist. Regenerate it with db/scripts/match_%s.py against the current '
+                    'catalog.', stale, lower('CNS5');
+  END IF;
+END $$;
+
+--
 -- UPDATE matched rows: take CNS5's distance when ours is missing OR implausible
 --
 -- CNS5 is volume-complete to 25 pc, so a star it lists cannot be further than that.

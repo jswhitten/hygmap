@@ -355,6 +355,40 @@ def match_by_position(cur, ra_j2000_deg, dec_j2000_deg, radius_arcsec):
 # Output row builder
 # ---------------------------------------------------------------------------
 
+def assert_no_duplicate_ids(output_rows):
+    """
+    Refuse to emit a CSV in which two rows claim the same athyg_id.
+
+    The SQL import matches on athyg_id, so a duplicate means one row silently overwrites
+    the other. That is not a hypothetical: CNS5 designation 723 (Teegarden's Star) was lost
+    this way and nobody noticed for months, because both the import and the application
+    behave completely normally afterwards. There is no downstream check that can catch it,
+    so this is the last line of defence -- raise, never warn.
+    """
+    seen = {}
+    duplicates = []
+    for row in output_rows:
+        athyg_id = row["athyg_id"]
+        if athyg_id in seen:
+            duplicates.append((athyg_id, seen[athyg_id], row))
+        else:
+            seen[athyg_id] = row
+
+    if duplicates:
+        lines = [
+            f"{len(duplicates)} duplicate athyg_id(s) in the output -- refusing to write.",
+            "Each of these would silently overwrite the other on import:",
+        ]
+        for athyg_id, first, second in duplicates[:10]:
+            lines.append(
+                f"  athyg_id {athyg_id}: "
+                f"{first.get('match_method')} vs {second.get('match_method')}"
+            )
+        if len(duplicates) > 10:
+            lines.append(f"  ... and {len(duplicates) - 10} more")
+        raise SystemExit("\n".join(lines))
+
+
 def build_output_row(rec, athyg_id, match_method, bright_unmatched):
     """Build one CSV output row dict from a parsed CNS5 record."""
     # Propagate position to J2000
@@ -450,6 +484,20 @@ def run():
 
     # Track which athyg IDs have already been claimed (one per star)
     claimed_ids = {}  # athyg_id -> cns5_id of first claimer
+
+    # IDs at or above NEW_ID_START that ALREADY EXIST in athyg. Without this the allocator
+    # below could hand out an id belonging to a real star, and it did: athyg_supplement.csv
+    # once assigned ids 5000000-5000002 to Teegarden's Star, LHS 1847 and TRAPPIST-1, so
+    # allocation collided with them. The import applies UPDATEs before INSERTs, so the
+    # matched star's update targeted a row that did not exist yet and was then overwritten
+    # by the unrelated new star -- silently losing CNS5 designation 723. See
+    # .claude/features/CATALOG-ID-INTEGRITY.md.
+    cur.execute("SELECT id FROM athyg WHERE id >= %s", (NEW_ID_START,))
+    existing_ids_in_new_range = {row[0] for row in cur.fetchall()}
+    if existing_ids_in_new_range:
+        print(f"  {len(existing_ids_in_new_range)} existing athyg ids at or above "
+              f"{NEW_ID_START} will be skipped when allocating new ids")
+
     next_new_id = NEW_ID_START
     method_counts = Counter()
     bright_unmatched_count = 0
@@ -543,7 +591,12 @@ def run():
         # --- Assign new ID if unmatched ---
         if athyg_id is None:
             match_method = "new"
+            # Skip anything already claimed by a real match in this run, and anything that
+            # already exists in athyg. Either collision silently destroys a designation.
+            while next_new_id in claimed_ids or next_new_id in existing_ids_in_new_range:
+                next_new_id += 1
             athyg_id = next_new_id
+            claimed_ids[athyg_id] = rec["cns5_id"]
             next_new_id += 1
 
         method_counts[match_method] += 1
@@ -551,6 +604,13 @@ def run():
 
     cur.close()
     conn.close()
+
+    # --- Refuse to write a CSV that would silently drop a designation ---
+    #
+    # A duplicate athyg_id here is the exact shape of the defect that lost CNS5 723 for
+    # months. The import cannot detect it -- one row simply overwrites the other -- so this
+    # is the only place it can be caught. Fail, do not warn.
+    assert_no_duplicate_ids(output_rows)
 
     # --- Write CSV ---
     print(f"\nWriting {len(output_rows)} rows to {OUTPUT_FILE} ...")
