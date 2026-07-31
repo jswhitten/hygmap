@@ -45,12 +45,19 @@ Get stars within specified 3D spatial bounds. Returns stars ordered by absolute 
 | `mag_max` | float | null | Maximum absolute magnitude (LOD filter) |
 | `limit` | int | 10000 | Maximum stars to return (max: 50000) |
 | `world_id` | int | 0 | Fictional universe for the `name` field; `0` means no fictional names |
-| `order` | string | `absmag asc` | Sort order: `absmag`, `mag`, `proper` or `dist`, each `asc` or `desc`. Validated against an allowlist. |
+| `order` | string | `absmag asc` | Sort order: `absmag`, `mag`, `proper` or `dist`, each `asc` or `desc`. Validated against an allowlist. Every ordering is broken by `id`, so results are stable — see below. |
 
 **Constraints:**
 - Coordinates must be within ±10,000 parsecs
 - Spatial range must not exceed 3,000 parsecs per dimension
 - `min` values must be less than `max` values
+
+**Ordering is stable.** Every sort is broken by `id`, so the same request always returns the
+same stars in the same order. This has not always been true: sort keys are heavily tied
+(2,784,293 of 2,839,957 stars share an `absmag` with another star), so before the tiebreaker
+existed a `LIMIT` cut through a tie group and returned whichever rows the scan reached
+first — three identical requests were measured returning three different star sets. Clients
+paginating or diffing results can now rely on the order.
 
 **Response:**
 ```json

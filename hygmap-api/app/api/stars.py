@@ -68,20 +68,33 @@ MAX_SPATIAL_RANGE = 3000.0
 # AT-HYG catalog typically contains stars within ~10,000 parsecs
 MAX_COORDINATE_VALUE = 10000.0
 
-# Allowlist for ORDER BY clause to prevent SQL injection
+# Allowlist for ORDER BY clause to prevent SQL injection.
+#
+# Every clause ends with `a.id` as a tiebreaker, and that is a correctness fix rather than a
+# tidy-up. Sort keys here are massively tied -- 2,784,293 of 2,839,957 stars share an absmag
+# value with at least one other star -- so `ORDER BY absmag LIMIT n` cut through the middle
+# of a tie group and which stars landed inside the limit was whatever the scan happened to
+# reach first. Measured before the fix: three identical runs of one wide-zoom query, same
+# plan, returned three different star sets. Reloading a map view could silently change which
+# stars it showed. `a.id` is unique and never null, so it makes the result a total order and
+# therefore repeatable.
+#
+# It also has to sit immediately after the sort key for `idx_athyg_absmag_bbox` to satisfy
+# the ordering without a sort node -- see the comment on that index in
+# db/sql/02_create_indexes.sql before changing anything here.
 ORDER_CLAUSES = {
-    "absmag": "a.absmag ASC NULLS LAST",
-    "absmag asc": "a.absmag ASC NULLS LAST",
-    "absmag desc": "a.absmag DESC NULLS LAST",
-    "mag": "a.mag ASC NULLS LAST",
-    "mag asc": "a.mag ASC NULLS LAST",
-    "mag desc": "a.mag DESC NULLS LAST",
-    "proper": "a.proper ASC NULLS LAST",
-    "proper asc": "a.proper ASC NULLS LAST",
-    "proper desc": "a.proper DESC NULLS LAST",
-    "dist": "a.dist ASC NULLS LAST",
-    "dist asc": "a.dist ASC NULLS LAST",
-    "dist desc": "a.dist DESC NULLS LAST",
+    "absmag": "a.absmag ASC NULLS LAST, a.id",
+    "absmag asc": "a.absmag ASC NULLS LAST, a.id",
+    "absmag desc": "a.absmag DESC NULLS LAST, a.id",
+    "mag": "a.mag ASC NULLS LAST, a.id",
+    "mag asc": "a.mag ASC NULLS LAST, a.id",
+    "mag desc": "a.mag DESC NULLS LAST, a.id",
+    "proper": "a.proper ASC NULLS LAST, a.id",
+    "proper asc": "a.proper ASC NULLS LAST, a.id",
+    "proper desc": "a.proper DESC NULLS LAST, a.id",
+    "dist": "a.dist ASC NULLS LAST, a.id",
+    "dist asc": "a.dist ASC NULLS LAST, a.id",
+    "dist desc": "a.dist DESC NULLS LAST, a.id",
 }
 DEFAULT_ORDER = "absmag asc"
 

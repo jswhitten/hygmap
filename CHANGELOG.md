@@ -16,6 +16,41 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Fixed: the star list was nondeterministic.** Found while working on wide-zoom
+  performance, and the more serious of the two findings. `absmag` is heavily tied —
+  2,784,293 of 2,839,957 stars share a value with at least one other star — so
+  `ORDER BY absmag LIMIT n` cut through the middle of a tie group and returned whichever
+  rows the scan happened to reach first. Measured: **three identical runs of one wide-zoom
+  query, same plan, returned three different star sets.** Reloading a map view could
+  silently change which stars appeared. Every clause in `ORDER_CLAUSES` now ends with
+  `a.id`, which is unique and never null, making each ordering total and the endpoint
+  repeatable. Verified by running the same request three times through the API and
+  diffing the payloads: byte-identical.
+- **Wide-zoom bounding-box queries are 3.6–45× faster**, via
+  `idx_athyg_absmag_bbox (absmag, id, x, y, z)`. Measured server-side medians, before →
+  after: ±100 pc 574→161ms, ±250 743→39ms, ±500 924→54ms, ±1000 1038→23ms, and ±1500 pc at
+  limit 50000 1590→217ms with the **disk-based external merge sort (~211MB across three
+  workers) gone entirely**. Narrow zoom is untouched and still uses `idx_athyg_galactic`
+  (±20 pc: 33ms both before and after). 109MB against an 806MB table.
+- The audit's framing of that finding — "wide zoom does not use the spatial indexes" — was
+  correct as an observation and misleading as a diagnosis, so it is worth recording why.
+  The planner was right to ignore them: measured, the box holds **55% of the catalog at
+  ±500 pc and 92% at ±1500 pc**, and a sequential scan is the correct plan for a filter
+  that keeps 92% of the rows. The cost was the sort, not the scan. A composite spatial
+  index — the feature file's first suggestion — could not have helped.
+  An index on `absmag` alone was tried and rejected: it fixed wide zoom but was **5.2×
+  slower than the sequential scan at ±100 pc**, because it did a random heap fetch per
+  candidate row. Putting `x, y, z` in the index lets the planner apply them as `Index Cond`
+  and reject rows without touching the heap, which is what makes every zoom level fast.
+- Note for whoever looks at `/api/stars` performance next: at limit 50000 the query is
+  217ms and the request is ~2.4s, so **serialising the ~18MB JSON response is now the
+  bottleneck**, not the database. That is a different problem from this one.
+- 5 tests added in `hygmap-api/tests/test_order_determinism.py`. They pin the two inputs
+  that determine the plan — that every order clause ends with the tiebreaker and that it
+  directly follows the sort key, and that the index keeps its exact column order — because
+  the plan shape itself needs Postgres and 2.8M rows and cannot be asserted in a suite that
+  runs on SQLite. `make test-api` now mounts `db/sql` so the second of those can read the
+  DDL; as with the compose guard, a missing file fails rather than skips.
 - **Fixed: a security guard that had never once executed.**
   `TestProdComposeTrustSetting` asserts that production does not ship
   `FORWARDED_ALLOW_IPS=*` — the exact misconfiguration `PROXY-TRUST` fixed, where any

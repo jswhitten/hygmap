@@ -83,7 +83,8 @@ analyse:
 # container is /.
 test-api:
 	docker run --rm -v $(PWD)/hygmap-api:/app -v $(PWD)/tests/fixtures:/fixtures:ro \
-		-v $(PWD)/docker-compose.prod.yml:/docker-compose.prod.yml:ro -w /app python:3.11-slim sh -c \
+		-v $(PWD)/docker-compose.prod.yml:/docker-compose.prod.yml:ro \
+		-v $(PWD)/db/sql:/db/sql:ro -w /app python:3.11-slim sh -c \
 		"pip install --quiet --root-user-action=ignore -r requirements.txt && python -m pytest tests/ -v"
 
 # =============================================================================

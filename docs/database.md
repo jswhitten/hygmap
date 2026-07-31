@@ -156,6 +156,10 @@ CREATE INDEX idx_athyg_galactic ON athyg(x, y, z);
 CREATE INDEX idx_bbox_mag ON athyg (x, y, z, mag);
 CREATE INDEX idx_athyg_mag ON athyg(mag) WHERE mag IS NOT NULL;
 
+-- Wide-zoom bounding-box queries. Column order is load-bearing; see the comment in
+-- 02_create_indexes.sql before changing it.
+CREATE INDEX idx_athyg_absmag_bbox ON athyg (absmag, id, x, y, z);
+
 -- Catalog ID lookups
 CREATE INDEX idx_athyg_hyg ON athyg(hyg) WHERE hyg IS NOT NULL;
 CREATE INDEX idx_athyg_hip ON athyg(hip) WHERE hip IS NOT NULL;
@@ -182,6 +186,63 @@ CREATE INDEX idx_athyg_flam_con_trgm
 CREATE INDEX idx_athyg_con_trgm
   ON athyg USING gin ((LOWER(COALESCE(con, ''))) gin_trgm_ops);
 ```
+
+### The wide-zoom index, and why no spatial index can replace it
+
+`/api/stars` filters by a bounding box and orders by absolute magnitude with a `LIMIT`. At
+wide zoom the planner ignored `idx_athyg_galactic` and ran a full sequential scan, which
+looks like an indexing failure and is not. The box simply contains most of the catalog —
+measured share of all 2,839,957 rows:
+
+| Half-width | Stars in box | Share |
+|---|---|---|
+| ±20 pc | 7,792 | 0.27% |
+| ±50 pc | 79,437 | 2.80% |
+| ±100 pc | 361,260 | 12.72% |
+| ±250 pc | 814,610 | 28.68% |
+| ±500 pc | 1,569,022 | 55.25% |
+| ±1000 pc | 2,316,552 | 81.57% |
+| ±1500 pc | 2,615,760 | 92.11% |
+
+A sequential scan is the right plan for a filter that keeps 92% of the rows. The cost was
+never the filter — it was `ORDER BY absmag LIMIT`, which sorted the whole box and spilled
+to a disk-based external merge (~211MB across three parallel workers) at the documented
+maximum.
+
+`idx_athyg_absmag_bbox (absmag, id, x, y, z)` removes the sort instead of the scan. Each
+position in it is doing a job:
+
+- **`absmag` leads**, so the index supplies rows already in sort order and the `LIMIT` stops
+  early rather than sorting ~2.6M rows.
+- **`id` sits immediately after it**, so `(absmag, id)` satisfies the endpoint's ORDER BY
+  exactly and no sort node appears at all. It is also the tiebreaker that makes results
+  deterministic — see below.
+- **`x, y, z` trail**, where the planner applies them as `Index Cond` and rejects
+  non-matching rows *inside the index*, without a heap fetch. This is the part that makes
+  mid-zoom fast: an index on `absmag` alone was measured **5.2× slower than the sequential
+  scan** at ±100 pc, because it did a random heap fetch per candidate.
+
+Measured medians (server-side, before → after): ±100 pc 574→161ms, ±250 743→39ms,
+±500 924→54ms, ±1000 1038→23ms, and ±1500 at limit 50000 1590→217ms with the disk sort
+gone. Narrow zoom is unchanged and still uses `idx_athyg_galactic`. Cost: 109MB against an
+806MB table.
+
+Note that at limit 50000 the query is no longer what makes the request slow — serialising
+the ~18MB JSON response is.
+
+### Why every ORDER BY ends with `id`
+
+`absmag` is heavily tied: **2,784,293 of 2,839,957 stars share a value with at least one
+other star**. `ORDER BY absmag LIMIT n` therefore cut through the middle of a tie group,
+and which of the tied stars fell inside the limit was whatever the scan reached first.
+This was measurable: three identical runs of one wide-zoom query, on the same plan,
+returned three different star sets. Reloading a map view could quietly change which stars
+it showed.
+
+Every clause in `ORDER_CLAUSES` now ends with `a.id`, which is unique and never null, making
+the ordering total and the results repeatable. Keep the tiebreaker immediately after the
+sort key: anything between them stops the index from satisfying the ordering and the sort
+node comes back.
 
 ### Trigram indexes for name search
 
