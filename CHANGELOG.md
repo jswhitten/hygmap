@@ -16,6 +16,17 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Fixed: the "no parallax measurement" note was unreadable.** The note box added for
+  positionless stars (`hygmap-php/src/index.php:134`) set a dark background with no `color`,
+  and the classic UI's stylesheet is a light theme that supplies no inherited colour — so the
+  text rendered default black on `#3a2f00`, a contrast ratio of ≈1.64:1. The box is now a
+  light amber panel (`#fff8e1` with `#3a2f00` text, ≈14:1), which keeps the intended accent
+  and matches the rest of the page. Found by `audit-frontend` 2026-07-31, verified live.
+- Small correctness fixes from the same audit run: `search.php`'s "found, but not mappable"
+  page now emits `lang="en"` and `<meta charset="utf-8">` like `ErrorHandler.php` does;
+  `docs/api.md:96` said 25,341 positionless stars where the DB and the rest of the file say
+  25,342; and `ApiClient.php`'s class comment no longer describes itself as mirroring the
+  `Database` class, which was deleted by the PHP-API migration six months ago.
 - **Fixed: stars with no known distance were drawn at the Sun.** 25,342 catalogue stars have
   no usable parallax, so the API returns null for `dist` and `x`/`y`/`z` rather than
   inventing a position. Neither frontend was updated when that landed. PHP cast the nulls to

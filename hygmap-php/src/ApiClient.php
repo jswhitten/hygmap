@@ -6,8 +6,8 @@ require_once __DIR__ . '/ApiExceptions.php';
 /**
  * ApiClient - HTTP client for the FastAPI backend
  *
- * Replaces direct database access with REST API calls.
- * Methods mirror the Database class interface for easy migration.
+ * The application's only data source: the PHP app has no direct database
+ * access, and every star, signal, and fictional-name read goes through here.
  */
 final class ApiClient
 {

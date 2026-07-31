@@ -40,7 +40,8 @@ if ($row && $row['x'] === null) {
     // `select_center`, not access to the star.
     $id = (int)$row['id'];
     $name = $row['display_name'] ?? $q;
-    echo '<!DOCTYPE html><html><head><title>Star found, but not mappable</title></head>';
+    echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+       . '<title>Star found, but not mappable</title></head>';
     echo '<body style="font-family:sans-serif;margin:2rem;">';
     echo '<h3>' . htmlspecialchars((string)$name, ENT_QUOTES) . ' cannot be shown on the map</h3>';
     echo '<p>This star exists in the catalog, but no parallax measurement exists for it, so'

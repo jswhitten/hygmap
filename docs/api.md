@@ -93,7 +93,7 @@ paginating or diffing results can now rely on the order.
 curl "http://localhost:8000/api/stars/?xmin=-10&xmax=10&ymin=-10&ymax=10&zmin=-10&zmax=10"
 ```
 
-> **`x`, `y`, `z` and `dist` can be `null`.** 25,341 stars have no usable parallax, so no
+> **`x`, `y`, `z` and `dist` can be `null`.** 25,342 stars have no usable parallax, so no
 > distance and therefore no position. The example above shows a star that has one; do not
 > take it as a guarantee. Inventing a position for these was removed deliberately — a
 > fabricated distance produced absolute magnitudes bright enough to sort to the top of every

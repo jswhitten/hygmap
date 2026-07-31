@@ -131,7 +131,7 @@ $profiler->flag('FINISH');
       <?php if ($star_info['has_star']): ?>
         <h3><?= $star_info['display_name'] ?></h3>
         <?php if (!empty($star_info['position_note'])): ?>
-          <p style="margin:0 0 0.75em 0; padding:0.5em; background:#3a2f00; border-left:3px solid #c9a227;">
+          <p style="margin:0 0 0.75em 0; padding:0.5em; background:#fff8e1; color:#3a2f00; border-left:3px solid #c9a227;">
             <?= htmlspecialchars($star_info['position_note'], ENT_QUOTES) ?>
           </p>
         <?php endif; ?>
