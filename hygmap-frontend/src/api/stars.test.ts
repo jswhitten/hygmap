@@ -175,6 +175,36 @@ describe('API client', () => {
         expect.any(Object)
       )
     })
+
+    it('should default to world_id=0 so no fictional names are searched', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ result: 'success', data: [], length: 0 }),
+      })
+
+      await searchStars('test')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('world_id=0'),
+        expect.any(Object)
+      )
+    })
+
+    it('should pass world_id through when a universe is given', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ result: 'success', data: [], length: 0 }),
+      })
+
+      await searchStars('vulcan', 20, 1)
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('world_id=1'),
+        expect.any(Object)
+      )
+    })
   })
 
   describe('ApiError', () => {

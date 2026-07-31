@@ -42,10 +42,22 @@ export async function fetchStarById(starId: number): Promise<StarDetailResponse>
   return response.json()
 }
 
-export async function searchStars(query: string, limit = 20): Promise<StarListResponse> {
+/**
+ * Search stars by name or catalog ID.
+ *
+ * `worldId` scopes the search to a fictional universe, so "vulcan" finds Keid when Star
+ * Trek is selected. It defaults to 0 (real names only) and there is no UI to change it
+ * yet -- the universe selector is a separate ROADMAP item. This is the plumbing for it.
+ */
+export async function searchStars(
+  query: string,
+  limit = 20,
+  worldId = 0,
+): Promise<StarListResponse> {
   const params = new URLSearchParams({
     q: query,
     limit: limit.toString(),
+    world_id: worldId.toString(),
   })
 
   const response = await fetchWithRetry(`${API_URL}/api/stars/search?${params}`)

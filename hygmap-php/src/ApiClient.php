@@ -145,11 +145,17 @@ final class ApiClient
      * Search for a star by name or catalog ID
      *
      * @param string $term Search term
+     * @param int $worldId Fictional world to search names in (0 = real names only).
+     *                     Defaults to 0 so existing callers are unaffected.
      * @return array|null First matching star with id, or null
      */
-    public function searchStar(string $term): ?array
+    public function searchStar(string $term, int $worldId = 0): ?array
     {
-        $response = $this->get('/api/stars/search', ['q' => $term, 'limit' => 1]);
+        $response = $this->get('/api/stars/search', [
+            'q' => $term,
+            'limit' => 1,
+            'world_id' => $worldId,
+        ]);
         $data = $response['data'] ?? [];
         if (empty($data)) {
             return null;

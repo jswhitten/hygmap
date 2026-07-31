@@ -16,6 +16,46 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Added: stars can be found by their fictional name.** `/api/stars/search` queried
+  `athyg` only and never joined `fic`, so no fictional name was reachable from the search
+  box in either frontend — `?q=vulcan` returned `length:0` while the database correctly
+  linked `fic.name='Vulcan'` to Keid / HD 26965, and `?q=keid` found that same star.
+  "Vulcan" is the example in `.claude/CLAUDE.md`'s own purpose statement, and one of the
+  project's two stated audiences could not search by the names it cares about.
+  `search_stars` now takes `world_id` like `list_stars` and `get_star` already did.
+- Fictional-name matching is **world-scoped**: a name matches only when its universe is the
+  selected one, so `?q=vulcan&world_id=1` finds Keid while `world_id=2` and no `world_id`
+  return nothing. The rejected alternative — matching across all universes and reporting
+  which one hit — would let a star be found under a name the map is not currently showing
+  for it, undoing the single-name-per-page-load invariant `DISPLAY-NAME-CANON` established.
+- The query uses `EXISTS` for the predicate and a scalar subquery for the name rather than
+  the `LEFT JOIN` the other two endpoints use. A join multiplies the row when a star has
+  two names in one world, putting one physical star in the result list twice. Nothing does
+  that today (191 `fic` rows) but `FICTIONAL-UNIVERSES` will, so the shape that cannot
+  duplicate is the one written, with a regression test on `Wolf 359` — which is both an
+  `athyg.proper` and a world-1 `fic.name`, so both predicates fire on one row.
+  The scalar subquery orders the matched name first, so searching a fictional name shows
+  that name rather than a sibling.
+- The fictional predicate sits **inside** the existing unmappable-star guard, not beside
+  it: a positionless or out-of-domain star stays excluded from search whether it matches on
+  a real or a fictional name. Putting it outside would have reopened the
+  `DATA-QUALITY-OUTLIERS` 503 through a new door. Two `fic` rows were added to the API test
+  fixture specifically so this is proven rather than assumed.
+- All seven catalog-ID queries carry the world-scoped fictional name too, so `?q=HD 26965`
+  with a universe selected returns `display_name` "Vulcan" and search agrees with the map
+  on one page load. Written out seven times rather than generated — the explicitness there
+  is a recorded decision that keeps SQL injection structurally impossible.
+- `search.php` now loads `Config` (it did not before) and passes the configured
+  `fic_names` world through `ApiClient::searchStar`, whose new `$worldId` parameter
+  defaults to 0 so every existing caller is unaffected.
+- `searchStars` in the React client gained a `worldId` pass-through, defaulting to 0.
+  **No user-visible change in the React app**: it has no universe selector yet, so it sends
+  `world_id=0` and finds no fictional name. This is the plumbing for the separate
+  "fictional-worlds layer in the React app" item, and the split is deliberate.
+- 13 API tests, 3 PHP integration tests, 1 PHP unit test and 2 frontend tests added.
+  One of them documents a behaviour worth knowing: a `world_id` can only *add* matches,
+  never drop or duplicate one — and it adds them by substring exactly as proper-name search
+  does, so with Star Trek selected `q=ori` also matches `Alpha Canis Majoris`.
 - **Fixed: 17 nearby stars were stored at positions derived from a distance that had
   already been rejected.** `06_import_cns5.sql` and `07_import_gcns.sql` correct a star's
   `dist` when the supplement catalogue contradicts AT-HYG, but gated the coordinate

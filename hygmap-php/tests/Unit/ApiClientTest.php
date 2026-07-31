@@ -99,6 +99,20 @@ class ApiClientTest extends TestCase
         $this->assertTrue(method_exists($client, 'searchStar'));
     }
 
+    public function testSearchStarWorldIdIsOptionalAndDefaultsToZero(): void
+    {
+        // Every pre-existing caller passes one argument. If the world scope were ever made
+        // required, or defaulted to a real world, those callers would start searching
+        // fictional names without asking -- so the default is part of the contract.
+        $method = new \ReflectionMethod(ApiClient::class, 'searchStar');
+        $params = $method->getParameters();
+
+        $this->assertCount(2, $params);
+        $this->assertSame('worldId', $params[1]->getName());
+        $this->assertTrue($params[1]->isDefaultValueAvailable());
+        $this->assertSame(0, $params[1]->getDefaultValue());
+    }
+
     public function testQueryFictionMethodExists(): void
     {
         $client = new ApiClient();

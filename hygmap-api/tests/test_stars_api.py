@@ -815,3 +815,177 @@ class TestSearchExcludesUndisplayableStars:
         # The name and the direction survive; only the distance is unknown.
         assert data["display_name"] == "Positionless Star"
         assert data["con"] == "Sgr"
+
+
+class TestFictionalNameSearch:
+    """
+    Search by fictional name, scoped to the selected universe.
+
+    Before FICTIONAL-NAME-SEARCH, /api/stars/search queried athyg only, so no fictional
+    name was reachable from the search box in either frontend -- "Vulcan" found nothing
+    while the database linked it correctly to Keid. The scoping decision is deliberate:
+    a fictional name matches only when its universe is selected, so a star is named the
+    same way everywhere on one page load (DISPLAY-NAME-CANON).
+
+    Fixture mapping: star 10 is 'Wolf 359', named 'Wolf 359' in world 1 and
+    'Epsilon III System' in world 2.
+    """
+
+    async def test_finds_star_by_fictional_name_when_world_selected(
+        self, client: AsyncClient
+    ):
+        response = await client.get(
+            "/api/stars/search", params={"q": "epsilon iii", "world_id": 2}
+        )
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert len(data) == 1
+        assert data[0]["id"] == 10
+        assert data[0]["name"] == "Epsilon III System"
+        assert data[0]["display_name"] == "Epsilon III System"
+
+    async def test_not_found_when_a_different_world_is_selected(
+        self, client: AsyncClient
+    ):
+        """The scoping decision, asserted rather than assumed."""
+        response = await client.get(
+            "/api/stars/search", params={"q": "epsilon iii", "world_id": 1}
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 0
+
+    async def test_not_found_when_no_world_is_selected(self, client: AsyncClient):
+        response = await client.get("/api/stars/search", params={"q": "epsilon iii"})
+        assert response.status_code == 200
+        assert response.json()["length"] == 0
+
+    async def test_fictional_name_match_is_substring_and_case_insensitive(
+        self, client: AsyncClient
+    ):
+        """Consistent with the existing proper-name search."""
+        response = await client.get(
+            "/api/stars/search", params={"q": "EPSIL", "world_id": 2}
+        )
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert len(data) == 1
+        assert data[0]["id"] == 10
+
+    async def test_catalog_id_search_carries_the_fictional_name(
+        self, client: AsyncClient
+    ):
+        """
+        Search and map must agree on one page load: looking a star up by catalog ID with a
+        universe selected has to return the same name the map draws.
+        """
+        response = await client.get(
+            "/api/stars/search", params={"q": "HIP 54035", "world_id": 2}
+        )
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert len(data) == 1
+        assert data[0]["id"] == 10
+        assert data[0]["display_name"] == "Epsilon III System"
+
+    async def test_catalog_id_search_without_a_world_keeps_the_real_name(
+        self, client: AsyncClient
+    ):
+        response = await client.get("/api/stars/search", params={"q": "HIP 54035"})
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert data[0]["name"] is None
+        assert data[0]["display_name"] == "Wolf 359"
+
+    async def test_star_matching_both_a_real_and_a_fictional_name_returns_one_row(
+        self, client: AsyncClient
+    ):
+        """
+        Regression: star 10 is called 'Wolf 359' in athyg.proper AND in fic for world 1,
+        so both predicates match. A LEFT JOIN would have returned it twice -- one physical
+        star, two rows in the result list. This is why the query uses EXISTS plus a scalar
+        subquery instead.
+        """
+        response = await client.get(
+            "/api/stars/search", params={"q": "wolf 359", "world_id": 1}
+        )
+        assert response.status_code == 200
+
+        ids = [s["id"] for s in response.json()["data"]]
+        assert ids.count(10) == 1
+        assert len(ids) == len(set(ids))
+
+    async def test_selecting_a_world_never_drops_or_duplicates_an_existing_hit(
+        self, client: AsyncClient
+    ):
+        """
+        Selecting a universe may only ADD matches. It must never drop a star that a plain
+        search found, and never return one twice.
+
+        Note this is deliberately a superset assertion, not equality. Equality is wrong:
+        'Ori' legitimately gains Sirius under world 1, because 'ori' is a substring of its
+        fictional name 'Alpha Canis Majoris'. That is the feature, and it is the same
+        substring rule the proper-name search already uses.
+        """
+        for query in ("sirius", "alp", "Ori", "vega"):
+            plain = await client.get("/api/stars/search", params={"q": query})
+            scoped = await client.get(
+                "/api/stars/search", params={"q": query, "world_id": 1}
+            )
+            assert plain.status_code == scoped.status_code == 200
+
+            plain_ids = [s["id"] for s in plain.json()["data"]]
+            scoped_ids = [s["id"] for s in scoped.json()["data"]]
+            assert set(plain_ids) <= set(scoped_ids), (
+                f"world_id dropped a hit for {query!r}"
+            )
+            assert len(scoped_ids) == len(set(scoped_ids)), (
+                f"world_id duplicated a hit for {query!r}"
+            )
+
+    async def test_a_world_can_add_a_match_via_the_fictional_name(
+        self, client: AsyncClient
+    ):
+        """The other half of the test above, stated positively so the behaviour is pinned."""
+        plain = await client.get("/api/stars/search", params={"q": "Ori"})
+        scoped = await client.get(
+            "/api/stars/search", params={"q": "Ori", "world_id": 1}
+        )
+
+        plain_ids = [s["id"] for s in plain.json()["data"]]
+        scoped_ids = [s["id"] for s in scoped.json()["data"]]
+        # Sirius, via 'Alpha Canis Majoris'.
+        assert 3 not in plain_ids
+        assert 3 in scoped_ids
+
+    async def test_fictional_name_does_not_resurrect_a_positionless_star(
+        self, client: AsyncClient
+    ):
+        """
+        The fictional predicate sits INSIDE the unmappable-star guard, not beside it.
+        Star 12 has no position; giving it a fictional name must not make it selectable,
+        or DATA-QUALITY-OUTLIERS' 503 comes back through a new door.
+        """
+        response = await client.get(
+            "/api/stars/search", params={"q": "unmappable colony", "world_id": 1}
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 0
+
+    async def test_fictional_name_does_not_resurrect_an_out_of_domain_star(
+        self, client: AsyncClient
+    ):
+        response = await client.get(
+            "/api/stars/search", params={"q": "faraway outpost", "world_id": 1}
+        )
+        assert response.status_code == 200
+        assert response.json()["length"] == 0
+
+    async def test_negative_world_id_is_rejected(self, client: AsyncClient):
+        response = await client.get(
+            "/api/stars/search", params={"q": "epsilon iii", "world_id": -1}
+        )
+        assert response.status_code == 422

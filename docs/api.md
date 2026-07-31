@@ -138,11 +138,13 @@ Search for stars by name or catalog ID.
 |-----------|------|---------|-------------|
 | `q` | string | required | Search query (2-100 characters) |
 | `limit` | int | 20 | Maximum results (max: 100) |
+| `world_id` | int | 0 | Also search fictional names from this universe (0 = real names only) |
 
 **Supported Search Formats:**
 | Format | Example | Description |
 |--------|---------|-------------|
 | Proper name | `Sirius`, `Vega` | IAU-recognized star names |
+| Fictional name | `Vulcan` (with `world_id=1`) | Requires a `world_id` — see below |
 | Bayer designation | `Alpha Centauri`, `Alp Cen` | Greek letter + constellation |
 | Flamsteed number | `61 Cygni`, `51 Peg` | Number + constellation |
 | Henry Draper | `HD 48915`, `hd48915` | HD catalog number |
@@ -170,7 +172,26 @@ proper names, Bayer and Flamsteed designations, and constellation abbreviations.
 ```bash
 curl "http://localhost:8000/api/stars/search?q=Sirius"
 curl "http://localhost:8000/api/stars/search?q=HIP+32349"
+
+# Fictional names are scoped to a universe
+curl "http://localhost:8000/api/stars/search?q=vulcan&world_id=1"  # Keid / HD 26965
+curl "http://localhost:8000/api/stars/search?q=vulcan&world_id=2"  # [] - wrong universe
+curl "http://localhost:8000/api/stars/search?q=vulcan"             # [] - none selected
 ```
+
+**Fictional name scoping:** a fictional name matches only when its universe is the one
+selected by `world_id`. This is deliberate rather than a limitation — matching across all
+universes would mean a star could be found under a name the map is not currently showing
+for it, and every surface on a page load is supposed to agree on one name. When a match is
+found this way, `name` and `display_name` both carry the fictional name.
+
+A `world_id` never removes or duplicates a result that a plain search already returned; it
+can only add matches. Note that it can add them via substring, exactly as proper-name
+search does — with Star Trek selected, `q=ori` also matches a star named
+`Alpha Canis Majoris`.
+
+Stars with no usable position are excluded from search results whether they match on a real
+or a fictional name, because selecting one cannot be rendered on the map.
 
 ---
 

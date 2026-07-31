@@ -236,6 +236,48 @@ class ApiContractTest extends TestCase
         );
     }
 
+    public function testSearchFindsAStarByItsFictionalNameWhenAWorldIsSelected(): void
+    {
+        // "Vulcan" is the example in CLAUDE.md's own purpose statement, and it returned
+        // nothing from either search box until FICTIONAL-NAME-SEARCH: /api/stars/search
+        // queried athyg only and never joined fic.
+        $result = $this->api->searchStar('Vulcan', 1);
+
+        $this->assertNotNull($result, 'Searching for "Vulcan" with Star Trek selected returned nothing');
+
+        // Keid / HD 26965 — the star fic actually links "Vulcan" to.
+        $keid = $this->api->searchStar('Keid');
+        $this->assertNotNull($keid, 'Sanity check: "Keid" itself must be findable');
+        $this->assertSame(
+            (int)$keid['id'],
+            (int)$result['id'],
+            'The fictional name must resolve to the same star as its real name'
+        );
+    }
+
+    public function testFictionalNameIsNotFoundWithoutTheMatchingWorld(): void
+    {
+        // The scoping decision: a fictional name matches only when its universe is the
+        // selected one, so one page load never shows a star under two different names.
+        $this->assertNull(
+            $this->api->searchStar('Vulcan', 2),
+            'A Star Trek name must not be findable with Babylon 5 selected'
+        );
+        $this->assertNull(
+            $this->api->searchStar('Vulcan'),
+            'A fictional name must not be findable with no universe selected'
+        );
+    }
+
+    public function testSearchingWithAWorldStillFindsRealStars(): void
+    {
+        $plain  = $this->api->searchStar('Sirius');
+        $scoped = $this->api->searchStar('Sirius', 1);
+
+        $this->assertNotNull($scoped, 'Selecting a universe broke an ordinary name search');
+        $this->assertSame((int)$plain['id'], (int)$scoped['id']);
+    }
+
     // =========================================================================
     // Dropdown data — configure.php and the fictional-world selector
     // =========================================================================

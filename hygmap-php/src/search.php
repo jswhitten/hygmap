@@ -2,14 +2,21 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ApiClient.php';
+require_once __DIR__ . '/Config.php';
 
 session_start();
 
 $q = trim($_GET['q'] ?? '');
 if ($q === '') { header('Location: /'); exit; }
 
+// The configured universe scopes the search the same way it scopes the map, so a
+// fictional name is findable exactly when it is the name being displayed. Config::load()
+// needs the session, which is why it is read after session_start().
+$cfg = Config::load();
+$ficNames = (int)$cfg['fic_names'];
+
 try {
-    $row = ApiClient::instance()->searchStar($q);
+    $row = ApiClient::instance()->searchStar($q, $ficNames);
 } catch (RuntimeException $e) {
     error_log("Search error: " . $e->getMessage());
     echo '<!DOCTYPE html><html><head><title>Search Error</title></head>';

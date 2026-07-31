@@ -207,6 +207,7 @@ async def search_stars(
     request: Request,  # Required for rate limiter
     q: str = Query(..., min_length=1, max_length=100, description="Search query (name or catalog ID)"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
+    world_id: int = Query(0, ge=0, description="Fictional world ID for fictional names (0 = no fictional names)"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -214,6 +215,11 @@ async def search_stars(
 
     Searches proper names, Bayer/Flamsteed designations, and catalog IDs
     (HIP, HD, HR, GJ, Gaia, TYC).
+
+    Optional world_id also searches fictional names from the fic table, scoped to that
+    world: "vulcan" finds Keid when Star Trek is selected and nothing otherwise. Fictional
+    names are deliberately NOT matched across all worlds -- a star must be named the same
+    way everywhere on one page load (see DISPLAY-NAME-CANON).
     """
     search_term = q.strip()
 
@@ -260,41 +266,66 @@ async def search_stars(
 
     if catalog_field and catalog_value:
         # Search by catalog ID using pre-built queries (no f-string interpolation)
-        # Each query is explicit to prevent any possibility of SQL injection
+        # Each query is explicit to prevent any possibility of SQL injection.
+        # Each also carries the world-scoped fictional name, so a catalog lookup with a
+        # universe selected agrees with the map about what the star is called -- "HD 26965"
+        # returns display_name "Vulcan" under Star Trek. Written out seven times rather
+        # than generated, because the explicitness here is a recorded security decision.
         CATALOG_QUERIES = {
             'hip': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE hip = :catalog_value LIMIT :limit
             """),
             'hd': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE hd = :catalog_value LIMIT :limit
             """),
             'hr': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE hr = :catalog_value LIMIT :limit
             """),
             'gj': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE gj = :catalog_value LIMIT :limit
             """),
             'cns5': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE cns5 = :catalog_value LIMIT :limit
             """),
             'gaia': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE gaia = :catalog_value LIMIT :limit
             """),
             'tyc': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc
+                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       (SELECT f.name FROM fic f
+                         WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                         ORDER BY f.id LIMIT 1) AS name
                 FROM athyg WHERE tyc = :catalog_value LIMIT :limit
             """),
         }
@@ -306,7 +337,10 @@ async def search_stars(
                 detail=f"Invalid catalog field: {catalog_field}"
             )
 
-        result = await db.execute(query, {"catalog_value": catalog_value, "limit": limit})
+        result = await db.execute(
+            query,
+            {"catalog_value": catalog_value, "limit": limit, "world_id": world_id},
+        )
     else:
         # Search by name (proper, bayer, constellation)
         # Use LOWER() for case-insensitive search (works with both PostgreSQL and SQLite)
@@ -353,7 +387,18 @@ async def search_stars(
         query = text("""
             SELECT
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                hip, hd, hr, gj, cns5, gaia, tyc
+                hip, hd, hr, gj, cns5, gaia, tyc,
+                -- Scalar subquery rather than a LEFT JOIN: a join on fic multiplies the
+                -- row if a star ever gains two names in one world, which would put the
+                -- same star in the result list twice. Nothing does that today (191 rows)
+                -- but FICTIONAL-UNIVERSES will, so the shape that cannot duplicate is the
+                -- one to write. The DESC ordering prefers the name the user actually
+                -- matched on, falling back to a stable f.id order, so searching a
+                -- fictional name shows that name rather than a sibling.
+                (SELECT f.name FROM fic f
+                  WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                  ORDER BY (LOWER(f.name) LIKE :pattern ESCAPE '\\') DESC, f.id
+                  LIMIT 1) AS name
             FROM athyg
             -- Exclude stars that cannot be placed on the map: those with no position at
             -- all (no usable parallax), and those beyond the coordinate domain this API
@@ -368,6 +413,15 @@ async def search_stars(
                OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :bayer_pattern ESCAPE '\\'
                OR LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
+               -- Fictional name, scoped to the selected world. EXISTS rather than a join,
+               -- for the no-duplicate-rows reason above. This sits INSIDE the name-match
+               -- group so the unmappable-star guard above still applies to it: a fictional
+               -- star with no usable position stays excluded, same as a real one.
+               -- world_id=0 matches no fic row (ids start at 1), which is what makes
+               -- "no universe selected" return nothing without a special case.
+               OR EXISTS (SELECT 1 FROM fic f
+                           WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                             AND LOWER(f.name) LIKE :pattern ESCAPE '\\')
               )
             ORDER BY absmag ASC NULLS LAST
             LIMIT :limit
@@ -379,6 +433,7 @@ async def search_stars(
                 "bayer_pattern": bayer_pattern,
                 "limit": limit,
                 "max_coord": MAX_COORDINATE_VALUE,
+                "world_id": world_id,
             },
         )
 

@@ -162,7 +162,14 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (1, 10, 1, 'Wolf 359'),
                 (2, 3, 1, 'Alpha Canis Majoris'),
                 (3, 2, 1, 'Alpha Centauri'),
-                (4, 10, 2, 'Epsilon III System')
+                (4, 10, 2, 'Epsilon III System'),
+                -- Fictional names on the two unmappable stars (12 has no position, 13 is
+                -- beyond MAX_COORDINATE_VALUE). Search must exclude these for the same
+                -- reason it excludes their real names: selecting one cannot be rendered.
+                -- Without these rows nothing proves the fictional predicate sits inside
+                -- the unmappable guard rather than beside it.
+                (5, 12, 1, 'Unmappable Colony'),
+                (6, 13, 1, 'Faraway Outpost')
         """))
 
         await conn.execute(text("""
