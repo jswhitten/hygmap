@@ -16,6 +16,48 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Fixed: ~460 stars were drawn a different colour in the 3D view than on the 2D map.**
+  Found by `audit-data` 2026-07-31. React read the first character of `spect` blindly, so a
+  subdwarf like `sdF8:` classified as `s` and fell through to white instead of the F colour;
+  and it had no entry for the carbon and S-type classes, so `R`, `C`, `N` and `S` all fell
+  to white where the PHP map drew them orange or red. Live counts: 53 `sd`, 145 `C`, 116
+  `N`, 49 `S`, 103 `R`. `getStarColor` in `hygmap-frontend/src/domain/star.ts` now mirrors
+  `MapRenderer::getSpecClass`, including its deliberate case-sensitivity — the prefix test
+  is for lowercase `s` only, so an S-type star like `S4,2` is not mistaken for a subdwarf.
+- `tests/fixtures/spectral-colors.json` is a new shared fixture, read by both a new React
+  suite and a new PHP suite, on the `display-names.json` model. It pins the *classification*
+  and a colour **name**, not hex values: the two UIs use different palettes on purpose (flat
+  GD colours on white vs an emissive material on black), so forcing them to converge would
+  be the wrong fix. What must never diverge again is which stars are grouped together.
+  The PHP side tests `MapRenderer`'s private methods through reflection with a name-keyed
+  colour table injected, which avoids needing GD in the test image.
+- **The nondeterminism fix now has behavioural tests — and they proved a limitation worth
+  recording.** `audit-tests` filed a major finding that the [WIDE-ZOOM-QUERY] tiebreaker was
+  tested only by regex, and proposed adding tied-`absmag` rows to the SQLite fixture so the
+  route could be called twice. Done (8 tests), **but the proposed fix does not detect the
+  bug it targets**: `conftest.py` declares `id INTEGER PRIMARY KEY`, which in SQLite aliases
+  `id` to `rowid`, so a scan already yields id order and the sorter preserves it for tied
+  keys. Verified by mutation — deleting `, a.id` from every clause leaves all eight green.
+  Postgres has no such coincidence, which is why the bug was real in production and
+  invisible in the suite. Mutation testing both ways: removing the tiebreaker fails only the
+  shape tests; reversing it to `a.id DESC` fails both. The two layers are therefore
+  complementary, and the regex assertions are the only thing catching deletion on SQLite —
+  recorded in the test file so they are not "cleaned up" as redundant.
+- `docs/api.md` now documents that `x`, `y`, `z` and `dist` can be null, why inventing a
+  position was deliberately removed, and that the name-search and catalog-ID branches of
+  `/api/stars/search` currently disagree about returning positionless stars — including a
+  warning not to "fix" that by adding the exclusion to the catalog branches, since the
+  recorded product decision points the other way.
+- **An audit finding was wrong and the correction is recorded so it is not re-filed.**
+  `audit-security` reported "no Content-Security-Policy at the Apache layer" for a third
+  consecutive cycle. There is one, in `hygmap-php/src/.htaccess`, and it is served —
+  confirmed by mutating `nosniff` to a sentinel, observing it in the live response, and
+  restoring it. `apache2.conf` sets `AllowOverride None` for `/var/www/`, which makes the
+  file look inert, but `conf-enabled/docker-php.conf` sets `AllowOverride All` and wins. The
+  real weakness is narrower: the policy allows `script-src 'unsafe-inline'`, which removes
+  most of CSP's XSS value and needs nonces or hashes for four inline script blocks. Now a
+  roadmap item in its own right.
+
 - **Fixed: the import pipeline was inserting thousands of stars twice.** `athyg` carried
   3,862 groups of rows sharing a Gaia DR3 source_id — up from 576 under AT-HYG 3.3, growing
   with every catalog addition. Investigating split them into two unrelated populations, and

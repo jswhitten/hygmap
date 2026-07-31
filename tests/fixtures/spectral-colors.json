@@ -1,0 +1,55 @@
+{
+  "_comment": [
+    "Canonical spectral-class-to-colour cases, shared by the PHP and React renderers.",
+    "",
+    "'What colour is this star?' was implemented twice -- PHP (MapRenderer::getStarColor via",
+    "getSpecClass) and React (getStarColor in src/domain/star.ts) -- and they disagreed for",
+    "roughly 460 stars. Found by audit-data on 2026-07-31; audit-parity missed it, because",
+    "parity had been comparing naming, placement, units and filtering but not rendering.",
+    "",
+    "The divergences were:",
+    "  - PHP strips a leading 'sd' (subdwarf) or ' d' prefix before reading the class",
+    "    letter; React read character 0 blindly, so 'sdF8:' became class 's' and fell",
+    "    through to white instead of the F colour.",
+    "  - PHP maps R to the K colour and C/N/S to the M colour (carbon and S-type stars are",
+    "    cool and red); React had no entry for any of them, so all four fell to white.",
+    "",
+    "Live counts at the time: 53 stars with spect starting 'sd', 145 C, 116 N, 49 S, 103 R.",
+    "",
+    "This file is the single source of truth the two renderers lacked. It is mounted into",
+    "every test container at /fixtures (see the Makefile), exactly like display-names.json.",
+    "",
+    "COLOURS ARE NAMED, NOT HEXED. The two UIs deliberately use different palettes -- the",
+    "2D map uses GD's flat colours, the 3D view uses a warmer set tuned for an emissive",
+    "material on black. Pinning hex values here would force them to converge on a single",
+    "palette, which is not the goal. What must agree is the CLASSIFICATION: two stars that",
+    "map to 'red' in one renderer must map to 'red' in the other.",
+    "",
+    "'white' is the fallback for anything unrecognised, including the 22,460 D-prefix white",
+    "dwarfs. Both renderers already agreed on that and it is asserted here so it stays true."
+  ],
+  "cases": [
+    { "spect": "O5V",    "class": "O", "color": "blue",        "why": "hottest main sequence" },
+    { "spect": "B8Ia",   "class": "B", "color": "lightblue",   "why": "Rigel" },
+    { "spect": "A1V",    "class": "A", "color": "white",       "why": "Sirius; PHP has no explicit A branch, so it falls to white" },
+    { "spect": "F5IV",   "class": "F", "color": "lightyellow", "why": "" },
+    { "spect": "G2V",    "class": "G", "color": "yellow",      "why": "Sol" },
+    { "spect": "K1V",    "class": "K", "color": "orange",      "why": "Keid" },
+    { "spect": "M5.5Ve", "class": "M", "color": "red",         "why": "Proxima Centauri" },
+
+    { "spect": "R5",     "class": "R", "color": "orange",      "why": "carbon star, older R classification; shares the K colour" },
+    { "spect": "C5II",   "class": "C", "color": "red",         "why": "carbon star; cool and deeply reddened" },
+    { "spect": "N0",     "class": "N", "color": "red",         "why": "carbon star, older N classification" },
+    { "spect": "S4,2",   "class": "S", "color": "red",         "why": "S-type, zirconium-oxide star" },
+
+    { "spect": "sdF8:",  "class": "F", "color": "lightyellow", "why": "subdwarf prefix stripped; class is F, not s" },
+    { "spect": "sdB",    "class": "B", "color": "lightblue",   "why": "hot subdwarf" },
+    { "spect": "sdG0",   "class": "G", "color": "yellow",      "why": "" },
+    { "spect": " dM4",   "class": "M", "color": "red",         "why": "leading space then d; PHP reads index 2 for both forms" },
+
+    { "spect": "DA2",    "class": "D", "color": "white",       "why": "white dwarf; no entry in either renderer, falls back" },
+    { "spect": "WC7",    "class": "W", "color": "white",       "why": "Wolf-Rayet; unrecognised by both, falls back" },
+    { "spect": "",       "class": "",  "color": "white",       "why": "empty spectral type" },
+    { "spect": null,     "class": "",  "color": "white",       "why": "NULL spect -- 2.18M stars have none" }
+  ]
+}

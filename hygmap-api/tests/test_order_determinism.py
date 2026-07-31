@@ -24,7 +24,103 @@ file. These tests guard the two inputs that determine it.
 import os
 import re
 
+import pytest
+from httpx import AsyncClient
+
 from app.api.stars import ORDER_CLAUSES
+
+# The tie group in conftest.py: five stars sharing absmag 9.99, alone in a 25..35 box.
+TIE_BOX = {
+    "xmin": 25, "xmax": 35,
+    "ymin": 25, "ymax": 35,
+    "zmin": 25, "zmax": 35,
+}
+TIED_IDS = [14, 15, 16, 17, 18]
+
+
+class TestTieBreakingIsActuallyExercised:
+    """
+    The behavioural half of this file: these call the real route.
+
+    Added after an audit (2026-07-31) found the nondeterminism fix was tested only by
+    regex and never by calling the endpoint. Writing them turned up a limitation worth
+    recording, because it changes what the rest of this file is for.
+
+    **These tests cannot detect the tiebreaker being deleted, on SQLite.** `conftest.py`
+    declares `id INTEGER PRIMARY KEY`, which in SQLite makes `id` an alias for `rowid`, so
+    a table scan already yields rows in id order and the sorter preserves it for tied keys.
+    Verified by mutation: removing `, a.id` from every clause in `ORDER_CLAUSES` leaves all
+    of these green. Postgres has no such coincidence — its scan order is physical row order,
+    which is why the bug was real in production and invisible here.
+
+    What each layer actually catches, both confirmed by mutation:
+
+    | Mutation                | Shape tests | These tests |
+    |-------------------------|-------------|-------------|
+    | tiebreaker removed      | fail        | pass        |
+    | tiebreaker reversed     | fail        | fail        |
+
+    So the string and regex assertions elsewhere in this module are not redundant scaffolding
+    around a "real" test — on this database engine they are the only thing standing between
+    a deleted tiebreaker and a silent return of the original bug. Do not delete them in
+    favour of these. The honest full-strength check is a repeated request against Postgres
+    with real tied data, which is what the manual verification in
+    `.claude/features/complete/WIDE-ZOOM-QUERY.md` did once by hand.
+    """
+
+    async def test_the_same_request_twice_returns_identical_results(
+        self, client: AsyncClient
+    ):
+        """The literal bug: three identical runs once returned three different star sets."""
+        first = await client.get("/api/stars/", params={**TIE_BOX, "limit": 3})
+        second = await client.get("/api/stars/", params={**TIE_BOX, "limit": 3})
+
+        assert first.status_code == second.status_code == 200
+        assert first.json()["data"] == second.json()["data"]
+
+    async def test_a_limit_cutting_through_a_tie_group_takes_the_lowest_ids(
+        self, client: AsyncClient
+    ):
+        """
+        Pins *which* rows the tiebreaker selects, not merely that it is stable.
+
+        All five candidates have the same absmag, so absmag alone cannot choose between
+        them and any three would be a valid answer without a tiebreaker. `a.id` ascending
+        makes 14, 15, 16 the only correct one. The fixture lists them in descending id
+        order so insertion order and id order disagree.
+        """
+        response = await client.get("/api/stars/", params={**TIE_BOX, "limit": 3})
+        assert response.status_code == 200
+
+        ids = [s["id"] for s in response.json()["data"]]
+        assert ids == [14, 15, 16]
+
+    async def test_the_whole_tie_group_comes_back_in_id_order(
+        self, client: AsyncClient
+    ):
+        response = await client.get("/api/stars/", params={**TIE_BOX, "limit": 100})
+        assert response.status_code == 200
+
+        ids = [s["id"] for s in response.json()["data"]]
+        assert ids == TIED_IDS
+
+    @pytest.mark.parametrize("order", ["absmag", "absmag asc", "mag", "dist", "proper"])
+    async def test_every_order_is_stable_across_identical_requests(
+        self, client: AsyncClient, order
+    ):
+        """
+        Not just the default. `mag`, `dist` and `proper` are all NULL for the tie group, so
+        their sort keys are entirely tied — which makes them the strongest available test
+        of the tiebreaker, since nothing else can order these rows at all.
+        """
+        params = {**TIE_BOX, "limit": 3, "order": order}
+        first = await client.get("/api/stars/", params=params)
+        second = await client.get("/api/stars/", params=params)
+
+        assert first.status_code == second.status_code == 200
+        first_ids = [s["id"] for s in first.json()["data"]]
+        assert first_ids == [s["id"] for s in second.json()["data"]]
+        assert first_ids == [14, 15, 16], f"order={order!r} did not fall back to id order"
 
 INDEX_SQL = os.path.join(
     os.path.dirname(__file__), "..", "..", "db", "sql", "02_create_indexes.sql"

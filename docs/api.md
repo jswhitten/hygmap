@@ -93,6 +93,16 @@ paginating or diffing results can now rely on the order.
 curl "http://localhost:8000/api/stars/?xmin=-10&xmax=10&ymin=-10&ymax=10&zmin=-10&zmax=10"
 ```
 
+> **`x`, `y`, `z` and `dist` can be `null`.** 25,341 stars have no usable parallax, so no
+> distance and therefore no position. The example above shows a star that has one; do not
+> take it as a guarantee. Inventing a position for these was removed deliberately — a
+> fabricated distance produced absolute magnitudes bright enough to sort to the top of every
+> result — so the null is the honest answer and clients must handle it.
+>
+> This endpoint never returns them: a bounding-box query cannot match a row with no
+> coordinates. `/api/stars/{star_id}` and parts of `/api/stars/search` can. See the note
+> under Search Stars.
+
 ---
 
 ### Star names (`display_name`)
@@ -197,8 +207,18 @@ can only add matches. Note that it can add them via substring, exactly as proper
 search does — with Star Trek selected, `q=ori` also matches a star named
 `Alpha Canis Majoris`.
 
-Stars with no usable position are excluded from search results whether they match on a real
-or a fictional name, because selecting one cannot be rendered on the map.
+**Positionless stars: the two branches disagree, and that is a known open issue.** A star
+with no usable parallax has `x`/`y`/`z`/`dist` of `null`.
+
+- The **name-search** branch excludes them, whether they match on a real or a fictional
+  name, because selecting one cannot be rendered on the map.
+- The **catalog-ID** branches do not. `?q=hip+60798` returns a star with
+  `"x": null, "y": null, "z": null`.
+
+Clients must handle a null position on this endpoint. Which way the inconsistency is
+resolved is a recorded product decision, not an oversight: positionless stars should stay
+findable but inert — see `NULL-COORDINATES` in the project roadmap. Do not "fix" it by
+adding the exclusion to the catalog branches.
 
 ---
 

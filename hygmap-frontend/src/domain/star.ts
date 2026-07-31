@@ -5,7 +5,16 @@
 import * as THREE from 'three'
 
 /**
- * Spectral type to hex color mapping
+ * Spectral type to hex color mapping.
+ *
+ * The palette is intentionally NOT the same as the PHP map's — that renderer draws flat GD
+ * colours on white, this one drives an emissive material on black. What must agree between
+ * the two is the classification, not the hex value. `tests/fixtures/spectral-colors.json`
+ * is the shared source of truth for that, and both renderers are tested against it.
+ *
+ * R shares K's colour and C/N/S share M's, matching `MapRenderer::getStarColor`. Carbon
+ * (C, and the older R and N classifications) and S-type stars are cool and strongly
+ * reddened; grouping them with K and M is the same call the 2D map already made.
  */
 const SPECTRAL_COLORS: Record<string, string> = {
   O: '#9cc9ff', // Deep blue (hottest, ~30,000K)
@@ -14,17 +23,36 @@ const SPECTRAL_COLORS: Record<string, string> = {
   F: '#fff5da', // Warm white
   G: '#ffd45c', // Golden yellow (Sun-like, ~5,500K)
   K: '#ff9b4b', // Orange (cooler giants)
+  R: '#ff9b4b', // Carbon star, older R classification — as K
   M: '#ff5c3c', // Ember red (coolest, ~3,000K)
+  C: '#ff5c3c', // Carbon star — as M
+  N: '#ff5c3c', // Carbon star, older N classification — as M
+  S: '#ff5c3c', // Zirconium-oxide star — as M
+}
+
+/**
+ * Extract the spectral class letter from a spectral type string.
+ *
+ * Mirrors `MapRenderer::getSpecClass`. The prefix handling is the part that matters: a
+ * luminosity-class prefix of `sd` (subdwarf) or a leading space followed by `d` puts the
+ * actual class letter at index 2, so reading character 0 yields `s` and the star falls
+ * through to the default colour. 53 stars in the catalogue have a `spect` beginning `sd`.
+ */
+function getSpectralClass(spectrum?: string | null): string {
+  if (!spectrum) return ''
+
+  const first = spectrum.charAt(0)
+  if (first === ' ' || first === 's') {
+    return spectrum.charAt(2).toUpperCase()
+  }
+  return first.toUpperCase()
 }
 
 /**
  * Get star color based on spectral type
  */
 export function getStarColor(spectrum?: string | null): string {
-  if (!spectrum) return '#ffffff'
-
-  const type = spectrum.trim().charAt(0).toUpperCase()
-  return SPECTRAL_COLORS[type] || '#ffffff'
+  return SPECTRAL_COLORS[getSpectralClass(spectrum)] || '#ffffff'
 }
 
 /**

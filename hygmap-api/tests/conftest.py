@@ -138,7 +138,25 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 -- Beyond the coordinate domain the API can express (MAX_COORDINATE_VALUE
                 -- is 10000 pc). A broken Gaia parallax yields a huge distance and, with it,
                 -- an absurdly bright absolute magnitude that sorts to the top.
-                (13, NULL, NULL, 'Sgr', 'B2III', -13.50, 325046.0, -90701.0, -2810.0, NULL, NULL)
+                (13, NULL, NULL, 'Sgr', 'B2III', -13.50, 325046.0, -90701.0, -2810.0, NULL, NULL),
+                -- Five stars sharing one absmag, isolated in a box no other fixture star
+                -- occupies (25..35 on every axis). They exist so tie-breaking under LIMIT
+                -- can be exercised end to end.
+                --
+                -- This is the real catalogue's dominant case, not a contrived one:
+                -- 2,784,293 of 2,839,957 stars share an absmag with at least one other
+                -- star. Before ORDER_CLAUSES gained its `a.id` tiebreaker, a LIMIT cutting
+                -- through a tie group returned whichever rows the scan reached first, and
+                -- three identical requests could return three different star sets.
+                --
+                -- Deliberately listed in descending id order: if the tiebreaker were
+                -- removed, a scan returning rows in insertion order would produce
+                -- 18, 17, 16 rather than the 14, 15, 16 the ordering promises.
+                (18, NULL, NULL, 'Lyn', 'K0V', 9.99, 31.0, 31.0, 31.0, NULL, NULL),
+                (17, NULL, NULL, 'Lyn', 'K0V', 9.99, 30.0, 30.0, 31.0, NULL, NULL),
+                (16, NULL, NULL, 'Lyn', 'K0V', 9.99, 30.0, 31.0, 30.0, NULL, NULL),
+                (15, NULL, NULL, 'Lyn', 'K0V', 9.99, 31.0, 30.0, 30.0, NULL, NULL),
+                (14, NULL, NULL, 'Lyn', 'K0V', 9.99, 30.0, 30.0, 30.0, NULL, NULL)
         """))
 
         # Set GJ and CNS5 IDs for test stars
