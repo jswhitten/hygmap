@@ -73,6 +73,13 @@ notice without reading the source. If yes, it belongs in both.
   staleness guard doing precisely its job, and it is worth recording as a standing coupling:
   **any change to which rows exist requires regenerating `constellations.csv`.** Regenerated
   (281,300 → 278,605 rows, again exactly 2,695 fewer) and the rebuild repeated clean.
+- **Fixed a units bug in the new check itself, found while writing the upstream report.**
+  `check_duplicates.py`'s wide-separation query fed `radians(h.ra - l.ra)` into the
+  haversine, but `athyg.ra` is in **hours**, not degrees — understating every RA difference
+  by a factor of 15. It happened to return the right verdict on the case it was written
+  against (95.3° read as 29.2°, over the 1° threshold either way), which is precisely why
+  it needed a test rather than a spot check: a subtler case would have slipped under
+  silently. Corrected and pinned by two tests.
 - 15 tests added in `db/scripts/test_check_duplicates.py`, covering the classification rule
   directly and asserting that both import guards, the build-time exception, and the two new
   override capabilities are still present — the SQL itself needs Postgres and 2.8M rows, so

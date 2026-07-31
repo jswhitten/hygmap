@@ -124,6 +124,37 @@ class TestImportGuardsArePresent:
         assert "FILTER (WHERE id >= 5000000)" in sql
 
 
+class TestSeparationIsMeasuredInTheRightUnits:
+    """
+    athyg.ra is stored in HOURS, not degrees.
+
+    The first version of the wide-separation query fed `radians(h.ra - l.ra)` straight into
+    the haversine, understating every RA difference by a factor of 15. It still returned
+    the right answer for the case it was written against -- the known bad cross-match came
+    back as 29.2 degrees instead of 95.3 and was over the 1-degree threshold either way --
+    which is exactly why this needs a test rather than a spot check. A subtler case would
+    have slipped under the threshold silently.
+    """
+
+    @staticmethod
+    def _source():
+        path = os.path.join(os.path.dirname(__file__), "check_duplicates.py")
+        with open(path) as fh:
+            return fh.read()
+
+    def test_right_ascension_is_converted_from_hours(self):
+        src = self._source()
+        assert re.search(r"radians\(\s*\(h\.ra\s*-\s*l\.ra\)\s*\*\s*15\s*\)", src), (
+            "the separation query no longer scales ra from hours to degrees; separations "
+            "will read 15x too small"
+        )
+
+    def test_declination_is_not_scaled(self):
+        """Dec is already in degrees -- scaling it too would be the opposite mistake."""
+        src = self._source()
+        assert re.search(r"radians\(h\.dec\s*-\s*l\.dec\)", src)
+
+
 class TestOverrideMechanismSupportsRetraction:
     """
     The AT-HYG cross-match error needs a key and an action the override file did not have.

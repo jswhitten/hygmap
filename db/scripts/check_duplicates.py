@@ -155,10 +155,14 @@ def main():
             SELECT count(*) FROM p
             JOIN athyg l ON l.id = p.lo JOIN athyg h ON h.id = p.hi
             WHERE l.ra IS NOT NULL AND h.ra IS NOT NULL
+              -- athyg.ra is in HOURS, so it must be multiplied by 15 before conversion to
+              -- radians. Omitting that understates every RA difference by a factor of 15
+              -- and silently shrinks the separations this check exists to find -- it made
+              -- the known 95.3 degree case read as 29.2 degrees.
               AND degrees(2*asin(least(1, sqrt(
                     power(sin(radians(h.dec - l.dec)/2), 2) +
                     cos(radians(l.dec))*cos(radians(h.dec))*
-                    power(sin(radians(h.ra - l.ra)/2), 2))))) > 1.0
+                    power(sin(radians((h.ra - l.ra) * 15)/2), 2))))) > 1.0
             """
         )
         (far_apart,) = cur.fetchone()
