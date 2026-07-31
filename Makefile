@@ -75,8 +75,15 @@ analyse:
 # =============================================================================
 
 # Run FastAPI backend tests via Docker
+# docker-compose.prod.yml is mounted because TestProdComposeTrustSetting asserts on the
+# deployed value of FORWARDED_ALLOW_IPS -- the exact misconfiguration PROXY-TRUST fixed.
+# With only hygmap-api/ mounted the file was absent and the whole class skipped itself, in
+# CI as well as locally, so the guard had never once run. It is mounted at / rather than a
+# tidier path because the test resolves the repo root as tests/../.., which inside this
+# container is /.
 test-api:
-	docker run --rm -v $(PWD)/hygmap-api:/app -v $(PWD)/tests/fixtures:/fixtures:ro -w /app python:3.11-slim sh -c \
+	docker run --rm -v $(PWD)/hygmap-api:/app -v $(PWD)/tests/fixtures:/fixtures:ro \
+		-v $(PWD)/docker-compose.prod.yml:/docker-compose.prod.yml:ro -w /app python:3.11-slim sh -c \
 		"pip install --quiet --root-user-action=ignore -r requirements.txt && python -m pytest tests/ -v"
 
 # =============================================================================

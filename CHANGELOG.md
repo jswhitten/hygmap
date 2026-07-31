@@ -16,6 +16,29 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Fixed: a security guard that had never once executed.**
+  `TestProdComposeTrustSetting` asserts that production does not ship
+  `FORWARDED_ALLOW_IPS=*` — the exact misconfiguration `PROXY-TRUST` fixed, where any
+  caller could forge `X-Forwarded-For` and get their own rate-limit bucket. It resolved
+  `docker-compose.prod.yml` relative to the repo root, which `make test-api` does not mount,
+  so it skipped. CI runs `make test-api` as well, so the guard was inert everywhere. The
+  `test-api` target now mounts the file (at container `/`, which is what `tests/../..`
+  resolves to there); the API suite went from 132 passed / 2 skipped to 134 / 0.
+  The skip path was removed too — a missing file now fails with a message explaining how to
+  fix it. A guard that quietly passes when its subject is absent is how this survived two
+  audit cycles. Verified by running the suite against a compose file doctored to say
+  `FORWARDED_ALLOW_IPS=*` (fails) and with the file absent (fails rather than skips).
+- 18 tests added in `db/scripts/test_compute_constellations.py::TestCelestialPoles`
+  covering exactly dec = ±90, which had only incidental coverage: no star in the 2.84M-row
+  catalog sits within 0.1° of either pole, so the branch would not be exercised by real
+  data until a future import landed one. +90 → UMi and −90 → Oct, both implementations
+  agreeing, for every RA. Two properties are asserted beyond the answer, because the answer
+  alone does not pin the behaviour: **precession moves the pole 0.7° off ±90** (to dec
+  89.3038 in B1875), so the poles resolve inside UMi's 88° band and never reach the table's
+  polar rows — meaning a scan that special-cased `dec == 90` would look correct and be
+  wrong; and RA is degenerate at the pole, so the result must not depend on which meridian
+  was passed. Confirmed by mutation: disabling precession fails three of the new tests
+  while the UMi/Oct assertions still pass. `db/scripts` is now 179 tests.
 - **Added: stars can be found by their fictional name.** `/api/stars/search` queried
   `athyg` only and never joined `fic`, so no fictional name was reachable from the search
   box in either frontend — `?q=vulcan` returned `length:0` while the database correctly

@@ -16,8 +16,6 @@ import importlib
 import os
 from types import SimpleNamespace
 
-import pytest
-
 from app.config import Settings, settings
 
 
@@ -206,9 +204,11 @@ class TestProdComposeTrustSetting:
     """
     Guards the deployed value itself, not just the parsing rule.
 
-    Skipped under `make test-api`, which mounts only hygmap-api/ into the test
-    container. It runs when pytest is invoked from a checkout that can see the repo
-    root. See PROXY-TRUST for the open question about mounting compose into the suite.
+    This used to skip itself when docker-compose.prod.yml was not visible, which meant it
+    skipped under `make test-api` -- the only way the suite is ever run, including in CI.
+    So the guard against the exact misconfiguration PROXY-TRUST fixed had never executed.
+    The Makefile now mounts the file, and a missing file is a failure rather than a skip:
+    silently passing when the thing under test is absent is what went wrong the first time.
     """
 
     @staticmethod
@@ -216,8 +216,11 @@ class TestProdComposeTrustSetting:
         path = os.path.join(
             os.path.dirname(__file__), "..", "..", "docker-compose.prod.yml"
         )
-        if not os.path.exists(path):
-            pytest.skip("repo root not mounted; see class docstring")
+        assert os.path.exists(path), (
+            f"docker-compose.prod.yml not found at {path}. This test must not be skipped: "
+            "mount it into the container (see the test-api target in the Makefile) or run "
+            "pytest from a full checkout."
+        )
         with open(path) as fh:
             return fh.read()
 
