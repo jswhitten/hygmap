@@ -12,6 +12,7 @@ import * as THREE from 'three'
 import type { Star } from '../types/star'
 import { projectStarToScene } from '../domain/viewMode'
 import { getStarColor, getStarSize } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
 import type { ViewMode } from '../domain/viewMode'
 
 // Minimum star size to show glow (all stars with visible disk)
@@ -21,7 +22,7 @@ const MIN_GLOW_SIZE = 0.03
 const MAX_GLOW_DISTANCE = 25
 
 interface StarGlowProps {
-  stars: Star[]
+  stars: PositionedStar[]
   starsInitializedRef: React.RefObject<boolean>
   viewMode: ViewMode
 }

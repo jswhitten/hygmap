@@ -207,18 +207,24 @@ can only add matches. Note that it can add them via substring, exactly as proper
 search does — with Star Trek selected, `q=ori` also matches a star named
 `Alpha Canis Majoris`.
 
-**Positionless stars: the two branches disagree, and that is a known open issue.** A star
-with no usable parallax has `x`/`y`/`z`/`dist` of `null`.
+**Positionless stars are returned, and clients must handle them.** A star with no usable
+parallax has `x`, `y`, `z` and `dist` all `null` — 25,342 of them. Both the name-search and
+catalog-ID branches return them, as of 2026-07-31; the name branch used to exclude them,
+which meant `?q=hip+60798` and a search for that star's name disagreed.
 
-- The **name-search** branch excludes them, whether they match on a real or a fictional
-  name, because selecting one cannot be rendered on the map.
-- The **catalog-ID** branches do not. `?q=hip+60798` returns a star with
-  `"x": null, "y": null, "z": null`.
+They are deliberately **findable but not mappable**. Hiding them would make a HIP number
+that exists report "not found"; both shipped frontends instead show them as an ordinary
+result that states its position is unknown and does not link through to the map. A client
+that plots results must skip them rather than coercing null to 0, which places them at Sol.
 
-Clients must handle a null position on this endpoint. Which way the inconsistency is
-resolved is a recorded product decision, not an oversight: positionless stars should stay
-findable but inert — see `NULL-COORDINATES` in the project roadmap. Do not "fix" it by
-adding the exclusion to the catalog branches.
+They cost nothing in ranking: positionless stars have no `absmag`, and every search orders
+by `absmag ASC NULLS LAST`, so they always sort last and cannot displace a real result
+inside a limit.
+
+**Stars beyond the coordinate domain are a different case and are still excluded.** Those
+*have* coordinates — implausible ones, from a broken parallax — and an absolute magnitude
+bright enough to sort first, which previously made a search for "Cen" return artifacts
+ahead of real stars and produced a 503 when one was selected.
 
 ---
 

@@ -9,14 +9,14 @@
 import { useRef, useMemo, useLayoutEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { Star } from '../types/star'
 import { projectStarToScene } from '../domain/viewMode'
 import { getStarColorThree, getStarSize } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
 import { MAX_RENDERED_STARS } from '../constants/rendering'
 import type { ViewMode } from '../domain/viewMode'
 
 interface InstancedStarsProps {
-  stars: Star[]
+  stars: PositionedStar[]
   viewMode: ViewMode
   printableView: boolean
   onInitialized?: () => void

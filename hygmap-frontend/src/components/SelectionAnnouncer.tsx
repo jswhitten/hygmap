@@ -24,6 +24,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../state/store'
 import { parsecsToLightYears } from '../domain/coordinates'
+import { hasPosition } from '../domain/star'
 
 export default function SelectionAnnouncer() {
   const selectedStar = useAppStore((state) => state.selectedStar)
@@ -38,20 +39,31 @@ export default function SelectionAnnouncer() {
     let next: string | null = null
 
     if (selectedStar) {
-      const distPc = Math.sqrt(
-        selectedStar.x * selectedStar.x +
-          selectedStar.y * selectedStar.y +
-          selectedStar.z * selectedStar.z
-      )
-      const distance = unit === 'ly' ? parsecsToLightYears(distPc) : distPc
-      const unitLabel = unit === 'ly' ? 'light-years' : 'parsecs'
       const spectral = selectedStar.spect ? `, spectral type ${selectedStar.spect}` : ''
+
+      // A star with no parallax has no distance to announce. Saying "0.0 light-years from
+      // Sol" — which is what the old arithmetic produced once x/y/z could be null — would
+      // be a confident false statement to the one user who cannot see the screen to
+      // check it. State the absence instead.
+      let distancePhrase: string
+      if (hasPosition(selectedStar)) {
+        const distPc = Math.sqrt(
+          selectedStar.x * selectedStar.x +
+            selectedStar.y * selectedStar.y +
+            selectedStar.z * selectedStar.z
+        )
+        const distance = unit === 'ly' ? parsecsToLightYears(distPc) : distPc
+        const unitLabel = unit === 'ly' ? 'light-years' : 'parsecs'
+        distancePhrase = `${distance.toFixed(1)} ${unitLabel} from Sol`
+      } else {
+        distancePhrase = 'distance unknown, so it cannot be shown on the map'
+      }
 
       next = `key:star:${selectedStar.id}`
       if (lastAnnounced.current !== next) {
         setMessage(
           `Selected ${selectedStar.display_name}${spectral}, ` +
-            `${distance.toFixed(1)} ${unitLabel} from Sol. ` +
+            `${distancePhrase}. ` +
             `Details are in the star information panel.`
         )
       }

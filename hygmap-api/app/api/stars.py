@@ -413,14 +413,28 @@ async def search_stars(
                   ORDER BY (LOWER(f.name) LIKE :pattern ESCAPE '\\') DESC, f.id
                   LIMIT 1) AS name
             FROM athyg
-            -- Exclude stars that cannot be placed on the map: those with no position at
-            -- all (no usable parallax), and those beyond the coordinate domain this API
-            -- can even express. Returning them produced results that could not be opened
-            -- -- selecting one drove the view outside MAX_COORDINATE_VALUE and the PHP
-            -- page answered 503. They also sort first, because a broken parallax yields an
-            -- absurdly bright absolute magnitude.
-            WHERE x IS NOT NULL AND y IS NOT NULL AND z IS NOT NULL
-              AND abs(x) <= :max_coord AND abs(y) <= :max_coord AND abs(z) <= :max_coord
+            -- Exclude stars whose coordinates are beyond the domain this API can express.
+            -- Returning them produced results that could not be opened -- selecting one
+            -- drove the view outside MAX_COORDINATE_VALUE and the PHP page answered 503.
+            -- They also sort FIRST, because a broken parallax yields an absurdly bright
+            -- absolute magnitude, so they crowded out real answers (DATA-QUALITY-OUTLIERS).
+            -- 1,222 rows, measured.
+            --
+            -- Stars with NO position at all used to be excluded here too. They are not any
+            -- more: the maintainer's decision (NULL-COORDINATES, 2026-07-30) is that the
+            -- 25,342 stars with no usable parallax stay findable but inert -- a HIP number
+            -- that exists should not report "not found". Both frontends are responsible for
+            -- rendering them without a click-through to a map they cannot appear on.
+            --
+            -- This is cheap precisely because they differ from the class above: they have
+            -- no absmag at all, so `ORDER BY absmag ASC NULLS LAST` puts every one of them
+            -- last and they can never displace a real result inside a limit. The catalog-ID
+            -- branches above have always returned them, so this also makes the two halves
+            -- of this endpoint agree, which audit-api filed as a defect on 2026-07-31.
+            WHERE (
+                x IS NULL
+                OR (abs(x) <= :max_coord AND abs(y) <= :max_coord AND abs(z) <= :max_coord)
+              )
               AND (
                 LOWER(COALESCE(proper, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :bayer_pattern ESCAPE '\\'

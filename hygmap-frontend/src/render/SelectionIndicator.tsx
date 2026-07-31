@@ -8,13 +8,13 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { Star } from '../types/star'
 import { projectStarToScene } from '../domain/viewMode'
 import type { ViewMode } from '../domain/viewMode'
 import { getStarSize } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
 
 interface SelectionIndicatorProps {
-  star: Star | null
+  star: PositionedStar | null
   viewMode: ViewMode
 }
 

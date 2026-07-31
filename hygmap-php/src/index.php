@@ -130,6 +130,11 @@ $profiler->flag('FINISH');
     <div class="info">
       <?php if ($star_info['has_star']): ?>
         <h3><?= $star_info['display_name'] ?></h3>
+        <?php if (!empty($star_info['position_note'])): ?>
+          <p style="margin:0 0 0.75em 0; padding:0.5em; background:#3a2f00; border-left:3px solid #c9a227;">
+            <?= htmlspecialchars($star_info['position_note'], ENT_QUOTES) ?>
+          </p>
+        <?php endif; ?>
         <table width="100%" cellpadding="1" cellspacing="1">
           <tr>
             <td width="50%">Absolute magnitude</td>
@@ -158,8 +163,13 @@ $profiler->flag('FINISH');
           <tr>
             <td colspan="2">
               <br/>
+              <?php if ($star_info['has_position']): ?>
+              <?php // A neighbours-within-2-ly lookup needs coordinates. For a positionless
+                    // star they are null, and the link would send 0,0,0 -- asking for Sol's
+                    // neighbours while appearing to ask for this star's. ?>
               [ <a href="http://www.stellar-database.com/Scripts/find_neighbors.exe?ly=2&X=<?= urlencode((string)$star_info['x_ly']) ?>&Y=<?= urlencode((string)$star_info['y_ly']) ?>&Z=<?= urlencode((string)$star_info['z_ly']) ?>" target="_blank">Look up this star at stellar-database.com</a> ]<br/>
               <br/>
+              <?php endif; ?>
               <?php if ($star_info['simbad_url']): ?>
               [ <a href="<?= htmlspecialchars($star_info['simbad_url'], ENT_QUOTES) ?>" target="_blank">Look up this star in SIMBAD</a> ]<br/>
               <?php endif; ?>

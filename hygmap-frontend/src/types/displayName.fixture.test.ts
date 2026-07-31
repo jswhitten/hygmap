@@ -24,9 +24,17 @@ interface FixtureCase {
   world_id?: number
 }
 
-const cases: FixtureCase[] = existsSync(FIXTURE_PATH)
-  ? JSON.parse(readFileSync(FIXTURE_PATH, 'utf-8')).cases
-  : []
+// A missing fixture is a hard failure, not a skip. This file is one of three that hold the
+// display-name rule to a single source of truth; if it quietly skips, DISPLAY-NAME-CANON's
+// guarantee is void in this tier and nothing says so. That is how TestProdComposeTrustSetting
+// went unexecuted in CI for two audit cycles.
+if (!existsSync(FIXTURE_PATH)) {
+  throw new Error(
+    `shared fixture not mounted at ${FIXTURE_PATH} — see the test-frontend target in the Makefile`,
+  )
+}
+
+const cases: FixtureCase[] = JSON.parse(readFileSync(FIXTURE_PATH, 'utf-8')).cases
 
 /** Defaults so each fixture case only states the fields it exercises. */
 const ROW_DEFAULTS = {
@@ -47,10 +55,10 @@ const ROW_DEFAULTS = {
 }
 
 describe('getStarDisplayName against the shared fixture', () => {
-  if (cases.length === 0) {
-    it.skip(`shared fixture not mounted at ${FIXTURE_PATH}`, () => {})
-    return
-  }
+  it('the fixture actually contains cases', () => {
+    // An empty or malformed fixture would otherwise produce a green run with no tests.
+    expect(cases.length).toBeGreaterThan(10)
+  })
 
   for (const testCase of cases) {
     const expected = testCase.expected

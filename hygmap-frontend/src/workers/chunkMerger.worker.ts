@@ -3,19 +3,24 @@
  * Offloads CPU-intensive work from main thread to keep UI responsive.
  */
 
-import type { Star } from '../types/star'
+import type { PositionedStar } from '../domain/star'
+
+// Every star reaching this worker has already been filtered by hasPosition() at
+// the ingest boundary in useChunkLoader. Typing it that way here means the sort
+// arithmetic below needs no null checks, and any future path that tries to feed
+// unpositioned stars into the render pipeline fails to compile.
 
 // Message types for worker communication
 export interface MergeRequest {
   type: 'merge'
-  chunks: Array<{ key: string; stars: Star[] }>
+  chunks: Array<{ key: string; stars: PositionedStar[] }>
   cameraPosition: { x: number; y: number; z: number } // Galactic coordinates
   maxStars: number
 }
 
 export interface MergeResponse {
   type: 'merge-result'
-  stars: Star[]
+  stars: PositionedStar[]
   stats: {
     inputChunks: number
     inputStars: number
@@ -50,7 +55,7 @@ function mergeChunks(request: MergeRequest): MergeResponse {
   })
 
   // Deduplicate by star ID
-  const starMap = new Map<number, Star>()
+  const starMap = new Map<number, PositionedStar>()
   request.chunks.forEach((chunk) => {
     chunk.stars.forEach((star) => {
       if (!starMap.has(star.id)) {

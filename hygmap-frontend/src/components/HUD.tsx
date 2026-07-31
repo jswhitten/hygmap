@@ -7,6 +7,7 @@ import {
   useCoordinateSystem,
 } from '../state/store'
 import { PC_TO_LY } from '../domain/coordinates'
+import { hasPosition } from '../domain/star'
 import './HUD.css'
 
 /**
@@ -73,7 +74,10 @@ export default function HUD() {
                 <div>Abs Mag: {displayStar.absmag.toFixed(2)}</div>
               )}
               <div>
-                Position: {formatPosition(displayStar.x, displayStar.y, displayStar.z)}
+                Position:{' '}
+                {hasPosition(displayStar)
+                  ? formatPosition(displayStar.x, displayStar.y, displayStar.z)
+                  : 'unknown — no parallax measurement'}
               </div>
             </div>
             {hoveredStar && selectedStar && hoveredStar.id !== selectedStar.id && (

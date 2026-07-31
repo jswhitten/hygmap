@@ -16,6 +16,76 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Fixed: stars with no known distance were drawn at the Sun.** 25,342 catalogue stars have
+  no usable parallax, so the API returns null for `dist` and `x`/`y`/`z` rather than
+  inventing a position. Neither frontend was updated when that landed. PHP cast the nulls to
+  float, which yields `0.0` — a real coordinate, Sol's — so such a star was silently plotted
+  at the origin, and `select_center=1` re-centred the entire map there. React still typed
+  the coordinates as non-null, so selecting one drove the camera and the distance arithmetic
+  to `NaN`.
+  They are now **findable but inert**, per the maintainer's decision: they appear in search
+  results, are never plotted, and both UIs state that the position is unknown and why.
+  Hiding them was rejected — a HIP number that exists should not report "not found".
+- Changing the React type produced **33 TypeScript errors**, every one a real unguarded
+  consumer, and fixing them took the count to 0. That is precisely the class of bug
+  `make typecheck-frontend` was wired into CI to catch. Most of the render pipeline now
+  takes a `PositionedStar`, so "only plottable stars reach the renderer" is a compile-time
+  guarantee rather than a convention; `calculateDistance` returns `null` instead of `NaN`,
+  because NaN propagates silently and formats as "NaN pc".
+- **The `/api/stars/search` name and catalog-ID branches now agree.** The name branch
+  excluded positionless stars while the seven catalog-ID branches returned them, so
+  `?q=hip+60798` and a search for the same star's name disagreed — `audit-api` filed this
+  on 2026-07-31. Note its suggested fix was the wrong direction: adding the exclusion to
+  the catalog branches would have hidden 25,342 real stars to make two code paths agree.
+- **The two unmappable classes are kept apart deliberately.** Stars with *no* position have
+  no `absmag`, so `ORDER BY absmag ASC NULLS LAST` sorts all of them last and they can never
+  displace a real result inside a limit — verified live, a "Cyg" search at limit 100 returns
+  none. Stars *beyond* `MAX_COORDINATE_VALUE` (1,222) have absurd coordinates from a broken
+  parallax and an `absmag` bright enough to sort **first**, which is what made a search for
+  "Cen" return artifacts ahead of real stars and answer 503 when one was selected. Those stay
+  excluded. One blanket rule would have either reopened the 503 or hidden the 25,342.
+- Two measurements did the design work and are recorded because they were worth checking
+  rather than assuming: `dist` and `x/y/z` **always travel together** — zero counterexamples
+  in either direction across 2,837,262 rows, which is what justifies a single
+  `hasPosition()` helper per stack instead of three field-by-field checks; and **no
+  positionless star carries an `absmag`**, which is what made "findable but inert" almost
+  free to implement.
+- 19 tests across all three suites, driven by a new shared fixture
+  `tests/fixtures/positionless-stars.json` rather than three separately-invented mocks. The
+  case that earns its place: **Sol at 0,0,0 has a position.** A helper written with a
+  truthiness check would classify the Sun as positionless and recreate the same confusion
+  from the opposite direction. Two existing tests asserted the previous decision and were
+  rewritten, not deleted — one of them demonstrated that the fictional-name predicate,
+  deliberately placed *inside* the unmappable guard rather than beside it, adapted to the
+  new behaviour automatically and consistently without being touched.
+
+- **Fixed: all three display-name fixture suites skipped themselves silently.** The shared
+  `tests/fixtures/display-names.json` is read by the PHP, API and React suites, which is
+  what makes DISPLAY-NAME-CANON a single source of truth rather than three private ones —
+  but every one of them skipped when the file was not mounted, which reads as green. One
+  Makefile edit away from voiding the guarantee in all three tiers with nothing to say so.
+  An audit flagged the React `it.skip`; the same pattern turned out to be in PHP (two
+  `markTestSkipped`) and the API (two `@pytest.mark.skipif`). All three now fail with a
+  message naming the Makefile target, and each asserts the fixture is non-empty so a
+  truncated file cannot yield a green run with no tests. Verified by unmounting: API errors
+  at collection, React throws, PHP exits 2. The PHP fix needed a `RuntimeException` in the
+  data provider, since providers run before `setUp` and cannot assert.
+- **`csv_safe()` has tests for the first time** — 28 of them, in
+  `hygmap-php/tests/Unit/CsvSafeTest.php`. It is the guard that stops a star name beginning
+  `=`, `+`, `-` or `@` executing as a formula when an exported CSV is opened in Excel,
+  LibreOffice or Google Sheets, and star names come from third-party catalogs. Two audits
+  reported it as untested; the reason was that it was declared inside `export.php`, which
+  performs the export on include, so exercising it meant running the whole endpoint. Moved
+  to `src/CsvSafe.php` — the same extraction REPO-HYGIENE did for `MapRenderer`.
+  Coverage includes the canonical `=cmd|'/c calc'!A1` payload, whitespace-hidden formulas
+  (Excel strips leading space before deciding, so `" =cmd"` still executes) and that the
+  original spacing is preserved rather than the trimmed value, plus the false-positive
+  side: `Alpha-Centauri` and `Barnard's Star` must pass through untouched, because
+  corrupting real names in every export would affect every user rather than a targeted
+  reader. One deliberate trade-off is now pinned by a test: a negative number already cast
+  to a string is indistinguishable from a formula and gets quoted, which is safe only
+  because `export.php` passes floats. Export verified live after the refactor.
+
 - **Fixed: ~460 stars were drawn a different colour in the 3D view than on the 2D map.**
   Found by `audit-data` 2026-07-31. React read the first character of `spect` blindly, so a
   subdwarf like `sdF8:` classified as `s` and fell through to white instead of the F colour;

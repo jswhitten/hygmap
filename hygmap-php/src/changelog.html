@@ -22,6 +22,15 @@
             <li>
                <h3>2026-7-31</h3>
                <ul>
+                  <li>Fixed stars with no known distance being drawn at the Sun. About
+                     25,000 stars in the catalog have never had their distance measured, and
+                     the map was treating "unknown" as "zero" &mdash; so they were plotted
+                     right on top of Sol, and clicking one recentred the whole map there.</li>
+                  <li>You can still find those stars by searching, and the info panel now
+                     tells you what is actually known about them: their position on the sky
+                     and their brightness, with the distance shown as unknown and a note
+                     explaining that they cannot be placed on the map. Previously searching
+                     for one took you to a view of the Sun with that star's name on it.</li>
                   <li>Fixed around 460 stars showing up as the wrong colour in the 3D app.
                      Carbon stars and a few other cool, deep-red types were being drawn plain
                      white there while the 2D map drew them red or orange, and subdwarfs were

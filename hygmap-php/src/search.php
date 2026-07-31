@@ -28,7 +28,28 @@ try {
     exit;
 }
 
-if ($row) {
+if ($row && $row['x'] === null) {
+    // Found, but it has no position, so there is nothing to centre the map on. Redirecting
+    // would land the user on a view of Sol with this star's name in the panel — which is
+    // the bug this replaces, not a lesser version of it. Say plainly what happened
+    // instead: an unclickable result with no explanation is worse than either hiding the
+    // star or plotting it wrongly. 25,342 stars are in this position.
+    //
+    // The star page is still linked, because the info panel now reports RA/Dec and
+    // apparent magnitude honestly and marks the position unknown. What is dropped is
+    // `select_center`, not access to the star.
+    $id = (int)$row['id'];
+    $name = $row['display_name'] ?? $q;
+    echo '<!DOCTYPE html><html><head><title>Star found, but not mappable</title></head>';
+    echo '<body style="font-family:sans-serif;margin:2rem;">';
+    echo '<h3>' . htmlspecialchars((string)$name, ENT_QUOTES) . ' cannot be shown on the map</h3>';
+    echo '<p>This star exists in the catalog, but no parallax measurement exists for it, so'
+       . ' its distance and position are unknown. It has a place on the sky but not in 3D'
+       . ' space, so the map has nowhere to put it.</p>';
+    echo '<p>[ <a href="/?select_star=' . $id . '">See what is known about it</a> ]</p>';
+    echo '<p>[ <a href="/">Back to map</a> ]</p>';
+    echo '</body></html>';
+} elseif ($row) {
     $id = (int)$row['id'];
     $_SESSION['last_map'] = "/?select_star=$id&select_center=1";
     header("Location: /?select_star=$id&select_center=1",true,302);

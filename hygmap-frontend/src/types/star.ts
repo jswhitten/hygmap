@@ -10,9 +10,22 @@ export interface Star {
   con?: string | null
   spect?: string | null
   absmag?: number | null
-  x: number
-  y: number
-  z: number
+  /**
+   * Galactic coordinates in parsecs, or null for a star with no usable parallax.
+   *
+   * 25,342 of the catalogue's stars have no measured distance, so the API returns null
+   * rather than inventing a position — a fabricated distance produced absolute magnitudes
+   * bright enough to sort to the top of every result, which is what DATA-QUALITY-OUTLIERS
+   * removed. These were typed non-null here until 2026-07-31, so TypeScript believed a
+   * number was always present and selecting such a star drove the camera and the distance
+   * arithmetic to NaN.
+   *
+   * Use `hasPosition(star)` rather than testing a field directly: `0` is a real coordinate
+   * (Sol's), so a falsy check reintroduces exactly the bug being fixed.
+   */
+  x: number | null
+  y: number | null
+  z: number | null
   display_name: string
   /**
    * Fictional name, populated by the API only when a world_id was requested.

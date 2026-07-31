@@ -762,22 +762,24 @@ class TestSearchGreekLetters:
 
 class TestSearchExcludesUndisplayableStars:
     """
-    Search must not return stars the app cannot open.
+    Search must not return stars whose COORDINATES the app cannot express.
 
-    Both cases below produced a result that looked fine and then failed: selecting one
-    drove the map view outside MAX_COORDINATE_VALUE, the bbox request was rejected, and
-    the PHP page answered 503. Searching "Cen" did exactly this, because a broken parallax
-    gives an absurdly bright absolute magnitude and search orders brightest-first, so the
-    artifacts came back first.
+    This produced a result that looked fine and then failed: selecting one drove the map
+    view outside MAX_COORDINATE_VALUE, the bbox request was rejected, and the PHP page
+    answered 503. Searching "Cen" did exactly this, because a broken parallax gives an
+    absurdly bright absolute magnitude and search orders brightest-first, so the artifacts
+    came back first.
+
+    This class used to also assert that stars with NO coordinates were excluded. That is
+    no longer the behaviour: the maintainer decided on 2026-07-30 (NULL-COORDINATES) that
+    those stay findable but inert, since hiding 25,342 real catalog stars means a HIP
+    number that exists reports "not found". They are covered by
+    TestPositionlessStarsAreFindableButInert instead.
+
+    Keeping the two apart is the point. A star with an absurd position sorts FIRST and
+    breaks the page; a star with no position sorts LAST and is harmless. One blanket rule
+    would either reopen the 503 or hide the 25,342.
     """
-
-    async def test_search_excludes_positionless_stars(self, client: AsyncClient):
-        """A star with no usable parallax has no coordinates and cannot be drawn."""
-        response = await client.get("/api/stars/search", params={"q": "Sgr"})
-        assert response.status_code == 200
-
-        ids = [s["id"] for s in response.json()["data"]]
-        assert 12 not in ids, "a positionless star was returned by search"
 
     async def test_search_excludes_stars_beyond_the_coordinate_domain(
         self, client: AsyncClient
@@ -961,19 +963,26 @@ class TestFictionalNameSearch:
         assert 3 not in plain_ids
         assert 3 in scoped_ids
 
-    async def test_fictional_name_does_not_resurrect_a_positionless_star(
+    async def test_a_fictional_name_on_a_positionless_star_is_findable(
         self, client: AsyncClient
     ):
         """
-        The fictional predicate sits INSIDE the unmappable-star guard, not beside it.
-        Star 12 has no position; giving it a fictional name must not make it selectable,
-        or DATA-QUALITY-OUTLIERS' 503 comes back through a new door.
+        Was the opposite assertion until 2026-07-31.
+
+        The fictional predicate sits inside the same guard as the real-name predicates, so
+        it inherits whatever that guard does — which was the point of putting it there. When
+        the guard stopped excluding positionless stars (NULL-COORDINATES), fictional names
+        on them became findable too, automatically and consistently. That is the behaviour
+        being pinned here: a fictional name is not a second class of visibility.
         """
         response = await client.get(
             "/api/stars/search", params={"q": "unmappable colony", "world_id": 1}
         )
         assert response.status_code == 200
-        assert response.json()["length"] == 0
+
+        data = response.json()["data"]
+        assert [s["id"] for s in data] == [12]
+        assert data[0]["x"] is None
 
     async def test_fictional_name_does_not_resurrect_an_out_of_domain_star(
         self, client: AsyncClient
@@ -989,3 +998,99 @@ class TestFictionalNameSearch:
             "/api/stars/search", params={"q": "epsilon iii", "world_id": -1}
         )
         assert response.status_code == 422
+
+
+class TestPositionlessStarsAreFindableButInert:
+    """
+    NULL-COORDINATES: the 25,342 stars with no usable parallax stay findable.
+
+    The maintainer's decision (2026-07-30) was that hiding them is worse than showing them
+    inert — a HIP number that exists should not report "not found". The name-search branch
+    used to exclude them while the seven catalog-ID branches did not, which audit-api filed
+    as a defect on 2026-07-31; both halves now agree.
+
+    Fixture star 12 is positionless; star 13 has coordinates beyond MAX_COORDINATE_VALUE.
+    Those are different problems and only the first is being un-excluded — see the comment
+    on the WHERE clause in stars.py.
+    """
+
+    async def test_a_positionless_star_is_returned_by_name_search(self, client: AsyncClient):
+        response = await client.get("/api/stars/search", params={"q": "Positionless"})
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert [s["id"] for s in data] == [12]
+        assert data[0]["x"] is None and data[0]["y"] is None and data[0]["z"] is None
+
+    async def test_a_positionless_star_is_returned_by_constellation_search(
+        self, client: AsyncClient
+    ):
+        """Star 12's constellation is Sgr, which is also star 13's — see the next test."""
+        response = await client.get("/api/stars/search", params={"q": "Sgr"})
+        assert response.status_code == 200
+        assert 12 in [s["id"] for s in response.json()["data"]]
+
+    async def test_an_out_of_domain_star_is_still_excluded(self, client: AsyncClient):
+        """
+        The other unmappable class, and the reason this is not one blanket rule. Star 13
+        HAS coordinates — absurd ones, from a broken parallax — and an absmag bright enough
+        to sort first, which is what produced a 503 when someone searched "Cen"
+        (DATA-QUALITY-OUTLIERS). Relaxing that exclusion too would reopen it.
+        """
+        response = await client.get("/api/stars/search", params={"q": "Sgr"})
+        assert response.status_code == 200
+        assert 13 not in [s["id"] for s in response.json()["data"]]
+
+    async def test_a_positionless_star_never_appears_in_a_bbox_result(
+        self, client: AsyncClient
+    ):
+        """
+        Not enforced by a predicate — it is structural. No null satisfies `x > xmin`, so a
+        bounding-box query cannot return one. Asserted because the decision says "never
+        plotted", and this is the query that feeds the map.
+        """
+        response = await client.get(
+            "/api/stars/",
+            # MAX_SPATIAL_RANGE caps a dimension at 3000 pc, so this is the widest box
+            # the endpoint will accept -- which is the strongest version of this assertion.
+            params={
+                "xmin": -1500, "xmax": 1500,
+                "ymin": -1500, "ymax": 1500,
+                "zmin": -1500, "zmax": 1500,
+                "limit": 50000,
+            },
+        )
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert 12 not in [s["id"] for s in data]
+        assert all(s["x"] is not None for s in data)
+
+    async def test_a_positionless_star_is_still_fetchable_by_id(self, client: AsyncClient):
+        """Findable but inert means reachable, not hidden."""
+        response = await client.get("/api/stars/12")
+        assert response.status_code == 200
+
+        data = response.json()["data"]
+        assert data["x"] is None
+        assert data["dist"] is None
+        assert data["display_name"] == "Positionless Star"
+
+    async def test_positionless_stars_sort_last_and_cannot_displace_a_real_result(
+        self, client: AsyncClient
+    ):
+        """
+        What makes the decision cheap. Positionless stars have no absmag, and every search
+        orders by `absmag ASC NULLS LAST`, so they land at the end of the list rather than
+        crowding out stars a user can actually look at. Measured across the whole catalogue
+        before relying on it: 0 of the 25,342 carry an absmag.
+        """
+        response = await client.get("/api/stars/search", params={"q": "Sgr", "limit": 100})
+        assert response.status_code == 200
+
+        ids = [s["id"] for s in response.json()["data"]]
+        positions = [s["x"] for s in response.json()["data"]]
+        assert 12 in ids
+
+        first_positionless = positions.index(None)
+        assert all(p is not None for p in positions[:first_positionless])

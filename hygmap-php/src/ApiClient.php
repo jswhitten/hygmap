@@ -160,8 +160,15 @@ final class ApiClient
         if (empty($data)) {
             return null;
         }
-        // Return just the id field to match Database::searchStar behavior
-        return ['id' => $data[0]['id']];
+        // `x` comes back alongside the id because the caller has to know whether the star
+        // can be plotted before deciding to redirect to the map. 25,342 stars have no
+        // usable parallax and therefore no coordinates; search.php shows those as an inert
+        // result instead of sending the user to a view they cannot appear in.
+        return [
+            'id' => $data[0]['id'],
+            'x' => $data[0]['x'] ?? null,
+            'display_name' => $data[0]['display_name'] ?? null,
+        ];
     }
 
     /**

@@ -9,6 +9,7 @@ import { useAppStore } from '../state/store'
 import { fetchStarById } from '../api/stars'
 import type { StarDetail } from '../types/star'
 import { parsecsToLightYears } from '../domain/coordinates'
+import { hasPosition } from '../domain/star'
 import './StarInfoPanel.css'
 
 
@@ -54,10 +55,15 @@ export default function StarInfoPanel() {
 
   const star = starDetail || selectedStar
 
-  // Calculate distance from coordinates
-  const distPc = Math.sqrt(star.x * star.x + star.y * star.y + star.z * star.z)
-  const distLy = parsecsToLightYears(distPc)
-  const displayDist = unit === 'ly' ? distLy : distPc
+  // Calculate distance from coordinates. Null for a star with no usable parallax —
+  // formatting its nulls would print "0.00", a specific and wrong claim that it sits at
+  // Sol, rather than "unknown".
+  const positioned = hasPosition(star)
+  const distPc = positioned
+    ? Math.sqrt(star.x * star.x + star.y * star.y + star.z * star.z)
+    : null
+  const displayDist =
+    distPc === null ? null : unit === 'ly' ? parsecsToLightYears(distPc) : distPc
   const distUnit = unit === 'ly' ? 'ly' : 'pc'
 
   // Build external links
@@ -148,8 +154,23 @@ export default function StarInfoPanel() {
           )}
           <div className="star-info-row">
             <span className="star-info-label">Distance:</span>
-            <span className="star-info-value">{displayDist.toFixed(2)} {distUnit}</span>
+            <span className="star-info-value">
+              {displayDist === null ? 'unknown' : `${displayDist.toFixed(2)} ${distUnit}`}
+            </span>
           </div>
+          {!positioned && (
+            /*
+             * The star is real and its sky position (RA/Dec) and apparent magnitude are
+             * measured — what is missing is the parallax, and therefore the distance and
+             * the 3D position. Saying so is required, not decorative: this star cannot be
+             * shown in the view, and a panel that simply omitted the reason would leave
+             * the user to guess why nothing is highlighted.
+             */
+            <p className="star-info-note" role="note">
+              No parallax measurement exists for this star, so its distance and position are
+              unknown. It cannot be shown on the map.
+            </p>
+          )}
           {starDetail?.ra !== null && starDetail?.ra !== undefined && (
             <div className="star-info-row">
               <span className="star-info-label">RA:</span>

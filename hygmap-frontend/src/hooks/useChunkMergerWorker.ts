@@ -4,20 +4,20 @@
  */
 
 import { useRef, useEffect, useCallback } from 'react'
-import type { Star } from '../types/star'
+import type { PositionedStar } from '../domain/star'
 import type {
   MergeRequest,
   MergeResponse,
 } from '../workers/chunkMerger.worker'
 
 interface MergeResult {
-  stars: Star[]
+  stars: PositionedStar[]
   stats: MergeResponse['stats']
 }
 
 interface UseChunkMergerWorkerReturn {
   merge: (
-    chunks: Array<{ key: string; stars: Star[] }>,
+    chunks: Array<{ key: string; stars: PositionedStar[] }>,
     cameraPosition: { x: number; y: number; z: number },
     maxStars: number
   ) => Promise<MergeResult>
@@ -69,7 +69,7 @@ export function useChunkMergerWorker(): UseChunkMergerWorkerReturn {
 
   const merge = useCallback(
     (
-      chunks: Array<{ key: string; stars: Star[] }>,
+      chunks: Array<{ key: string; stars: PositionedStar[] }>,
       cameraPosition: { x: number; y: number; z: number },
       maxStars: number
     ): Promise<MergeResult> => {

@@ -23,6 +23,30 @@ final class IndexHelpers
      */
     private const IMAGE_MAP_MAX_AREAS = 750;
 
+    /** Shown wherever a positionless star's coordinates or distance would go. */
+    public const UNKNOWN_POSITION_TEXT = 'unknown';
+
+    /**
+     * Does this star have a position that can be plotted?
+     *
+     * 25,342 stars in AT-HYG 4.0 have no usable parallax, so the API returns null for
+     * `dist` and `x`/`y`/`z`. Casting those to float yields 0.0, which is a real
+     * coordinate — Sol's — so before this check a positionless star was silently drawn at
+     * the origin and, with `select_center=1`, re-centred the whole map there.
+     *
+     * Testing `x` alone is sufficient and that is a measured claim, not an assumption:
+     * across all 2,837,262 rows, zero stars have `dist` without `x/y/z` or vice versa
+     * (see .claude/features/NULL-COORDINATES.md). `array_key_exists` rather than `isset`,
+     * because `isset` is false for a present-but-null key and would report a star as
+     * positionless when the field is simply absent from a partial row.
+     *
+     * @param array<string, mixed> $star
+     */
+    public static function hasPosition(array $star): bool
+    {
+        return array_key_exists('x', $star) && $star['x'] !== null;
+    }
+
     /**
      * Fetch selected star and update view center if requested
      *
@@ -45,8 +69,13 @@ final class IndexHelpers
                 return null;
             }
 
-            // Update view center if requested
-            if ($select_center == 1) {
+            // Update view center if requested.
+            //
+            // Skipped for a positionless star: there is nothing to centre on, and casting
+            // its null coordinates to float would move the view to 0,0,0 — Sol — as though
+            // the user had asked to look at the Sun. The view stays where it was, and the
+            // info panel says the position is unknown.
+            if ($select_center == 1 && self::hasPosition($selected_star)) {
                 $view_coords['x_c'] = Units::fromParsecs((float)$selected_star["x"], $unit);
                 $view_coords['y_c'] = Units::fromParsecs((float)$selected_star["y"], $unit);
                 $view_coords['z_c'] = Units::fromParsecs((float)$selected_star["z"], $unit);
@@ -139,19 +168,38 @@ final class IndexHelpers
                 . '&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Radius=1&Radius.unit=arcmin';
         }
 
-        $distance_ui = number_format(Units::fromParsecs((float)$selected_star["dist"], $unit), 3);
-        $x_ui = number_format(Units::fromParsecs((float)$selected_star["x"], $unit), 4);
-        $y_ui = number_format(Units::fromParsecs((float)$selected_star["y"], $unit), 4);
-        $z_ui = number_format(Units::fromParsecs((float)$selected_star["z"], $unit), 4);
+        // A star with no usable parallax has no distance, no coordinates and no absolute
+        // magnitude. Formatting those nulls would print "0.000" and "0.0000" — which is
+        // not "unknown", it is a specific and wrong claim that the star sits at Sol. What
+        // it does have is a real sky position (RA/Dec) and an apparent magnitude, both
+        // measured, so those are still shown.
+        $has_position = self::hasPosition($selected_star);
+        $unknown = self::UNKNOWN_POSITION_TEXT;
 
-        $x_ly = Units::toLightYears((float)$selected_star["x"], "pc");
-        $y_ly = Units::toLightYears((float)$selected_star["y"], "pc");
-        $z_ly = Units::toLightYears((float)$selected_star["z"], "pc");
+        $distance_ui = $has_position
+            ? number_format(Units::fromParsecs((float)$selected_star["dist"], $unit), 3)
+            : $unknown;
+        $x_ui = $has_position ? number_format(Units::fromParsecs((float)$selected_star["x"], $unit), 4) : $unknown;
+        $y_ui = $has_position ? number_format(Units::fromParsecs((float)$selected_star["y"], $unit), 4) : $unknown;
+        $z_ui = $has_position ? number_format(Units::fromParsecs((float)$selected_star["z"], $unit), 4) : $unknown;
+
+        $x_ly = $has_position ? Units::toLightYears((float)$selected_star["x"], "pc") : null;
+        $y_ly = $has_position ? Units::toLightYears((float)$selected_star["y"], "pc") : null;
+        $z_ly = $has_position ? Units::toLightYears((float)$selected_star["z"], "pc") : null;
 
         return [
             'has_star' => true,
+            'has_position' => $has_position,
+            // Why the map cannot show it. The decision that these stars stay findable but
+            // inert is only defensible if the UI says so — a result that silently does
+            // nothing is worse than either hiding it or plotting it.
+            'position_note' => $has_position
+                ? null
+                : 'No parallax measurement exists for this star, so its distance and position are unknown. It cannot be shown on the map.',
             'display_name' => $display_name,
-            'absmag' => number_format((float)$selected_star["absmag"], 2),
+            'absmag' => $selected_star["absmag"] === null
+                ? $unknown
+                : number_format((float)$selected_star["absmag"], 2),
             'spect' => $selected_star["spect"] ?? '',
             'distance_ui' => $distance_ui,
             'unit' => $unit,

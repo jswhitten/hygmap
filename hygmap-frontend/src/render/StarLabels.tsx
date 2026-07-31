@@ -10,7 +10,8 @@ import { useState, useRef, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
-import type { Star } from '../types/star'
+import { hasPosition } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
 import { projectStarToScene } from '../domain/viewMode'
 import type { ViewMode } from '../domain/viewMode'
 import './StarLabels.css'
@@ -21,16 +22,16 @@ const MAX_LABEL_DISTANCE = 30
 const MAX_LABELS = 50
 
 interface StarLabelsProps {
-  stars: Star[]
+  stars: PositionedStar[]
   labelMagLimit: number
-  selectedStar?: Star | null
+  selectedStar?: PositionedStar | null
   viewMode: ViewMode
 }
 
 /**
  * Check if a star is "important" (has proper name or Bayer/Flamsteed designation)
  */
-function isImportantStar(star: Star): boolean {
+function isImportantStar(star: PositionedStar): boolean {
   return !!(star.proper || star.bayer || star.flam)
 }
 
@@ -38,7 +39,7 @@ function isImportantStar(star: Star): boolean {
 const tempVec = new THREE.Vector3()
 
 export default function StarLabels({ stars, labelMagLimit, selectedStar, viewMode }: StarLabelsProps) {
-  const [labeledStars, setLabeledStars] = useState<Star[]>([])
+  const [labeledStars, setLabeledStars] = useState<PositionedStar[]>([])
   const lastUpdateRef = useRef(new THREE.Vector3())
   const lastStarsLengthRef = useRef(0)
   const lastViewModeRef = useRef<ViewMode>(viewMode)
@@ -66,7 +67,7 @@ export default function StarLabels({ stars, labelMagLimit, selectedStar, viewMod
     })
 
     // Filter by magnitude for non-important stars, keep top N
-    const filtered: Star[] = []
+    const filtered: PositionedStar[] = []
     for (const { star } of starsWithDistance) {
       if (filtered.length >= MAX_LABELS) break
 
@@ -78,8 +79,9 @@ export default function StarLabels({ stars, labelMagLimit, selectedStar, viewMod
       }
     }
 
-    // Always include selected star if it has a display name and is nearby
-    if (selectedStar?.display_name) {
+    // Always include selected star if it has a display name and is nearby.
+    // hasPosition guards it: a positionless star has no place to hang a label.
+    if (selectedStar?.display_name && hasPosition(selectedStar)) {
   const [sx, sy, sz] = projectStarToScene(selectedStar, viewMode)
       tempVec.set(sx, sy, sz)
       const selectedDist = tempVec.distanceTo(cameraPos)

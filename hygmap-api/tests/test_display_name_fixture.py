@@ -19,10 +19,24 @@ FIXTURE_PATH = os.environ.get("DISPLAY_NAME_FIXTURE", "/fixtures/display-names.j
 
 
 def load_cases():
+    """
+    A missing fixture raises rather than returning an empty list.
+
+    This is one of three suites holding the display-name rule to a single source of truth.
+    Returning [] made every test below skip, which reads as green and silently voids
+    DISPLAY-NAME-CANON's guarantee in this tier — the same failure mode that left
+    TestProdComposeTrustSetting unexecuted in CI for two audit cycles.
+    """
     if not os.path.exists(FIXTURE_PATH):
-        return []
+        raise RuntimeError(
+            f"shared fixture not mounted at {FIXTURE_PATH}; "
+            "see the test-api target in the Makefile"
+        )
     with open(FIXTURE_PATH) as fh:
-        return json.load(fh)["cases"]
+        cases = json.load(fh)["cases"]
+    if len(cases) < 10:
+        raise RuntimeError(f"shared fixture at {FIXTURE_PATH} is empty or malformed")
+    return cases
 
 
 CASES = load_cases()
@@ -73,7 +87,6 @@ def _xfail_if_known_broken(case, key):
         pytest.xfail(f"{case['name']}: {broken['why']} (currently {broken[key]!r})")
 
 
-@pytest.mark.skipif(not CASES, reason=f"shared fixture not mounted at {FIXTURE_PATH}")
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])
 def test_star_base_display_name_matches_fixture(case):
     """StarBase must produce the name the shared fixture expects."""
@@ -85,7 +98,6 @@ def test_star_base_display_name_matches_fixture(case):
     )
 
 
-@pytest.mark.skipif(not CASES, reason=f"shared fixture not mounted at {FIXTURE_PATH}")
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])
 def test_star_detail_agrees_with_star_base(case):
     """

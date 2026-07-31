@@ -38,6 +38,8 @@ import { useChunkLoader } from '../hooks/useChunkLoader'
 import { InstancedStars, StarGlow, GPUPicker, GalacticGrid, StarLabels, SelectionIndicator, SignalsLayer, MilkyWayGlow } from '../render'
 import MeasureLine from '../render/MeasureLine'
 import { galacticToScene, sceneBoundsToGalactic, lightYearsToParsecs } from '../domain/coordinates'
+import { hasPosition } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
 import { projectSceneCoords, projectStarToScene } from '../domain/viewMode'
 import type { Star, BoundingBox } from '../types/star'
 import type { Signal } from '../types/signal'
@@ -194,7 +196,10 @@ export default function StarField() {
 
   // When selectedStar changes to a new distant star, jump to load chunks around it
   useEffect(() => {
-    if (selectedStar && selectedStar.id !== lastSelectedId.current) {
+    // A positionless star is skipped entirely: there is nowhere to fly to, and passing its
+    // nulls through galacticToScene produced a NaN vector that moved the camera to an
+    // undefined place with no error.
+    if (selectedStar && hasPosition(selectedStar) && selectedStar.id !== lastSelectedId.current) {
       lastSelectedId.current = selectedStar.id
       const [x, y, z] = galacticToScene(selectedStar.x, selectedStar.y, selectedStar.z)
       const starPos = new THREE.Vector3(x, y, z)
@@ -272,7 +277,12 @@ export default function StarField() {
       ? (unit === 'ly' ? lightYearsToParsecs(debouncedFilters.maxDistance) : debouncedFilters.maxDistance)
       : null
 
-    const filtered = stars.filter((star) => {
+    // hasPosition first, as its own filter: it is a type predicate, so this narrows the
+    // array to PositionedStar[] and every downstream consumer -- the render components, the
+    // picker, the label layer -- gets coordinates typed as numbers. Folding it into the
+    // boolean callback below would filter the same rows but narrow nothing, which is how
+    // the null coordinates reached the render pipeline in the first place.
+    const filtered = stars.filter(hasPosition).filter((star) => {
       // Magnitude filter
       const mag = star.absmag ?? 20
       if (mag > debouncedFilters.magLimit) return false
@@ -316,7 +326,7 @@ export default function StarField() {
 
   // Handle star click
   const handleClick = useCallback(
-    (star: Star | null) => {
+    (star: PositionedStar | null) => {
       // Handle measure mode
       if (measure.active && star) {
         const [x, y, z] = projectStarToScene(star, viewMode)
@@ -371,7 +381,10 @@ export default function StarField() {
     (point: MeasurePoint | null): MeasurePoint | null => {
       if (!point) return null
 
-      if (point.star) {
+      // A measure point can only ever have been placed on a star that was rendered, and
+      // only positioned stars are rendered -- but the stored point outlives the render
+      // pass, so the guard is what lets this stay type-safe without a cast.
+      if (point.star && hasPosition(point.star)) {
         const projected = projectStarToScene(point.star, viewMode)
         if (positionsEqual(point.position, projected)) {
           return point
@@ -434,7 +447,10 @@ export default function StarField() {
           }}
         />
       </ErrorBoundary>
-      <SelectionIndicator star={selectedStar} viewMode={viewMode} />
+      <SelectionIndicator
+        star={selectedStar && hasPosition(selectedStar) ? selectedStar : null}
+        viewMode={viewMode}
+      />
       {!printableView && showSignals && (
         <ErrorBoundary fallback={<group />}>
           <SignalsLayer
@@ -450,7 +466,7 @@ export default function StarField() {
         <StarLabels
           stars={filteredStars}
           labelMagLimit={labelMagLimit}
-          selectedStar={selectedStar}
+          selectedStar={selectedStar && hasPosition(selectedStar) ? selectedStar : null}
           viewMode={viewMode}
         />
       )}

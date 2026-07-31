@@ -17,6 +17,7 @@ import { useAppStore } from './state/store'
 import { fetchStarById } from './api/stars'
 import type { Star } from './types/star'
 import { projectStarToScene, projectSceneCoords, isLockedViewMode, DEFAULT_VIEW_MODE } from './domain/viewMode'
+import { hasPosition } from './domain/star'
 import { galacticToScene } from './domain/coordinates'
 import type { ViewMode } from './domain/viewMode'
 import { decodeStateFromURL } from './utils/urlState'
@@ -166,8 +167,14 @@ function App() {
         .then((response) => {
           if (response.data) {
             setSelectedStar(response.data)
-            // Center on the star if no explicit camera position was provided
-            if (!hasCamera) {
+            // Center on the star if no explicit camera position was provided.
+            //
+            // hasPosition guards it because ?star=<id> can name one of the 25,342 stars
+            // with no parallax. Those are still worth selecting -- the info panel reports
+            // what is known and says the position is unknown -- but there is nowhere to
+            // point the camera, and the old arithmetic produced a NaN target that moved
+            // the view somewhere undefined.
+            if (!hasCamera && hasPosition(response.data)) {
               const [x, y, z] = projectStarToScene(response.data, urlState.view ?? DEFAULT_VIEW_MODE)
               const lookAt = new THREE.Vector3(x, y, z)
               const position = lookAt.clone().add(new THREE.Vector3(0, 0, DEFAULT_CAMERA_OFFSET_PC))
@@ -241,8 +248,11 @@ function App() {
     [viewMode]
   )
 
-  // Center camera on a star
+  // Center camera on a star. A positionless star has nothing to centre on, so the camera
+  // is left where it is rather than sent to the origin.
   const handleCenter = useCallback((star: Star) => {
+    if (!hasPosition(star)) return
+
     const [x, y, z] = projectStarToScene(star, viewMode)
     const lookAt = new THREE.Vector3(x, y, z)
 

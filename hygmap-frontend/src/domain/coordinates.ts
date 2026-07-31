@@ -14,6 +14,7 @@
  */
 
 import type { Star, BoundingBox } from '../types/star'
+import { hasPosition } from './star'
 
 /**
  * Convert galactic coordinates to Three.js scene coordinates
@@ -52,9 +53,17 @@ export function sceneBoundsToGalactic(bounds: BoundingBox): BoundingBox {
 }
 
 /**
- * Calculate 3D distance between two stars in parsecs
+ * Calculate 3D distance between two stars in parsecs.
+ *
+ * Returns null when either star has no position. The alternative — returning NaN, which is
+ * what this did before `x/y/z` became nullable — propagates silently through every
+ * subsequent comparison and formats as "NaN pc" in the UI. A null forces the caller to
+ * decide what to display.
  */
-export function calculateDistance(star1: Star, star2: Star): number {
+export function calculateDistance(star1: Star, star2: Star): number | null {
+  if (!hasPosition(star1) || !hasPosition(star2)) {
+    return null
+  }
   const dx = star1.x - star2.x
   const dy = star1.y - star2.y
   const dz = star1.z - star2.z

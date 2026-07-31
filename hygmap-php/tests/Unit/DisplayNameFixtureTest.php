@@ -37,19 +37,32 @@ class DisplayNameFixtureTest extends TestCase
     {
         require_once HYGMAP_SRC_DIR . '/StarFormatter.php';
 
-        if (!file_exists(self::FIXTURE_PATH)) {
-            $this->markTestSkipped('Shared fixture not mounted at ' . self::FIXTURE_PATH);
-        }
+        // A missing fixture fails rather than skips. This is one of three suites holding
+        // the display-name rule to a single source of truth; a silent skip voids
+        // DISPLAY-NAME-CANON's guarantee in this tier and says nothing.
+        $this->assertFileExists(
+            self::FIXTURE_PATH,
+            'Shared fixture not mounted; see the test-unit target in the Makefile'
+        );
     }
 
     /** @return array<string, array{0: array<string, mixed>}> */
     public static function displayNameCases(): array
     {
+        // Data providers run before setUp, so this cannot assert — but it must not hand
+        // back a silently-passing placeholder either. Throwing fails the whole class
+        // loudly, which is the point.
         if (!file_exists(self::FIXTURE_PATH)) {
-            return ['fixture not mounted' => [[]]];
+            throw new \RuntimeException(
+                'Shared fixture not mounted at ' . self::FIXTURE_PATH
+                . '; see the test-unit target in the Makefile'
+            );
         }
 
         $data = json_decode((string)file_get_contents(self::FIXTURE_PATH), true);
+        if (!is_array($data['cases'] ?? null) || count($data['cases']) < 10) {
+            throw new \RuntimeException('Shared fixture is empty or malformed');
+        }
         $out = [];
         foreach ($data['cases'] as $case) {
             $out[$case['name']] = [$case];
@@ -64,10 +77,6 @@ class DisplayNameFixtureTest extends TestCase
      */
     public function testDisplayNameMatchesSharedFixture(array $case): void
     {
-        if ($case === []) {
-            $this->markTestSkipped('Shared fixture not mounted');
-        }
-
         $row = array_merge(self::ROW_DEFAULTS, $case['star']);
         // PHP takes the selected world as an argument rather than inferring it from the
         // presence of a fictional name, so the fixture's world_id has to be passed

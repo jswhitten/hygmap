@@ -14,6 +14,7 @@ require_once __DIR__ . '/Units.php';
 require_once __DIR__ . '/StarFormatter.php';
 require_once __DIR__ . '/MapGeometry.php';
 require_once __DIR__ . '/ApiClient.php';
+require_once __DIR__ . '/CsvSafe.php';
 
 session_start();
 Csrf::init();
@@ -53,33 +54,10 @@ header('Expires: 0');
 // Open output stream
 $output = fopen('php://output', 'w');
 
-/**
- * Neutralize spreadsheet formula injection in a CSV cell.
- *
- * Star names come from third-party catalogs and the fictional-names table, so they are
- * untrusted input as far as this app is concerned. Excel, LibreOffice, and Google Sheets
- * evaluate any cell whose first character is =, +, -, or @ as a formula when the file is
- * opened, which turns an exported star list into code execution on the reader's machine.
- * Prefixing a single quote makes the cell render as literal text in all three.
- *
- * Leading whitespace is stripped first: " =cmd" is still treated as a formula by Excel.
- *
- * @param mixed $value Cell value
- * @return mixed Original value, or a quote-prefixed string if it could be read as a formula
- */
-function csv_safe(mixed $value): mixed
-{
-    if (!is_string($value) || $value === '') {
-        return $value;
-    }
-
-    $trimmed = ltrim($value, " \t\r\n");
-    if ($trimmed !== '' && str_contains('=+-@', $trimmed[0])) {
-        return "'" . $value;
-    }
-
-    return $value;
-}
+// csv_safe() now lives in CsvSafe.php, required above. It was moved there on 2026-07-31
+// so it could be unit tested: this file performs the export on include, so exercising a
+// function declared here meant running the whole endpoint, and nothing did. Two audits
+// reported it as having zero coverage.
 
 // Write CSV header
 fputcsv($output, [

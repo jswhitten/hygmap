@@ -3,6 +3,33 @@
  */
 
 import * as THREE from 'three'
+import type { Star } from '../types/star'
+
+/** A star known to have coordinates, so they can be read without a null check. */
+export type PositionedStar<T extends Star = Star> = T & {
+  x: number
+  y: number
+  z: number
+}
+
+/**
+ * Does this star have a position that can be plotted?
+ *
+ * 25,342 catalogue stars have no usable parallax, so the API returns null for `x`/`y`/`z`
+ * rather than inventing a position. Written as a type predicate so TypeScript narrows the
+ * star afterwards and the call sites need no casts or non-null assertions — the whole
+ * point is that the compiler, not a convention, enforces the check.
+ *
+ * Tests `x` explicitly against null. A truthiness check would be wrong: `0` is a real
+ * coordinate — it is Sol's — and treating it as "no position" is the mirror image of the
+ * bug this replaces, which treated "no position" as 0.
+ *
+ * Checking `x` alone is sufficient and measured: across all 2,837,262 rows, no star has
+ * any one of dist/x/y/z without the others.
+ */
+export function hasPosition<T extends Star>(star: T): star is PositionedStar<T> {
+  return star.x !== null && star.y !== null && star.z !== null
+}
 
 /**
  * Spectral type to hex color mapping.

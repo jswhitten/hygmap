@@ -1,0 +1,93 @@
+{
+  "_comment": [
+    "Canonical positionless-star cases, shared by the PHP, API and React suites.",
+    "",
+    "25,342 stars in AT-HYG 4.0 have no usable parallax, so no distance and no x/y/z.",
+    "Inventing a position for them was deliberately removed (DATA-QUALITY-OUTLIERS): a",
+    "fabricated distance produced absolute magnitudes bright enough to sort to the top of",
+    "every result. The null is the honest answer, and every consumer has to handle it.",
+    "",
+    "MAINTAINER DECISION, 2026-07-30 (NULL-COORDINATES): a positionless star stays",
+    "FINDABLE in search but is INERT — no click-through to the map, never plotted, and the",
+    "result must say why it cannot be mapped. Hiding 25,342 real catalog stars was",
+    "rejected; so was a full 'unmapped' detail view, as more UI work than it is worth.",
+    "",
+    "MEASURED FACTS THE IMPLEMENTATIONS RELY ON (2026-07-31, whole catalogue):",
+    "  - dist and x/y/z always travel together. 0 stars have one without the other, in",
+    "    either direction. One hasPosition() helper is therefore sufficient.",
+    "  - Positionless stars have NO absmag but DO have an apparent mag. Since every search",
+    "    orders by absmag ASC NULLS LAST, they always sort last and can never displace a",
+    "    real result inside a limit.",
+    "  - All of them carry a Tycho-2 id and a constellation; 116 have a HIP number.",
+    "",
+    "NOT THE SAME THING: 1,222 stars have coordinates beyond MAX_COORDINATE_VALUE. Those",
+    "are unmappable for a different reason and stay excluded from search — they have an",
+    "absurd absmag that sorts them FIRST, which is what caused a 503. Do not merge the two",
+    "cases into one 'unmappable' concept."
+  ],
+  "cases": [
+    {
+      "name": "no position at all — the ordinary case",
+      "star": {
+        "id": 1274339,
+        "hip": "60798",
+        "tyc": "1445-1183-1",
+        "con": "Com",
+        "mag": 11.28,
+        "absmag": null,
+        "dist": null,
+        "x": null, "y": null, "z": null
+      },
+      "has_position": false,
+      "mappable": false,
+      "why": "no usable parallax, so no distance and no coordinates"
+    },
+    {
+      "name": "positionless star that also has a proper name",
+      "star": {
+        "id": 1276197,
+        "proper": "3C 273",
+        "hip": "60936",
+        "con": "Vir",
+        "mag": 12.9,
+        "absmag": null,
+        "dist": null,
+        "x": null, "y": null, "z": null
+      },
+      "has_position": false,
+      "mappable": false,
+      "why": "a quasar carried as a stellar entry; the only positionless star with a proper name"
+    },
+    {
+      "name": "ordinary star with a full position",
+      "star": {
+        "id": 32349,
+        "proper": "Sirius",
+        "hip": "32349",
+        "con": "CMa",
+        "mag": -1.46,
+        "absmag": 1.42,
+        "dist": 2.64,
+        "x": -1.87, "y": 0.08, "z": -2.31
+      },
+      "has_position": true,
+      "mappable": true,
+      "why": "the control case — must remain fully mappable"
+    },
+    {
+      "name": "star at the origin is positioned, not positionless",
+      "star": {
+        "id": 0,
+        "proper": "Sol",
+        "con": null,
+        "mag": -26.7,
+        "absmag": 4.83,
+        "dist": 0.0,
+        "x": 0.0, "y": 0.0, "z": 0.0
+      },
+      "has_position": true,
+      "mappable": true,
+      "why": "0.0 is a real coordinate. The bug being fixed cast null to 0.0 and drew positionless stars here, so a helper that confuses the two would reintroduce it exactly."
+    }
+  ]
+}

@@ -11,7 +11,9 @@ import { useRef, useCallback, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { fetchStars } from '../api/stars'
-import type { Star, BoundingBox } from '../types/star'
+import { hasPosition } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
+import type { BoundingBox } from '../types/star'
 import { MAX_RENDERED_STARS } from '../constants/rendering'
 import { sceneToGalactic, sceneBoundsToGalactic } from '../domain/coordinates'
 import { useChunkMergerWorker } from './useChunkMergerWorker'
@@ -39,7 +41,7 @@ const LOD_LEVELS = [
 type ChunkKey = string
 
 interface ChunkData {
-  stars: Star[]
+  stars: PositionedStar[]
   lodLevel: number
   timestamp: number
 }
@@ -177,11 +179,11 @@ interface ChunkCandidate {
 
 interface UseChunkLoaderOptions {
   enabled?: boolean
-  onStarsLoaded?: (stars: Star[]) => void
+  onStarsLoaded?: (stars: PositionedStar[]) => void
 }
 
 interface UseChunkLoaderReturn {
-  stars: Star[]
+  stars: PositionedStar[]
   chunkCount: number
   loadingCount: number
   jumpToPosition: (position: THREE.Vector3) => void
@@ -283,12 +285,12 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
   const lastUpdateQuat = useRef<THREE.Quaternion>(new THREE.Quaternion())
   const targetPosRef = useRef<THREE.Vector3 | null>(null)
   const isJumpingRef = useRef(false) // Prevent useFrame updates during jump
-  const allStarsRef = useRef<Star[]>([])
+  const allStarsRef = useRef<PositionedStar[]>([])
 
   // Synchronous merge fallback (used when worker not available)
   const mergeSynchronous = useCallback(() => {
     const mergeStart = performance.now()
-    const starMap = new Map<number, Star>() // Dedupe by ID
+    const starMap = new Map<number, PositionedStar>() // Dedupe by ID
 
     chunksRef.current.forEach((chunk) => {
       chunk.stars.forEach((star) => {
@@ -442,7 +444,12 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
       // Create a synthetic chunk for this area
       const key = `immediate_${Math.floor(position.x)}_${Math.floor(position.y)}_${Math.floor(position.z)}`
       chunksRef.current.set(key, {
-        stars: response.data,
+        // Filtered at ingest, not at each use. The bbox endpoint cannot return a star with
+        // null coordinates (no null satisfies `x > xmin`), so this should never drop
+        // anything -- but it is the one place where stars enter the render pipeline, and
+        // making that guarantee explicit here is what lets every downstream consumer, the
+        // merge worker included, treat coordinates as numbers.
+        stars: response.data.filter(hasPosition),
         lodLevel: 0,
         timestamp: Date.now(),
       })
@@ -495,7 +502,8 @@ export function useChunkLoader(options: UseChunkLoaderOptions = {}): UseChunkLoa
             )
           }
           chunksRef.current.set(key, {
-            stars: response.data,
+            // See the note on the immediate-area chunk above.
+            stars: response.data.filter(hasPosition),
             lodLevel,
             timestamp: Date.now(),
           })

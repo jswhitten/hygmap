@@ -1,4 +1,4 @@
-import type { Star } from '../types/star'
+import type { PositionedStar } from './star'
 import { galacticToScene } from './coordinates'
 
 export type ViewMode = '2d-flat' | '3d-locked' | '3d-free'
@@ -18,7 +18,18 @@ export function projectSceneCoords(
   return coords
 }
 
-export function projectStarToScene(star: Star, viewMode: ViewMode): [number, number, number] {
+/**
+ * Takes a PositionedStar rather than a Star on purpose.
+ *
+ * There is no sensible scene position for a star with no parallax, and every previous
+ * attempt to produce one returned a NaN vector that moved the camera somewhere undefined.
+ * Requiring the narrowed type pushes the decision out to the callers, where the right
+ * answer is visible: leave the camera alone. See hasPosition() in domain/star.ts.
+ */
+export function projectStarToScene(
+  star: PositionedStar,
+  viewMode: ViewMode
+): [number, number, number] {
   const sceneCoords = galacticToScene(star.x, star.y, star.z)
   return projectSceneCoords(sceneCoords, viewMode)
 }

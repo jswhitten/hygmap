@@ -8,16 +8,16 @@
 import { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import type { Star } from '../types/star'
 import { projectStarToScene } from '../domain/viewMode'
 import type { ViewMode } from '../domain/viewMode'
 import { getStarSize } from '../domain/star'
+import type { PositionedStar } from '../domain/star'
 import { MAX_RENDERED_STARS } from '../constants/rendering'
 
 interface GPUPickerProps {
-  stars: Star[]
-  onHover: (star: Star | null) => void
-  onClick: (star: Star | null) => void
+  stars: PositionedStar[]
+  onHover: (star: PositionedStar | null) => void
+  onClick: (star: PositionedStar | null) => void
   enabled?: boolean
   viewMode: ViewMode
 }
