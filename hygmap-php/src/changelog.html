@@ -22,6 +22,19 @@
             <li>
                <h3>2026-7-30</h3>
                <ul>
+                  <li>Fixed several thousand stars appearing on the map twice. Two of the
+                     catalogs the database is built from were each adding the same nearby
+                     star as if it were new, so one physical star could show up as two
+                     markers and two search results. About 2,600 stars were affected.</li>
+                  <li>Note that a few hundred close double stars still show as two entries,
+                     and that is correct: they really are two stars, close enough together
+                     that some catalogs record only one. Graffias and Graffias B, for
+                     example, are a genuine pair.</li>
+                  <li>Fixed one star in Cepheus that was being shown at the wrong distance.
+                     It had been given the identity of a star in Leo, 95 degrees away, and
+                     had inherited that star's distance and motion along with it. Its
+                     distance is now blank rather than wrong, since no reliable measurement
+                     of it exists.</li>
                   <li>Zoomed-out views draw much faster. Asking for a wide field of stars
                      used to make the database sort through most of the catalog and spill to
                      disk; it now reads them in order and stops as soon as it has enough.

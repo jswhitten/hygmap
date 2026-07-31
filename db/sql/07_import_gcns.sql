@@ -209,6 +209,27 @@ SELECT
   s.z_eq
 FROM gcns_stage s
 WHERE s.match_method = 'new'
+  -- Do not insert a "new" star whose Gaia source_id is already in the table.
+  --
+  -- This was the single largest source of duplicate Gaia rows: 2,598 of the 2,665 stars
+  -- CNS5 introduces as new were introduced as new by GCNS too, so the same physical star
+  -- was inserted twice, ~30 minutes apart in the same build. Measured example: gaia
+  -- 1005873614080407296 as ids 5000426 and 6069717, RA agreeing to nine decimal places and
+  -- identical spectral type and magnitude.
+  --
+  -- The cause is not in either matcher's logic but in how they are run: both cross-match
+  -- against the live database, and both CSVs were generated from the same pre-supplement
+  -- snapshot, so neither could see what the other would insert. Regenerating gcns.csv
+  -- after applying CNS5 would also fix it, but only until the next time someone regenerates
+  -- them in the other order or in parallel. Testing the invariant here -- "is this Gaia
+  -- source already present?" -- is order-independent and idempotent, which is the same
+  -- lesson COORD-RECOMPUTE-FIX learned about gating on state rather than on sequence.
+  --
+  -- ON CONFLICT (id) below does not cover this: the two rows have different ids. It is the
+  -- Gaia identity that collides, not the primary key.
+  AND NOT EXISTS (
+    SELECT 1 FROM athyg a WHERE a.gaia = NULLIF(s.source_id, '')
+  )
 ON CONFLICT (id) DO NOTHING;
 
 DO $$
@@ -292,4 +313,61 @@ BEGIN
   RAISE NOTICE 'New stars with spect type:  %', new_with_spect;
   RAISE NOTICE 'Matched stars with spect:   %', matched_with_spect;
   RAISE NOTICE 'Total athyg rows:           %', (SELECT COUNT(*) FROM athyg);
+END $$;
+
+--
+-- Guard: no duplicate Gaia group may contain a row this pipeline inserted.
+--
+-- A Gaia DR3 source_id names one physical source, so two rows sharing one are the same
+-- star twice -- with one important exception, which is why this guard is shaped the way it
+-- is rather than simply asserting a count of zero.
+--
+-- AT-HYG itself legitimately carries ~1,167 groups where two rows share a Gaia id. Those
+-- are real close binaries: Tycho-2 resolved both components, Gaia DR3 recorded a single
+-- source, and AT-HYG kept both. Measured, 88% of them carry hard evidence of being
+-- genuine -- distinct Tycho-2 identifiers and/or explicit component designations such as
+-- GJ 314A / GJ 314B, or Graffias / Graffias B. Merging those would delete real stars, so
+-- the project's decision (2026-07-31) is to keep them.
+--
+-- What is NOT legitimate is this pipeline manufacturing new duplicates, which is exactly
+-- what it did: 2,598 stars inserted twice because cns5.csv and gcns.csv were generated
+-- from the same pre-supplement snapshot and each independently called the star "new".
+--
+-- So the invariant is not "no duplicates" but "no duplicate we created". That distinction
+-- is what lets this guard survive an AT-HYG upgrade that changes the binary count, while
+-- still failing loudly the moment an import reintroduces the bug.
+--
+DO $$
+DECLARE
+  bad_groups INTEGER;
+  example    TEXT;
+  native     INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO bad_groups FROM (
+    SELECT gaia FROM athyg WHERE gaia IS NOT NULL
+    GROUP BY gaia HAVING COUNT(*) > 1 AND COUNT(*) FILTER (WHERE id >= 5000000) > 0
+  ) t;
+
+  IF bad_groups > 0 THEN
+    SELECT string_agg(gaia, ', ') INTO example FROM (
+      SELECT gaia FROM athyg WHERE gaia IS NOT NULL
+      GROUP BY gaia HAVING COUNT(*) > 1 AND COUNT(*) FILTER (WHERE id >= 5000000) > 0
+      LIMIT 3
+    ) s;
+    RAISE EXCEPTION 'GAIA-DUPLICATES: % Gaia source_id(s) are duplicated by a row this '
+                    'pipeline inserted (ids >= 5000000). A supplement import created a star '
+                    'that already existed. Example source_id(s): %. '
+                    'Check the NOT EXISTS guards on the "new" inserts in 06_import_cns5.sql '
+                    'and 07_import_gcns.sql.', bad_groups, example;
+  END IF;
+
+  SELECT COUNT(*) INTO native FROM (
+    SELECT gaia FROM athyg WHERE gaia IS NOT NULL GROUP BY gaia HAVING COUNT(*) > 1
+  ) t;
+  -- Counted here, before 09_import_overrides.sql retracts any wrong Gaia identification,
+  -- so this figure is one higher than the finished database reports. Expect 1167 here and
+  -- 1166 from db/scripts/check_duplicates.py; the difference is the AT-HYG cross-match
+  -- error on tyc 3986-3499-1, which is corrected two steps later.
+  RAISE NOTICE 'Gaia duplicate groups: % inherited from AT-HYG, 0 created by import '
+               '(counted pre-override; the final database has one fewer)', native;
 END $$;

@@ -273,6 +273,14 @@ SELECT
   s.z_eq
 FROM cns5_stage s
 WHERE s.match_method = 'new'
+  -- Same guard as 07_import_gcns.sql; see the longer explanation there. This import runs
+  -- first, so it cannot collide with GCNS -- but it can and does collide with AT-HYG
+  -- itself: 39 measured cases where a star CNS5 introduced as new already existed with the
+  -- same Gaia source_id. Symmetric guards mean neither import depends on running before
+  -- the other, which is what makes the pair safe to reorder or rerun.
+  AND NOT EXISTS (
+    SELECT 1 FROM athyg a WHERE a.gaia = NULLIF(s.gaia, '')
+  )
 ON CONFLICT (id) DO NOTHING;
 
 DO $$

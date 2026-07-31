@@ -136,6 +136,31 @@ pipeline has actually had: an unknown-distance sentinel read as a measurement, a
 volume-complete catalogue contradicted by AT-HYG, and physically impossible absolute
 magnitudes.
 
+## Duplicate identifiers
+
+```
+python check_duplicates.py       # read-only; exits non-zero if a check regresses
+```
+
+Reports rows sharing a Gaia DR3 source_id. The distinction it draws is the whole point:
+
+- **Duplicates this pipeline created** must always be zero. `cns5.csv` and `gcns.csv` are
+  both produced by cross-matching against the live database, and both were generated from
+  the same pre-supplement snapshot — so neither could see what the other would insert, and
+  2,598 stars were inserted twice in a single build. The `NOT EXISTS` guards on the two
+  `new`-star inserts prevent that, and `07_import_gcns.sql` fails the build if it recurs.
+- **Duplicates inherited from AT-HYG** are legitimate and are kept. Around 1,166 groups are
+  real close binaries — Tycho-2 resolves both components, Gaia DR3 records one source, and
+  88% carry distinct Tycho ids or explicit component designations (GJ 314A / GJ 314B).
+  Merging them would delete real stars.
+- **Rows sharing an id but more than a degree apart** are neither: the source_id is attached
+  to the wrong star. AT-HYG 4.0 has one such case. Decode the id's HEALPix pixel
+  (`source_id // 2**35`, nside 4096) to find which row it belongs to, then retract the other
+  with `clear_gaia` in `db/data/athyg_overrides.csv`.
+
+If a new AT-HYG release genuinely brings more binaries, raise `KNOWN_INHERITED_BASELINE` —
+after confirming that is what they are.
+
 ## Constellations
 
 ```

@@ -34,20 +34,31 @@
 CREATE TEMP TABLE override_stage (
   gaia          TEXT,
   hip           TEXT,
+  tyc           TEXT,
   expect_proper TEXT,
   dist          REAL,
+  clear_gaia    BOOLEAN,
   source        TEXT
 );
 
 \COPY override_stage FROM '/data/athyg_overrides.csv' WITH (FORMAT csv, HEADER true, NULL '');
 
--- Resolve each override to exactly one star, by Gaia source_id when present, else HIP.
+-- Resolve each override to exactly one star, by Gaia source_id when present, else HIP,
+-- else Tycho-2.
+--
+-- Tycho-2 was added as a third key for a case the first two cannot express: a star whose
+-- *Gaia id is itself the thing that is wrong*. AT-HYG 4.0 gives tyc 3986-3499-1 (Cepheus)
+-- the same Gaia source_id as tyc 1966-277-1 (Leo), 95 degrees away. Keying that override on
+-- Gaia would match both rows and correct the innocent one too, and the star has no HIP
+-- number. Tycho-2 ids are stable across catalog releases -- the fictional-name pipeline
+-- already re-resolves star_id through them on every build -- so they satisfy Rule 1.
 CREATE TEMP TABLE override_resolved AS
 SELECT o.*, a.id AS athyg_id, a.proper AS actual_proper
 FROM   override_stage o
 JOIN   athyg a
   ON   (o.gaia IS NOT NULL AND a.gaia = o.gaia)
-    OR (o.gaia IS NULL AND o.hip IS NOT NULL AND a.hip = o.hip);
+    OR (o.gaia IS NULL AND o.hip IS NOT NULL AND a.hip = o.hip)
+    OR (o.gaia IS NULL AND o.hip IS NULL AND o.tyc IS NOT NULL AND a.tyc = o.tyc);
 
 -- Rule 3: nothing may be silently ignored.
 DO $$
@@ -59,7 +70,8 @@ BEGIN
   FROM override_stage o
   WHERE NOT EXISTS (SELECT 1 FROM override_resolved r
                     WHERE r.gaia IS NOT DISTINCT FROM o.gaia
-                      AND r.hip IS NOT DISTINCT FROM o.hip);
+                      AND r.hip IS NOT DISTINCT FROM o.hip
+                      AND r.tyc IS NOT DISTINCT FROM o.tyc);
   IF unmatched > 0 THEN
     RAISE EXCEPTION 'athyg_overrides.csv: % row(s) matched no star. A stale or mistyped '
                     'identifier must not pass silently.', unmatched;
@@ -103,6 +115,45 @@ SET
   y =  0.494 * x_eq - 0.4449 * y_eq + 0.747  * z_eq,
   z = -0.8677 * x_eq - 0.1979 * y_eq + 0.4560 * z_eq
 WHERE dist_src = 'OVERRIDE';
+
+--
+-- Retract a wrong Gaia identification, and everything derived from it.
+--
+-- clear_gaia is for the case where a catalog has attached a Gaia source_id to the wrong
+-- star. That is not merely a bad label: the distance, absolute magnitude and position all
+-- come from that source's parallax, so the row is carrying another star's astrometry under
+-- its own name. AT-HYG 4.0 does this for tyc 3986-3499-1, which also inherited the Leo
+-- star's proper motion (-154.41, -40.68) and radial velocity to two decimal places.
+--
+-- Everything derived is cleared rather than recomputed, because there is nothing to
+-- recompute *from* -- no correct parallax exists for this star. What remains is what was
+-- actually measured for it: a Tycho-2 position on the sky and a magnitude. Leaving the
+-- distance in place would keep a number that is precisely wrong, which is the failure mode
+-- DATA-QUALITY-OUTLIERS and COORD-RECOMPUTE-FIX both existed to remove.
+--
+-- The row therefore becomes one of the ~25k stars with no position. Both frontends handle
+-- that case by design (see NULL-COORDINATES).
+--
+UPDATE athyg a
+SET    gaia     = NULL,
+       dist     = NULL,
+       dist_src = NULL,
+       absmag   = NULL,
+       x = NULL, y = NULL, z = NULL,
+       x_eq = NULL, y_eq = NULL, z_eq = NULL
+FROM   override_resolved r
+WHERE  a.id = r.athyg_id
+  AND  r.clear_gaia IS TRUE;
+
+DO $$
+DECLARE
+  cleared INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO cleared FROM override_resolved WHERE clear_gaia IS TRUE;
+  IF cleared > 0 THEN
+    RAISE NOTICE 'Retracted % wrong Gaia identification(s) and the values derived from them.', cleared;
+  END IF;
+END $$;
 
 DO $$
 BEGIN

@@ -16,6 +16,67 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Fixed: the import pipeline was inserting thousands of stars twice.** `athyg` carried
+  3,862 groups of rows sharing a Gaia DR3 source_id — up from 576 under AT-HYG 3.3, growing
+  with every catalog addition. Investigating split them into two unrelated populations, and
+  only one was a defect.
+  **2,695 groups were created by this pipeline.** `cns5.csv` and `gcns.csv` are both
+  produced by cross-matching against the live database, and both were generated from the
+  same pre-supplement snapshot, so neither could see what the other would insert: measured,
+  **2,598 of the 2,665 stars CNS5 introduces as new are introduced as new by GCNS too**.
+  The same physical star was inserted twice in one build — gaia 1005873614080407296 as ids
+  5000426 and 6069717, RA agreeing to nine decimal places, identical magnitude and spectral
+  type. Both `new`-star inserts now skip a Gaia id that already exists. The guards are
+  symmetric so neither import depends on running before the other, which is what the
+  original bug assumed; `ON CONFLICT (id)` never covered it, because it is the Gaia identity
+  that collides, not the primary key.
+  Verified by two clean rebuilds from an empty volume: **2,839,957 → 2,837,262 rows**, the
+  difference being exactly the 2,695 duplicates, with all 191 fictional names still
+  resolving, Polis's override intact, one NULL constellation (Sol, deliberate), and both
+  quality checks green.
+- **1,167 groups were left alone, deliberately** (1,166 in the finished database — the
+  retraction below removes one). They are inherited from AT-HYG and are
+  real close binaries: Tycho-2 resolved both components, Gaia DR3 recorded one source.
+  **88% carry hard evidence** — distinct Tycho-2 identifiers and/or explicit component
+  designations (Graffias / Graffias B; GJ 314A / GJ 314B with Tycho ids 6571-3298-1 and -2).
+  Even the pairs at *identical* positions have distinct Tycho ids and differing magnitudes;
+  their positions match because both rows inherited the same Gaia source's astrometry, not
+  because they are one star. Merging them would have deleted real stars to make a database
+  key convenient.
+  **Consequence, worth recording:** Gaia alone can therefore never be the durable key for
+  `STABLE-STAR-URLS`. That feature needs Gaia plus a component discriminator, or a
+  different key.
+- The build now **fails** if a duplicate Gaia group contains a row the pipeline inserted.
+  The invariant is deliberately "no duplicate we created" rather than "no duplicates" — a
+  guard asserting zero would fail on 1,166 legitimate binaries and would be deleted the
+  first time someone hit it. `db/scripts/check_duplicates.py` reports the same split
+  after the fact, with the inherited count tracked against a baseline so it cannot grow
+  silently.
+- **Fixed one star carrying another star's astrometry.** `gaia 647372483426742912` was held
+  by two rows **95.3 degrees apart** — tyc 1966-277-1 in Leo and tyc 3986-3499-1 in Cepheus.
+  Gaia source_ids encode a level-12 HEALPix pixel, so the id itself settles the question: it
+  decodes to RA 9.84814h Dec +28.3445, **0.0052° from the Leo row and 95.2869° from the
+  Cepheus one**. The error is upstream in `athyg_40.csv` — both rows arrive with it, and the
+  Cepheus row also inherited the Leo star's distance, proper motion and radial velocity, so
+  its `G_R3` distance was another star's parallax. Retracted through
+  `athyg_overrides.csv`, along with everything derived from it; the star keeps only what was
+  actually measured for it, a Tycho-2 position and a magnitude.
+- The override mechanism gained two capabilities that case needed: a **Tycho-2 key** (keying
+  on Gaia would have matched both rows and corrected the innocent one, and the star has no
+  HIP number) and **`clear_gaia`**, which drops a wrong identification together with the
+  distance, absolute magnitude and coordinates derived from it. Leaving the distance would
+  keep a number that is precisely wrong, which is the failure mode `DATA-QUALITY-OUTLIERS`
+  and `COORD-RECOMPUTE-FIX` both existed to remove.
+- **Removing rows invalidated `constellations.csv`**, which is keyed on `athyg_id`, and the
+  first clean rebuild failed at step 10 with "stale: 2695 row(s) reference an athyg_id that
+  does not exist" — the exact count of removed duplicates. That is `CATALOG-ID-INTEGRITY`'s
+  staleness guard doing precisely its job, and it is worth recording as a standing coupling:
+  **any change to which rows exist requires regenerating `constellations.csv`.** Regenerated
+  (281,300 → 278,605 rows, again exactly 2,695 fewer) and the rebuild repeated clean.
+- 15 tests added in `db/scripts/test_check_duplicates.py`, covering the classification rule
+  directly and asserting that both import guards, the build-time exception, and the two new
+  override capabilities are still present — the SQL itself needs Postgres and 2.8M rows, so
+  what is testable in CI is that the guards have not been removed.
 - **Fixed: the star list was nondeterministic.** Found while working on wide-zoom
   performance, and the more serious of the two findings. `absmag` is heavily tied —
   2,784,293 of 2,839,957 stars share a value with at least one other star — so
