@@ -110,4 +110,47 @@ final class LegacyStarIdTest extends TestCase
             'map-interactive.js CATALOG_VERSION has drifted from IndexHelpers::CATALOG_VERSION'
         );
     }
+
+    // The React copy of this constant (urlState.ts's CURRENT_CATALOG_VERSION) is still
+    // pinned by nothing — audit-architecture 2026-07-31. A guard was attempted here and
+    // removed: the PHP test container mounts only hygmap-php, so reading the TypeScript
+    // source from this suite fails outright, and mounting one language's source into
+    // another's test container to regex it is the wrong shape anyway. The right answer is
+    // the pattern this project already uses for cross-language agreement — a file under
+    // tests/fixtures/, which is mounted into all three suites. See the ROADMAP item.
+
+    public function testEveryStarSelectingFormStampsTheCatalogVersion(): void
+    {
+        // Request.php defaults `c` to 0 when absent, so a form that omits it produces a
+        // submission indistinguishable from a pre-migration bookmark: shouldCheckLegacyId()
+        // returns true and index.php pays for a blocking /api/stars/legacy/{id} lookup on
+        // ordinary in-app navigation. Measured at 21-31ms on the critical path by
+        // audit-performance 2026-07-31, on essentially every page render with a star
+        // selected.
+        //
+        // Asserted structurally rather than by counting: any <form> that can select a star
+        // must carry the marker, so a fourth form added later is covered by this test
+        // without anyone remembering to update a number.
+        $html = file_get_contents(__DIR__ . '/../../src/index.php');
+        $this->assertIsString($html);
+
+        $this->assertSame(
+            1,
+            preg_match_all('/<form\b[^>]*>(.*?)<\/form>/s', $html, $forms) > 0 ? 1 : 0,
+            'index.php must contain at least one form'
+        );
+
+        foreach ($forms[0] as $form) {
+            $selectsAStar = str_contains($form, 'name="select_star"');
+            if (!$selectsAStar) {
+                continue;
+            }
+
+            $this->assertMatchesRegularExpression(
+                '/<input[^>]*type="hidden"[^>]*name="c"/',
+                $form,
+                "A form that submits select_star must also stamp the catalog version:\n" . $form
+            );
+        }
+    }
 }

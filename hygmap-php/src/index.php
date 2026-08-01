@@ -228,6 +228,10 @@ $profiler->flag('FINISH');
         <span id="y-zoom-note" class="visually-hidden">Y zoom is automatically calculated as 2x the X zoom value</span>
       </fieldset>
       <input type="hidden" name="select_star" value="<?= (int)$select_star ?>">
+      <?php /* Stamp our own catalog version: without it Request.php defaults c=0, this
+               submission looks like a pre-migration bookmark, and every "Get map" pays for
+               a legacy-id lookup that cannot find anything. */ ?>
+      <input type="hidden" name="c" value="<?= IndexHelpers::CATALOG_VERSION ?>">
 
       <button type="submit">Get map</button>
     </form>
@@ -239,6 +243,7 @@ $profiler->flag('FINISH');
      <!-- Proper names dropdown -->
      <form method="GET" action="">
        <input type="hidden" name="select_center" value="1">
+       <input type="hidden" name="c" value="<?= IndexHelpers::CATALOG_VERSION ?>">
        <select name="select_star">
          <option value="">(Proper names)</option>
          <?= $proper_options ?>
@@ -251,6 +256,7 @@ $profiler->flag('FINISH');
      <?php if ($fic_names > 0): ?>
        <form method="GET" action="">
          <input type="hidden" name="select_center" value="1">
+         <input type="hidden" name="c" value="<?= IndexHelpers::CATALOG_VERSION ?>">
          <select name="select_star">
            <option value="">(Fictional names)</option>
            <?= $fictional_options ?>

@@ -16,16 +16,34 @@ if ($q === '') { header('Location: /'); exit; }
 $cfg = Config::load();
 $ficNames = (int)$cfg['fic_names'];
 
+/**
+ * One page shell for every branch below.
+ *
+ * This exists because the `lang`/charset fix landed in one branch of this file and not
+ * its sibling six lines away, and audit-frontend then found the same defect twice in the
+ * same function (2026-07-31). Three branches emitting their own <head> by hand is what
+ * made that possible, so there is now one place to get it wrong.
+ */
+function search_page(string $title, string $body): void
+{
+    echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+       . '<title>' . htmlspecialchars($title, ENT_QUOTES) . '</title></head>';
+    echo '<body style="font-family:sans-serif;margin:2rem;">';
+    echo $body;
+    echo '<p>[ <a href="/">Back to map</a> ]</p>';
+    echo '</body></html>';
+}
+
 try {
     $row = ApiClient::instance()->searchStar($q, $ficNames);
 } catch (RuntimeException $e) {
     error_log("Search error: " . $e->getMessage());
-    echo '<!DOCTYPE html><html><head><title>Search Error</title></head>';
-    echo '<body style="font-family:sans-serif;margin:2rem;">';
-    echo '<h3>⚠️ Search Error</h3>';
-    echo '<p>Unable to search the star database at this time.</p>';
-    echo '<p><a href="/">Back to map</a></p>';
-    echo '</body></html>';
+    search_page(
+        'Search Error',
+        '<h3>⚠️ Search Error</h3>'
+        . '<p>The star database did not answer in time. It may be busy rather than'
+        . ' down — trying again often works.</p>'
+    );
     exit;
 }
 
@@ -41,23 +59,23 @@ if ($row && $row['x'] === null) {
     // `select_center`, not access to the star.
     $id = (int)$row['id'];
     $name = $row['display_name'] ?? $q;
-    echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
-       . '<title>Star found, but not mappable</title></head>';
-    echo '<body style="font-family:sans-serif;margin:2rem;">';
-    echo '<h3>' . htmlspecialchars((string)$name, ENT_QUOTES) . ' cannot be shown on the map</h3>';
-    echo '<p>This star exists in the catalog, but no parallax measurement exists for it, so'
-       . ' its distance and position are unknown. It has a place on the sky but not in 3D'
-       . ' space, so the map has nowhere to put it.</p>';
-    echo '<p>[ <a href="/?select_star=' . $id . '&amp;c=' . IndexHelpers::CATALOG_VERSION
-       . '">See what is known about it</a> ]</p>';
-    echo '<p>[ <a href="/">Back to map</a> ]</p>';
-    echo '</body></html>';
+    search_page(
+        'Star found, but not mappable',
+        '<h3>' . htmlspecialchars((string)$name, ENT_QUOTES) . ' cannot be shown on the map</h3>'
+        . '<p>This star exists in the catalog, but no parallax measurement exists for it, so'
+        . ' its distance and position are unknown. It has a place on the sky but not in 3D'
+        . ' space, so the map has nowhere to put it.</p>'
+        . '<p>[ <a href="/?select_star=' . $id . '&amp;c=' . IndexHelpers::CATALOG_VERSION
+        . '">See what is known about it</a> ]</p>'
+    );
 } elseif ($row) {
     $id = (int)$row['id'];
     $c = IndexHelpers::CATALOG_VERSION;
     $_SESSION['last_map'] = "/?select_star=$id&select_center=1&c=$c";
     header("Location: /?select_star=$id&select_center=1&c=$c", true, 302);
 } else {
-    echo "<h3>No match for &ldquo;".htmlspecialchars($q)."&rdquo;</h3>";
-    echo '<p><a href="/">Back to map</a></p>';
+    search_page(
+        'No match',
+        '<h3>No match for &ldquo;' . htmlspecialchars($q, ENT_QUOTES) . '&rdquo;</h3>'
+    );
 }

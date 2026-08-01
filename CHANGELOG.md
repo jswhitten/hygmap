@@ -16,6 +16,51 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Audit fixes from `.claude/reports/2026-07-31-2014/`** (the ten-auditor run). Each of
+  these was a mechanical fix with an obvious correct answer; the judgment calls from the
+  same run went to the ROADMAP instead.
+  - `/api/stars/search` **reported `dist: null, mag: null` for every star.** None of the
+    eight SELECT branches named those columns, so `StarBase`'s field defaults supplied
+    nulls unconditionally, while `/api/stars/{id}` returned the real values for the same
+    star. Filed by `audit-data` on **three consecutive cycles** and unfixed through a
+    commit named "bug fixes", because nothing was visibly broken: React re-fetches the
+    detail record and computes distance from `x/y/z`, and PHP's `searchStar()` reads only
+    `id`/`x`/`display_name`. It mattered because [NULL-COORDINATES] had just taught every
+    consumer that a null here means *"no parallax exists for this star"* — which the
+    endpoint was then saying about 2.84M stars for which it is false. Four tests added,
+    asserting the **values** rather than the keys (`"dist" in star` passes against the
+    bug), including one that simply requires search and detail to agree about a star, and
+    one that keeps a genuinely positionless star's null intact. The fixture gained real
+    `dist`/`mag` for three stars: every row was NULL before, which cannot distinguish the
+    two meanings and would have let the test pass either way.
+  - **Integer ids are now bounded to the column they are bound to.** `star_id`, `v3_id`
+    and `world_id` accepted any value FastAPI could coerce to `int`; anything above
+    2,147,483,647 reached asyncpg, raised `DataError: value out of int32 range`, and
+    surfaced as a **bare-text 500** — breaking the JSON error shape every other validation
+    path returns, and logging a traceback for a malformed request. Now `le=PG_INT_MAX`, so
+    it is a 422 like `limit`'s. `2147483647` itself still answers a normal 404: it is a
+    value the column can hold, so it is an id that happens not to exist. Note this
+    reproduces only on Postgres — SQLite has no int32 ceiling, so the API test suite saw a
+    404 and could never have caught it before the bound moved validation to the FastAPI
+    layer. (`audit-api`.)
+  - **Every form that submits `select_star` now stamps `c=4`.** Three did not — the
+    coordinate/zoom form and both name dropdowns — and `Request.php` defaults `c` to `0`
+    when absent, so ordinary in-app navigation was indistinguishable from a pre-migration
+    bookmark and paid for a blocking `/api/stars/legacy/{id}` lookup (measured 21–31 ms, on
+    the critical path, on essentially every page render with a star selected). The
+    regression test asserts this structurally — *any* form carrying `select_star` must
+    carry the marker — so a fourth form added later is covered without anyone remembering.
+    (`audit-performance`.)
+  - **`search.php` has one page shell instead of three hand-written ones.** The
+    `lang`/charset fix from `bc8ca142` landed in one branch and not its sibling six lines
+    away, and the no-match branch emitted no `<head>` at all. `audit-frontend` found this
+    class of defect **twice in the same function**, so the fix is the shared helper rather
+    than a third copy. The API-failure message also stopped claiming the database is
+    unreachable when it is merely slow to answer.
+  - Doc corrections: `athyg_v3_ids` added to `.claude/CLAUDE.md`'s table list;
+    `match_athyg_v3.py`'s docstring corrected to 1,166 Gaia / 61 HIP (it said 1,167/63,
+    disagreeing with the live DB and every shipped doc); `ATHYG-V3-URLS.md`'s "Measured"
+    section corrected to the numbers that actually shipped (it recorded a pre-fix run).
 - **Star links saved before the AT-HYG 4 update are recognised again** [ATHYG-V3-URLS].
   `athyg.id` is the source catalog's row id, and AT-HYG 4 reassigned it: of the 2,552,143
   v3.3 stars still in the catalog, **only 636 kept their id**. So every bookmarked star link
@@ -39,8 +84,13 @@ notice without reading the source. If yes, it belongs in both.
   on `athyg`; a column would have dropped five links and picked its winner
   *nondeterministically* via `UPDATE…FROM`, the same class of bug WIDE-ZOOM-QUERY fixed in
   `ORDER BY`. And **ambiguous identifiers are refused, not guessed**: 1,166 Gaia ids and 61
-  HIP ids name two real binary components each (GAIA-DUPLICATES), so ~1,200 links would
-  otherwise have landed on a coin flip.
+  HIP ids name two real binary components each (GAIA-DUPLICATES), so ~1,200 links resolve to
+  neither.
+  *Corrected 2026-07-31, after the above was written:* that last rule is more conservative
+  than it needs to be. Resolving to the brighter component is fine — both components sit at
+  the same point on the map — and the entry above overstates the cost of picking by
+  equating it with the renumbering's wrong-star-in-another-constellation failure. The
+  refusal stands for now because it is the safe direction, not because it is correct.
   Match rate 2,552,143 of 2,552,165 (100.0%), via gaia 2,514,585 / tyc 37,558; the 22
   unmatched are stars that did not survive to v4 and are honestly reported as dead links.
   A unit test caught a real bug before it shipped: `float()` on a 19-digit Gaia source_id

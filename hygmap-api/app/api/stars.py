@@ -1,7 +1,7 @@
 """
 Star API endpoints
 """
-from fastapi import APIRouter, Depends, Query, HTTPException, Request
+from fastapi import APIRouter, Depends, Path, Query, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.limiter import limiter
@@ -69,6 +69,14 @@ MAX_SPATIAL_RANGE = 3000.0
 # AT-HYG catalog typically contains stars within ~10,000 parsecs
 MAX_COORDINATE_VALUE = 10000.0
 
+# Largest value a Postgres `integer` column can hold. Every id this API accepts is bound
+# to one, so anything above this is not a row that happens not to exist -- it is a value
+# the column cannot represent. Without the bound, FastAPI's plain-`int` coercion accepts
+# it, asyncpg raises DataError("value out of int32 range") at bind time, and the request
+# ends as a bare-text 500 rather than the JSON 4xx every other validation path returns.
+# Found by audit-api 2026-07-31.
+PG_INT_MAX = 2147483647
+
 # Allowlist for ORDER BY clause to prevent SQL injection.
 #
 # Every clause ends with `a.id` as a tiebreaker, and that is a correctness fix rather than a
@@ -112,7 +120,7 @@ async def get_stars(
     zmax: float = Query(50, description="Maximum Z coordinate (parsecs)"),
     mag_max: float = Query(None, description="Maximum absolute magnitude (LOD filter, dimmer stars excluded)"),
     limit: int = Query(10000, ge=1, le=50000, description="Maximum number of stars to return"),
-    world_id: int = Query(0, ge=0, description="Fictional world ID for fictional names (0 = no fictional names)"),
+    world_id: int = Query(0, ge=0, le=PG_INT_MAX, description="Fictional world ID for fictional names (0 = no fictional names)"),
     order: str = Query(DEFAULT_ORDER, description="Sort order (absmag/mag/proper/dist asc|desc)"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -221,7 +229,7 @@ async def search_stars(
     request: Request,  # Required for rate limiter
     q: str = Query(..., min_length=1, max_length=100, description="Search query (name or catalog ID)"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
-    world_id: int = Query(0, ge=0, description="Fictional world ID for fictional names (0 = no fictional names)"),
+    world_id: int = Query(0, ge=0, le=PG_INT_MAX, description="Fictional world ID for fictional names (0 = no fictional names)"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -288,7 +296,7 @@ async def search_stars(
         CATALOG_QUERIES = {
             'hip': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -296,7 +304,7 @@ async def search_stars(
             """),
             'hd': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -304,7 +312,7 @@ async def search_stars(
             """),
             'hr': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -312,7 +320,7 @@ async def search_stars(
             """),
             'gj': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -320,7 +328,7 @@ async def search_stars(
             """),
             'cns5': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -328,7 +336,7 @@ async def search_stars(
             """),
             'gaia': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -336,7 +344,7 @@ async def search_stars(
             """),
             'tyc': text("""
                 SELECT id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                       hip, hd, hr, gj, cns5, gaia, tyc,
+                       hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                        (SELECT f.name FROM fic f
                          WHERE f.star_id = athyg.id AND f.world_id = :world_id
                          ORDER BY f.id LIMIT 1) AS name
@@ -401,7 +409,7 @@ async def search_stars(
         query = text("""
             SELECT
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
-                hip, hd, hr, gj, cns5, gaia, tyc,
+                hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                 -- Scalar subquery rather than a LEFT JOIN: a join on fic multiplies the
                 -- row if a star ever gains two names in one world, which would put the
                 -- same star in the result list twice. Nothing does that today (191 rows)
@@ -507,7 +515,7 @@ async def get_proper_names(
 @limiter.limit(settings.RATE_LIMIT)
 async def get_fictional_names(
     request: Request,
-    world_id: int = Query(..., ge=1, description="Fictional world ID to filter by"),
+    world_id: int = Query(..., ge=1, le=PG_INT_MAX, description="Fictional world ID to filter by"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -563,8 +571,8 @@ async def get_worlds(
 @limiter.limit(settings.RATE_LIMIT)
 async def get_star_by_legacy_id(
     request: Request,  # Required for rate limiter
-    v3_id: int,
-    world_id: int = Query(0, ge=0, description="Fictional world ID for fictional name (0 = no fictional name)"),
+    v3_id: int = Path(..., ge=1, le=PG_INT_MAX),
+    world_id: int = Query(0, ge=0, le=PG_INT_MAX, description="Fictional world ID for fictional name (0 = no fictional name)"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -613,8 +621,8 @@ async def get_star_by_legacy_id(
 @limiter.limit(settings.RATE_LIMIT)
 async def get_star_by_id(
     request: Request,  # Required for rate limiter
-    star_id: int,
-    world_id: int = Query(0, ge=0, description="Fictional world ID for fictional name (0 = no fictional name)"),
+    star_id: int = Path(..., ge=1, le=PG_INT_MAX),
+    world_id: int = Query(0, ge=0, le=PG_INT_MAX, description="Fictional world ID for fictional name (0 = no fictional name)"),
     db: AsyncSession = Depends(get_db),
 ):
     """

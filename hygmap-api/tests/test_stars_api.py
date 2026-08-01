@@ -169,6 +169,106 @@ class TestGetStars:
         assert "order" in response.json()["detail"].lower()
 
 
+class TestSearchDistAndMagAreReal:
+    """
+    /api/stars/search must report the star's actual `dist` and `mag`, not nulls.
+
+    None of the eight SELECT branches in search_stars() named those two columns, so
+    StarBase's `Optional[float] = None` defaults supplied nulls for every hit — while
+    /api/stars/{id} and the bbox endpoint returned the real values for the same star.
+    Filed by audit-data on three consecutive cycles (2026-07-31 1015, 1616, 2014) and
+    fixed in the fourth.
+
+    Nothing was visibly broken, which is exactly why 152 passing tests missed it: React
+    re-fetches the detail record and computes distance from x/y/z, and PHP's searchStar()
+    reads only id/x/display_name. The contract was still wrong, and NULL-COORDINATES had
+    just spent a whole feature teaching every consumer that a null here means "no parallax
+    exists for this star" — which the endpoint was then saying about 2.84M stars.
+
+    These assert the VALUES, not the keys. Asserting `"dist" in star` passes against the
+    bug, since the field is always present and merely null.
+    """
+
+    async def test_name_search_reports_dist_and_mag(self, client: AsyncClient):
+        response = await client.get("/api/stars/search", params={"q": "Sirius"})
+        assert response.status_code == 200
+
+        star = next(s for s in response.json()["data"] if s["id"] == 3)
+        assert star["dist"] == pytest.approx(2.6371)
+        assert star["mag"] == pytest.approx(-1.44)
+
+    async def test_catalog_id_search_reports_dist_and_mag(self, client: AsyncClient):
+        """The other seven branches: same omission, same fix."""
+        response = await client.get("/api/stars/search", params={"q": "HIP 32349"})
+        assert response.status_code == 200
+
+        star = next(s for s in response.json()["data"] if s["id"] == 3)
+        assert star["dist"] == pytest.approx(2.6371)
+        assert star["mag"] == pytest.approx(-1.44)
+
+    async def test_search_agrees_with_the_detail_endpoint(self, client: AsyncClient):
+        """
+        The property that actually matters: two endpoints describing one star must not
+        disagree about it. This is the assertion that would have caught the bug without
+        anyone knowing which columns were missing.
+        """
+        search = await client.get("/api/stars/search", params={"q": "Barnard"})
+        detail = await client.get("/api/stars/9")
+        assert search.status_code == 200 and detail.status_code == 200
+
+        found = next(s for s in search.json()["data"] if s["id"] == 9)
+        record = detail.json()["data"]
+        assert (found["dist"], found["mag"]) == (record["dist"], record["mag"])
+
+    async def test_a_positionless_star_still_reports_null_dist(self, client: AsyncClient):
+        """
+        The distinction the bug destroyed. Star 12 has no parallax, so its null is the
+        honest answer — and must survive a fix that removes the dishonest ones.
+        """
+        response = await client.get("/api/stars/search", params={"q": "Positionless"})
+        assert response.status_code == 200
+
+        star = next(s for s in response.json()["data"] if s["id"] == 12)
+        assert star["dist"] is None
+        assert star["mag"] is None
+
+
+class TestIntegerIdsAreBoundedToTheColumn:
+    """
+    Ids above Postgres `integer` range must be refused as input, not at bind time.
+
+    FastAPI's plain-`int` coercion accepted them, asyncpg raised
+    DataError("value out of int32 range"), nothing caught it, and the request ended as a
+    bare-text 500 — breaking the JSON error shape every other validation path here
+    returns, and logging a traceback for what is really a malformed request.
+    Found by audit-api 2026-07-31.
+    """
+
+    OVERFLOW = 2147483648  # PG_INT_MAX + 1
+
+    async def test_star_id_above_int32_is_rejected(self, client: AsyncClient):
+        response = await client.get(f"/api/stars/{self.OVERFLOW}")
+        assert response.status_code == 422
+        assert "detail" in response.json()
+
+    async def test_legacy_id_above_int32_is_rejected(self, client: AsyncClient):
+        response = await client.get(f"/api/stars/legacy/{self.OVERFLOW}")
+        assert response.status_code == 422
+
+    async def test_world_id_above_int32_is_rejected(self, client: AsyncClient):
+        response = await client.get("/api/stars/1", params={"world_id": self.OVERFLOW})
+        assert response.status_code == 422
+
+    async def test_the_largest_valid_int_is_still_a_normal_404(self, client: AsyncClient):
+        """
+        The boundary is the point: 2147483647 is a value the column can hold, so it is an
+        id that happens not to exist, not a malformed request. Off-by-one here would turn
+        a legitimate lookup into a validation error.
+        """
+        response = await client.get("/api/stars/2147483647")
+        assert response.status_code == 404
+
+
 class TestSearchStars:
     """Tests for GET /api/stars/search endpoint"""
 

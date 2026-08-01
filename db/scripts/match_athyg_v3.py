@@ -107,10 +107,18 @@ def build_index(rows, field):
 
     Any identifier held by more than one current star is REMOVED from the index rather
     than resolved to the first. Those are GAIA-DUPLICATES' real binary components — Tycho-2
-    resolves both, Gaia records one source — so the identifier genuinely names two stars and
-    there is no honest way to pick. 1,167 gaia ids and 63 hip ids are in this state.
-    Sending ~1,200 old links to a coin-flip component would be the exact silent-wrong-star
-    failure this whole feature exists to end.
+    resolves both, Gaia records one source — so the identifier genuinely names two stars.
+    1,166 gaia ids and 61 hip ids are in this state.
+
+    **This is more conservative than it needs to be, per the maintainer (2026-07-31):**
+    resolving to the brighter component is perfectly acceptable. The two components of a
+    close binary are at the same place on the map, and landing on either one is a far better
+    outcome for an old link than refusing it. The original rationale here — that picking
+    would be "the exact silent-wrong-star failure this feature exists to end" — conflated
+    two very different errors: pointing at *the other component of the same binary* is not
+    the same as pointing at *an unrelated star in another constellation*, which is what the
+    renumbering did. Changing this is tracked in the ROADMAP; the refusal stands until then
+    because it is the safe direction to be wrong in, not because it is right.
 
     Returns (index, ambiguous_count).
     """

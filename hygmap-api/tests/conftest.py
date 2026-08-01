@@ -172,6 +172,22 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (14, NULL, NULL, 'Lyn', 'K0V', 9.99, 30.0, 30.0, 30.0, NULL, NULL)
         """))
 
+        # Real dist/mag for a few stars.
+        #
+        # Set separately rather than in the INSERT above only to keep that column list
+        # readable. It matters that these are non-NULL: /api/stars/search omitted `dist`
+        # and `mag` from all eight of its SELECT branches for three audit cycles, and
+        # StarBase's `Optional[float] = None` defaults filled them with nulls that were
+        # indistinguishable from "this star has no parallax". A fixture where every row is
+        # NULL cannot tell those two apart, so a test written against it passes either way.
+        await conn.execute(text("""
+            UPDATE athyg SET dist = CASE id
+                    WHEN 3 THEN 2.6371 WHEN 4 THEN 7.6787 WHEN 9 THEN 1.8282 END,
+                            mag  = CASE id
+                    WHEN 3 THEN -1.44 WHEN 4 THEN 0.03 WHEN 9 THEN 9.511 END
+            WHERE id IN (3, 4, 9)
+        """))
+
         # Legacy v3.3 ids.
         #
         # Star 3 (Sirius) models the case the whole feature exists for: its v3 id (7301)
