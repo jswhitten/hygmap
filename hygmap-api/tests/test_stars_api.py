@@ -1194,3 +1194,97 @@ class TestPositionlessStarsAreFindableButInert:
 
         first_positionless = positions.index(None)
         assert all(p is not None for p in positions[:first_positionless])
+
+
+class TestSelectingAWorldDoesNotChangeRealNameSearch:
+    """
+    A universe being selected must not change the cost or the answer of a real-name search.
+
+    This is the property FICTIONAL-SEARCH-PERFORMANCE restored. The fictional-name match
+    used to be a fifth OR-disjunct in the real-name WHERE, which turned a `hashed SubPlan`
+    filter loose on 2.84M rows and cost 19.6 s for `vulcan&world_id=1` where the same
+    query without the disjunct took 7.4 ms. Measured, not inferred: `sirius` was 2.4 ms at
+    world_id=0 and exceeded a 15 s statement_timeout at world_id=1 -- identical term,
+    identical matches, so the cost was purely the disjunct's presence.
+
+    Five audit cycles missed it because no test and no auditor ever set world_id on a
+    *real-name* search. These tests exist so that stays impossible. They assert answers
+    rather than timings -- a timing test would be flaky and would pass on a warm cache
+    over a bad plan anyway; the plan itself is checked by hand with EXPLAIN and recorded
+    in the feature file.
+    """
+
+    async def test_real_name_search_is_unaffected_by_world_id(self, client: AsyncClient):
+        without = await client.get("/api/stars/search", params={"q": "Sirius"})
+        with_world = await client.get(
+            "/api/stars/search", params={"q": "Sirius", "world_id": 1}
+        )
+        assert without.status_code == 200 and with_world.status_code == 200
+        assert [s["id"] for s in without.json()["data"]] == [
+            s["id"] for s in with_world.json()["data"]
+        ]
+
+    async def test_a_world_may_add_fictional_hits_but_never_drops_real_ones(
+        self, client: AsyncClient
+    ):
+        """
+        The union must be additive. Selecting a world can introduce fictional matches --
+        that is the feature -- but every star found without a world must still be found
+        with one, and in the same relative order.
+
+        `Ori` is a good probe by accident: fixture star 3 is Sirius, whose Star Trek name
+        is "Alpha Canis Maj-ori-s", so world 1 legitimately adds it to a constellation
+        search. An earlier version of this test asserted the two lists were equal and was
+        simply wrong about the feature.
+        """
+        without = await client.get("/api/stars/search", params={"q": "Ori"})
+        with_world = await client.get(
+            "/api/stars/search", params={"q": "Ori", "world_id": 1}
+        )
+        plain = [s["id"] for s in without.json()["data"]]
+        worlded = [s["id"] for s in with_world.json()["data"]]
+
+        assert set(plain) <= set(worlded)
+        assert [i for i in worlded if i in plain] == plain
+        assert len(worlded) == len(set(worlded))
+
+    async def test_a_term_matching_neither_returns_nothing_either_way(
+        self, client: AsyncClient
+    ):
+        """
+        The pathological case: `3C 273` matches no star and no fictional name, so the old
+        shape had nothing to stop it scanning the whole catalog. 19.2 s, measured.
+        """
+        without = await client.get("/api/stars/search", params={"q": "3C 273"})
+        with_world = await client.get(
+            "/api/stars/search", params={"q": "3C 273", "world_id": 1}
+        )
+        assert without.json()["data"] == [] and with_world.json()["data"] == []
+
+    async def test_the_union_still_honours_the_limit(self, client: AsyncClient):
+        """
+        Each branch takes its own top-N before the union, so a naive implementation can
+        return up to 2N rows. Asserted because the bug would be invisible at the default
+        limit with this fixture.
+        """
+        response = await client.get(
+            "/api/stars/search", params={"q": "Lyn", "limit": 3, "world_id": 1}
+        )
+        assert response.status_code == 200
+        assert len(response.json()["data"]) <= 3
+
+    async def test_the_union_returns_the_true_top_n(self, client: AsyncClient):
+        """
+        Taking top-N per branch then top-N of the union is exact, not an approximation --
+        but only if both branches sort the same way. A star reachable by BOTH a real and a
+        fictional name must not be able to displace a brighter real-name-only match.
+        """
+        limited = await client.get(
+            "/api/stars/search", params={"q": "Lyn", "limit": 3, "world_id": 1}
+        )
+        full = await client.get(
+            "/api/stars/search", params={"q": "Lyn", "limit": 100, "world_id": 1}
+        )
+        assert [s["id"] for s in limited.json()["data"]] == [
+            s["id"] for s in full.json()["data"]
+        ][:3]

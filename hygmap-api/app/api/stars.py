@@ -261,6 +261,18 @@ async def search_stars(
 
     search_lower = search_term.lower()
 
+    # Cap this request's query time. See SEARCH_STATEMENT_TIMEOUT_MS for why a backstop
+    # rather than a tuning knob. SET LOCAL is scoped to the surrounding transaction, so it
+    # cannot leak onto a pooled connection and silently throttle some later request.
+    #
+    # Guarded on the dialect because the test suite runs on SQLite, which has no such
+    # setting. That is a real gap and worth naming: this line is exercised in production
+    # and by the PHP integration suite against the live stack, but not by the API tests.
+    if db.bind and db.bind.dialect.name == "postgresql":
+        await db.execute(
+            text(f"SET LOCAL statement_timeout = {int(settings.SEARCH_STATEMENT_TIMEOUT_MS)}")
+        )
+
     # Check if it's a catalog ID search (e.g., "HIP 12345", "HD 123456")
     catalog_prefixes = {
         'hip': 'hip',
@@ -406,8 +418,47 @@ async def search_stars(
             # is 2-3 characters, so an unanchored '%alp%' would not filter either.
             bayer_pattern = f"{abbrev}%{rest}%" if rest else f"{abbrev}%"
 
+        # Two independent searches unioned, NOT one WHERE with an OR.
+        #
+        # The fictional-name match used to be a fifth disjunct here:
+        #
+        #     ... OR EXISTS (SELECT 1 FROM fic f WHERE f.star_id = athyg.id AND ...)
+        #
+        # which read well and was catastrophically slow. A correlated EXISTS in that
+        # position becomes a row-by-row `hashed SubPlan` filter, and the planner cannot
+        # combine a filter with index scans -- so instead of `BitmapOr` over the four
+        # pg_trgm GIN indexes it walked idx_athyg_absmag_bbox in absmag order, hoping the
+        # LIMIT would fill early. For a fictional name it never does: `fic` holds 186 rows
+        # for world 1 against 2.84M stars, so the match sorts near the end.
+        #
+        # Measured on the live catalog (FICTIONAL-SEARCH-PERFORMANCE, 2026-07-31):
+        #
+        #     q=vulcan&world_id=1   19,642 ms   Rows Removed by Filter: 2,837,261
+        #     same query, this shape     1.3 ms   BitmapOr over all four trigram indexes
+        #
+        # The diagnostic that identifies this class of bug: `sirius` was 2.4 ms at
+        # world_id=0 and timed out past 15 s at world_id=1. Same term, same match count --
+        # so the cost was never the term or the indexes, only the *presence* of the
+        # disjunct. If someone adds a sixth match kind here, check EXPLAIN still shows
+        # BitmapOr rather than trusting the clock; a warm cache hides this completely.
+        #
+        # Each branch takes its own top-:limit, then the union is re-sorted and cut to
+        # :limit again. That is exact, not an approximation -- the true top-N of a union
+        # can only come from the top-N of each side.
+        #
+        # UNION rather than UNION ALL: a star matching both a real and a fictional name
+        # (Wolf 359 is both, in world 1) produces identical rows on both sides, and the
+        # dedup collapses them. That preserves the no-duplicate-rows property the scalar
+        # subquery below was written for, which
+        # test_star_matching_both_a_real_and_a_fictional_name_returns_one_row pins.
+        # Each branch is wrapped as a derived table rather than parenthesised inline:
+        # SQLite (which the API tests run on) rejects ORDER BY/LIMIT on an operand of a
+        # compound SELECT, while Postgres accepts it. `SELECT * FROM (... LIMIT n) alias`
+        # is valid on both, and the tests are only worth having if they run the same SQL
+        # the server does.
         query = text("""
-            SELECT
+            SELECT * FROM (
+            SELECT * FROM (SELECT
                 id, proper, bayer, flam, con, spect, absmag, x, y, z,
                 hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
                 -- Scalar subquery rather than a LEFT JOIN: a join on fic multiplies the
@@ -449,16 +500,40 @@ async def search_stars(
                OR LOWER(COALESCE(bayer, '') || ' ' || COALESCE(con, '')) LIKE :bayer_pattern ESCAPE '\\'
                OR LOWER(COALESCE(flam, '') || ' ' || COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
                OR LOWER(COALESCE(con, '')) LIKE :pattern ESCAPE '\\'
-               -- Fictional name, scoped to the selected world. EXISTS rather than a join,
-               -- for the no-duplicate-rows reason above. This sits INSIDE the name-match
-               -- group so the unmappable-star guard above still applies to it: a fictional
-               -- star with no usable position stays excluded, same as a real one.
-               -- world_id=0 matches no fic row (ids start at 1), which is what makes
-               -- "no universe selected" return nothing without a special case.
-               OR EXISTS (SELECT 1 FROM fic f
-                           WHERE f.star_id = athyg.id AND f.world_id = :world_id
-                             AND LOWER(f.name) LIKE :pattern ESCAPE '\\')
               )
+            ORDER BY absmag ASC NULLS LAST
+            LIMIT :limit) real_name_matches
+
+            UNION
+
+            -- Fictional names, scoped to the selected world. `fic` is 191 rows, so this
+            -- half costs nothing whatever shape it takes -- the point of separating it is
+            -- entirely to keep it out of the real-name WHERE, where it destroyed the plan.
+            --
+            -- The position guard is repeated rather than hoisted: it has to apply to
+            -- fictional matches too, or DATA-QUALITY-OUTLIERS' 503 returns through this
+            -- branch. test_fictional_name_does_not_resurrect_an_out_of_domain_star pins it.
+            --
+            -- world_id=0 matches no fic row (ids start at 1), which is what makes "no
+            -- universe selected" cost nothing here without a special case.
+            SELECT * FROM (SELECT
+                id, proper, bayer, flam, con, spect, absmag, x, y, z,
+                hip, hd, hr, gj, cns5, gaia, tyc, dist, mag,
+                (SELECT f.name FROM fic f
+                  WHERE f.star_id = athyg.id AND f.world_id = :world_id
+                  ORDER BY (LOWER(f.name) LIKE :pattern ESCAPE '\\') DESC, f.id
+                  LIMIT 1) AS name
+            FROM athyg
+            WHERE (
+                x IS NULL
+                OR (abs(x) <= :max_coord AND abs(y) <= :max_coord AND abs(z) <= :max_coord)
+              )
+              AND id IN (SELECT f.star_id FROM fic f
+                          WHERE f.world_id = :world_id
+                            AND LOWER(f.name) LIKE :pattern ESCAPE '\\')
+            ORDER BY absmag ASC NULLS LAST
+            LIMIT :limit) fictional_name_matches
+            ) u
             ORDER BY absmag ASC NULLS LAST
             LIMIT :limit
         """)

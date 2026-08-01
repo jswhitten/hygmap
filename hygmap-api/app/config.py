@@ -33,6 +33,20 @@ class Settings(BaseSettings):
     RATE_LIMIT: str = "1000/minute"
     RATE_LIMIT_ENABLED: bool = True
 
+    # Ceiling on a single search query, applied per-statement in Postgres.
+    #
+    # This is a backstop, not a tuning knob. Search is meant to answer in single-digit
+    # milliseconds; when it does not, the cause is a bad plan, and a bad plan does not get
+    # better by being given more time. FICTIONAL-SEARCH-PERFORMANCE (2026-07-31) is the
+    # case this exists for: one disjunct in the WHERE turned a 2.4 ms query into a 60 s
+    # one, and because PHP's ApiClient retries a timeout twice, a visitor waited up to 90
+    # seconds and the database repeated a near-full-table scan three times over.
+    #
+    # 5 s is ~700x the healthy figure for the slowest measured search, so anything hitting
+    # it is broken rather than merely busy. Failing fast turns "the site is hanging" into
+    # one logged error with a query attached.
+    SEARCH_STATEMENT_TIMEOUT_MS: int = 5000
+
     # The Docker network the services share, and its gateway address.
     #
     # These exist because the API cannot tell "a caller on the public internet" from

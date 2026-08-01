@@ -16,6 +16,42 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Search is fast again when a fictional universe is selected**
+  [FICTIONAL-SEARCH-PERFORMANCE]. **19,642 ms → 0.658 ms** for `vulcan` with Star Trek on,
+  measured by `EXPLAIN (ANALYZE, BUFFERS)` against the live 2.84M-row catalog.
+  Every search run by a visitor with Star Trek or Babylon 5 selected — **including searches
+  for real star names** — was scanning essentially the whole table. `search.php` passes the
+  session's `fic_names` into every query, so this was the normal path for one of the
+  project's two stated audiences, not an edge case. PHP's client retries a timeout twice,
+  so the worst case was ~90 s of waiting and three repeated full scans of one doomed query.
+  **Cause: one `OR` disjunct.** The fictional-name match was a fifth branch of the
+  real-name `WHERE`:
+
+      ... OR EXISTS (SELECT 1 FROM fic f WHERE f.star_id = athyg.id AND ...)
+
+  A correlated `EXISTS` there becomes a row-by-row `hashed SubPlan` filter, and the planner
+  cannot combine a filter with index scans — so instead of `BitmapOr` over the four
+  `pg_trgm` GIN indexes it walked `idx_athyg_absmag_bbox` in absmag order hoping the
+  `LIMIT` would fill early. With 186 fictional rows against 2.84M stars, it never did:
+  `Rows Removed by Filter: 2,837,261`.
+  **The measurement that identified it was a pair, not a number:** `sirius` took 2.4 ms at
+  `world_id=0` and exceeded a 15 s timeout at `world_id=1`. Same term, same matches, same
+  indexes — so the cost could only be the disjunct's presence. Worth remembering as a
+  diagnostic shape; the absolute timings were badly confounded by host load and nearly sent
+  the investigation the wrong way.
+  Fixed by searching the two things separately and unioning them, so each half is planned
+  on its own. `fic` holds 191 rows, so that half is free whatever shape it takes. Each
+  branch takes its own top-N before the union, which is exact rather than an approximation —
+  the true top-N of a union can only come from the top-N of each side. `UNION` rather than
+  `UNION ALL` preserves the no-duplicate-rows property for a star matching both a real and
+  a fictional name.
+  Also added a 5 s `statement_timeout` on this route as a backstop, so a future bad plan
+  fails fast instead of hanging: search is meant to answer in milliseconds, and a bad plan
+  does not improve with more time. Verified by inducing a cancellation, not assumed.
+  **This was not a regression** — it shipped with fictional-name search on 2026-07-30 and
+  had simply never been exercised with `world_id != 0`, by any test or any of five audit
+  cycles. Five tests now cover that gap; the two most useful assert that selecting a world
+  never drops or reorders a real-name result, and that the union still honours its limit.
 - **`athyg_v3_ids.csv` is 2 MB instead of 51 MB, holding the same mapping.** Internal; no
   schema, API or behaviour change. GitHub warns above 50 MB per file and refuses above
   100 MB, and this file is committed *deliberately* — AT-HYG deleted the v3.3 source from
