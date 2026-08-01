@@ -7,9 +7,18 @@ points at a different star, silently. This builds the mapping that lets those li
 recognised, so the app can say "this used to mean X" instead of quietly showing Y.
 
 Reads the two v3.3 CSVs, queries the live athyg table for current identifiers, and writes
-db/data/athyg_v3_ids.csv for SQL import.
+db/data/athyg_v3_ids.csv for SQL import, as ranges:
 
-    v3_id,athyg_id,match_method
+    v3_start,v3_end,offset,match_method
+
+meaning: for every v3 id from v3_start to v3_end inclusive, athyg_id = v3_id + offset.
+11_import_athyg_v3_ids.sql expands that back to one row per id with generate_series; the
+athyg_v3_ids table and the API are unchanged by this, it is purely how the mapping is
+stored on disk.
+
+Ranges rather than 2.5M individual rows because the renumbering moved the catalog in
+blocks rather than shuffling it, so the offset is constant over long runs — 79,681 ranges
+instead of 2,552,143 rows, 51 MB down to 2 MB. See to_ranges().
 
 Source data (deleted from AT-HYG's main branch 2026-07-25; the parent commit still has it):
 
@@ -47,7 +56,7 @@ DB_NAME = os.environ.get("DB_NAME", "hygmap")
 DB_USER = os.environ.get("DB_USER", "hygmap_user")
 DB_PASS = os.environ.get("DB_PASS", "hygmap_pass")
 
-CSV_COLUMNS = ["v3_id", "athyg_id", "match_method"]
+CSV_COLUMNS = ["v3_start", "v3_end", "offset", "match_method"]
 
 # AT-HYG v3.3 column order. Not identical to v4: v3.3 has x0,y0,z0 where v4 has
 # x_eq,y_eq,z_eq. We only read identifier columns, so the difference is inert — but the
@@ -184,6 +193,60 @@ def match_rows(v3_rows, indexes):
     return out, stats
 
 
+def to_ranges(rows):
+    """Collapse (v3_id, athyg_id, method) triples into contiguous ranges.
+
+    The AT-HYG 4 renumbering did not shuffle the catalog — it moved it in blocks, so
+    `athyg_id - v3_id` stays constant across long runs of consecutive v3 ids. Measured on
+    the real mapping: 2,552,143 rows collapse to 6,582 distinct offset runs, and to 79,681
+    ranges once `match_method` (which alternates between gaia and tyc) is allowed to break
+    them. That is the difference between a 51 MB file and a 2 MB one, holding exactly the
+    same information.
+
+    The one-row-per-id form was the obvious way to write this and it hid the structure: a
+    2.5M-row file tells you nothing, whereas 79,681 ranges make the block-structured
+    renumbering visible on inspection.
+
+    Emits (v3_start, v3_end, offset, match_method). A range breaks when the offset
+    changes, when the method changes, or when a v3 id is missing (the 22 stars that did
+    not survive to v4 leave real gaps, and they must stay gaps — expanding across one
+    would invent a mapping for a dead link).
+    """
+    ordered = sorted(rows)
+    out = []
+    start = prev = None
+    key = None
+
+    for v3_id, athyg_id, method in ordered:
+        this_key = (athyg_id - v3_id, method)
+        contiguous = prev is not None and v3_id == prev + 1
+        if key != this_key or not contiguous:
+            if key is not None:
+                out.append((start, prev, key[0], key[1]))
+            start = v3_id
+            key = this_key
+        prev = v3_id
+
+    if key is not None:
+        out.append((start, prev, key[0], key[1]))
+    return out
+
+
+def from_ranges(ranges):
+    """Expand ranges back into (v3_id, athyg_id, method) triples.
+
+    The inverse of to_ranges(). Not used by the import — Postgres does the expansion in
+    11_import_athyg_v3_ids.sql — but it is what makes the encoding testable as a
+    round-trip property rather than by eyeballing a sample, and it documents the decode
+    rule in the same file as the encode rule.
+    """
+    out = []
+    for v3_start, v3_end, offset, method in ranges:
+        for v3_id in range(v3_start, v3_end + 1):
+            out.append((v3_id, v3_id + offset, method))
+    return out
+
+
 def assert_no_duplicate_v3_ids(rows):
     """A v3 id must appear at most once. Two rows claiming one legacy id would make the
     lookup nondeterministic, which is the failure this feature is supposed to remove.
@@ -240,11 +303,20 @@ def run(v3_paths, output_file):
     unchanged = sum(1 for v3, cur_id, _ in rows if v3 == cur_id)
     print(f"  v3_id == athyg_id: {unchanged:,} (everything else was renumbered)")
 
+    ranges = to_ranges(rows)
+    if from_ranges(ranges) != sorted(rows):
+        raise ValueError(
+            "Range encoding did not round-trip. Refusing to write a mapping that does not "
+            "expand back to what was matched."
+        )
+
     with open(output_file, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(CSV_COLUMNS)
-        w.writerows(sorted(rows))
-    print(f"Wrote {output_file} ({len(rows):,} rows)")
+        w.writerows(ranges)
+    print(
+        f"Wrote {output_file} ({len(ranges):,} ranges covering {len(rows):,} ids)"
+    )
     return stats
 
 

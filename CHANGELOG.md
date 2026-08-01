@@ -16,6 +16,34 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **`athyg_v3_ids.csv` is 2 MB instead of 51 MB, holding the same mapping.** Internal; no
+  schema, API or behaviour change. GitHub warns above 50 MB per file and refuses above
+  100 MB, and this file is committed *deliberately* — AT-HYG deleted the v3.3 source from
+  its main branch six days before [ATHYG-V3-URLS] was built, so the derived mapping is the
+  durable artifact and needs to stay comfortably storable.
+  The file now holds **ranges** rather than one row per id:
+
+      v3_start,v3_end,offset,match_method
+
+  meaning *for every v3 id from `v3_start` to `v3_end`, `athyg_id = v3_id + offset`*.
+  `11_import_athyg_v3_ids.sql` expands them with `generate_series`, so the `athyg_v3_ids`
+  table is exactly what it always was and nothing downstream knows the difference.
+  **This works because of a property of the data worth recording: AT-HYG 4 moved the
+  catalog in blocks rather than shuffling it.** The offset stays constant across long runs
+  of consecutive ids — 2,552,143 rows collapse to 6,582 distinct offset runs, and to
+  79,681 ranges once `match_method` is allowed to break them. The one-row-per-id form was
+  the obvious way to write it and it *hid* that structure; 79,681 ranges make the
+  block-structured renumbering visible on inspection, which is a second reason to prefer
+  it over simply compressing the old file.
+  Verified end to end rather than in Python alone: the regenerated CSV was loaded into the
+  live database and the expanded table compared against the previous one by row count and
+  by `md5(string_agg(...))` over every row — **identical**, 2,552,143 rows, same digest.
+  11 new tests pin the encoder, including that gaps survive (the 22 v3 stars that did not
+  reach v4 must stay unmapped — expanding across one would invent a mapping for a dead
+  link), that zero and negative offsets round-trip, and that the 7301 → 7323 regression
+  case survives encoding. The writer refuses to emit a file that does not round-trip, and
+  the importer rejects inverted ranges before expansion while the table's `PRIMARY KEY`
+  catches overlapping ones — so neither way of corrupting the file passes silently.
 - **Audit fixes from `.claude/reports/2026-07-31-2014/`** (the ten-auditor run). Each of
   these was a mechanical fix with an obvious correct answer; the judgment calls from the
   same run went to the ROADMAP instead.

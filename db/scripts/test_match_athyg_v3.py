@@ -10,9 +10,11 @@ from match_athyg_v3 import (
     V3_COLUMNS,
     assert_no_duplicate_v3_ids,
     build_index,
+    from_ranges,
     match_rows,
     norm,
     read_v3_rows,
+    to_ranges,
 )
 
 
@@ -171,3 +173,94 @@ class TestAssertNoDuplicateV3Ids:
     def test_two_v3_ids_may_share_a_current_star(self):
         """Legitimate: v4 merged two v3 rows. Only the v3 side must be unique."""
         assert_no_duplicate_v3_ids([(1, 10, "gaia"), (2, 10, "tyc")])
+
+
+class TestRangeEncoding:
+    """The mapping ships as ranges, not one row per id.
+
+    AT-HYG 4 moved the catalog in blocks rather than shuffling it, so `athyg_id - v3_id`
+    is constant across long runs. Encoding those runs took the shipped file from 51 MB to
+    2 MB — under GitHub's 50 MB warning threshold, which matters because the v3.3 source
+    was deleted upstream and this derived file is the durable artifact.
+
+    The property that has to hold is round-tripping: 11_import_athyg_v3_ids.sql expands
+    these ranges with generate_series, so an encoding bug becomes 2.5M wrong legacy links
+    rather than a visible failure.
+    """
+
+    def test_a_contiguous_run_becomes_one_range(self):
+        rows = [(10, 110, "gaia"), (11, 111, "gaia"), (12, 112, "gaia")]
+        assert to_ranges(rows) == [(10, 12, 100, "gaia")]
+
+    def test_a_changed_offset_breaks_the_range(self):
+        """Consecutive ids, but the second block moved by a different amount."""
+        rows = [(10, 110, "gaia"), (11, 111, "gaia"), (12, 500, "gaia")]
+        assert to_ranges(rows) == [(10, 11, 100, "gaia"), (12, 12, 488, "gaia")]
+
+    def test_a_changed_method_breaks_the_range(self):
+        """Same offset either side, but match_method is data, not a detail to smooth over."""
+        rows = [(10, 110, "gaia"), (11, 111, "tyc"), (12, 112, "gaia")]
+        assert to_ranges(rows) == [
+            (10, 10, 100, "gaia"),
+            (11, 11, 100, "tyc"),
+            (12, 12, 100, "gaia"),
+        ]
+
+    def test_a_gap_breaks_the_range(self):
+        """
+        The 22 v3 stars that did not survive to v4 leave real gaps. Expanding across one
+        would invent a mapping for a dead link — the exact silent-wrong-star failure this
+        feature exists to end — so the gap must survive the encoding.
+        """
+        rows = [(10, 110, "gaia"), (11, 111, "gaia"), (13, 113, "gaia")]
+        assert to_ranges(rows) == [(10, 11, 100, "gaia"), (13, 13, 100, "gaia")]
+
+    def test_the_gap_is_absent_after_expansion(self):
+        """Stated as the consequence, not just the representation."""
+        expanded = from_ranges(to_ranges([(10, 110, "gaia"), (13, 113, "gaia")]))
+        assert [v3 for v3, _, _ in expanded] == [10, 13]
+
+    def test_a_negative_offset_survives(self):
+        """v4 ids are not always larger; 636 stars kept their id and others moved down."""
+        rows = [(500, 100, "tyc"), (501, 101, "tyc")]
+        assert to_ranges(rows) == [(500, 501, -400, "tyc")]
+        assert from_ranges(to_ranges(rows)) == rows
+
+    def test_a_zero_offset_survives(self):
+        """The 636 stars whose id did not change. Offset 0 is a value, not a missing one."""
+        rows = [(7, 7, "gaia"), (8, 8, "gaia")]
+        assert to_ranges(rows) == [(7, 8, 0, "gaia")]
+        assert from_ranges(to_ranges(rows)) == rows
+
+    def test_unsorted_input_round_trips(self):
+        """run() sorts before encoding; this pins that the encoder does not depend on it."""
+        rows = [(12, 112, "gaia"), (10, 110, "gaia"), (11, 111, "gaia")]
+        assert to_ranges(rows) == [(10, 12, 100, "gaia")]
+        assert from_ranges(to_ranges(rows)) == sorted(rows)
+
+    def test_empty_input(self):
+        assert to_ranges([]) == []
+        assert from_ranges([]) == []
+
+    def test_round_trip_over_a_mixed_mapping(self):
+        """
+        The property, over one input carrying every case at once: contiguous blocks, a
+        gap, an offset change, a method change, and two v3 ids sharing one current star.
+        """
+        rows = sorted([
+            (2, 2, "gaia"),
+            (3, 3, "gaia"),
+            (4, 900, "gaia"),
+            (5, 901, "gaia"),
+            (6, 902, "tyc"),
+            (9, 905, "gaia"),
+            (10, 905, "tyc"),
+        ])
+        ranges = to_ranges(rows)
+        assert from_ranges(ranges) == rows
+        assert len(ranges) < len(rows)
+
+    def test_the_regression_case_survives_encoding(self):
+        """7301 -> 7323 is the case the whole feature is named for."""
+        expanded = from_ranges(to_ranges([(7301, 7323, "gaia")]))
+        assert expanded == [(7301, 7323, "gaia")]
