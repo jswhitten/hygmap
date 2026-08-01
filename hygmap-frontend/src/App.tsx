@@ -123,12 +123,23 @@ function App() {
     key: number // Unique key to force animation restart
   } | null>(null)
 
-  // The star this link's id meant before the AT-HYG 4 renumbering, when that differs from
-  // the star it means now. Null whenever there is nothing to disambiguate.
-  const [legacyAlternative, setLegacyAlternative] = useState<Star | null>(null)
+  // The old-link notice, or null when there is nothing to disambiguate.
+  //
+  // Both stars are FROZEN here at the moment the notice is built. `resolvedStar` is what
+  // the URL's id names in the current catalog — a statement about that id, which cannot
+  // change while the notice is up. Binding it to the live `selectedStar` instead (as this
+  // did until 2026-08-01) made the notice lie: picking any unrelated star from search or
+  // the canvas left it claiming "You are seeing <that star>", because nothing in either
+  // path clears the notice.
+  const [legacyNotice, setLegacyNotice] = useState<{
+    legacyStar: Star
+    resolvedStar: Star | null
+  } | null>(null)
 
   const viewMode = useAppStore((state) => state.viewMode)
-  const selectedStar = useAppStore((state) => state.selectedStar)
+  // No `selectedStar` subscription here on purpose. App used to read it solely to feed the
+  // old-link notice, which is exactly what made that notice restate itself about unrelated
+  // stars. The panels that need the selection subscribe to it themselves.
   const printableView = useAppStore((state) => state.printableView)
   const setPrintableView = useAppStore((state) => state.setPrintableView)
   const { setSelectedStar, setUnit, setViewMode, setCoordinateSystem } = useAppStore((state) => ({
@@ -166,6 +177,41 @@ function App() {
       setCameraTarget({ position, lookAt, key: Date.now() })
     }
 
+    // Fetch and select star from URL
+    //
+    // One promise, two consumers: the selection/camera below, and the old-link notice
+    // after it. The notice needs the star the URL id resolved to, and resolving it twice
+    // would be both a wasted request and a second chance for the two answers to disagree.
+    const resolvedFromUrl = urlState.star
+      ? fetchStarById(urlState.star)
+          .then((response) => response.data ?? null)
+          .catch((err) => {
+            console.error(err)
+            return null
+          })
+      : null
+
+    if (resolvedFromUrl) {
+      const hasCamera = urlState.cx !== undefined && urlState.cy !== undefined && urlState.cz !== undefined
+      resolvedFromUrl.then((star) => {
+        if (!star) return
+        setSelectedStar(star)
+        // Center on the star if no explicit camera position was provided.
+        //
+        // hasPosition guards it because ?star=<id> can name one of the 25,342 stars
+        // with no parallax. Those are still worth selecting -- the info panel reports
+        // what is known and says the position is unknown -- but there is nowhere to
+        // point the camera, and the old arithmetic produced a NaN target that moved
+        // the view somewhere undefined.
+        if (!hasCamera && hasPosition(star)) {
+          const [x, y, z] = projectStarToScene(star, urlState.view ?? DEFAULT_VIEW_MODE)
+          const lookAt = new THREE.Vector3(x, y, z)
+          const position = lookAt.clone().add(new THREE.Vector3(0, 0, DEFAULT_CAMERA_OFFSET_PC))
+          setCameraTarget({ position, lookAt, key: Date.now() })
+        }
+      })
+    }
+
     // Was this link written before the AT-HYG 4 renumbering?
     //
     // Only asked when the URL carries no current catalog marker. A bare id cannot be
@@ -174,38 +220,18 @@ function App() {
     // they asked for still loads either way; this only adds a notice.
     if (shouldCheckLegacyId(urlState) && urlState.star) {
       const requestedId = urlState.star
-      fetchStarByLegacyId(requestedId)
-        .then((legacy) => {
+      Promise.all([
+        fetchStarByLegacyId(requestedId).catch(() => null),
+        resolvedFromUrl ?? Promise.resolve(null),
+      ])
+        .then(([legacy, resolved]) => {
           // Nothing to say when the id meant the same star anyway: 636 stars kept their
           // id across the migration, and a notice offering the same star is noise.
-          if (legacy && legacy.id !== requestedId) setLegacyAlternative(legacy)
-        })
-        .catch(() => { /* the notice is optional; never block the page on it */ })
-    }
-
-    // Fetch and select star from URL
-    if (urlState.star) {
-      const hasCamera = urlState.cx !== undefined && urlState.cy !== undefined && urlState.cz !== undefined
-      fetchStarById(urlState.star)
-        .then((response) => {
-          if (response.data) {
-            setSelectedStar(response.data)
-            // Center on the star if no explicit camera position was provided.
-            //
-            // hasPosition guards it because ?star=<id> can name one of the 25,342 stars
-            // with no parallax. Those are still worth selecting -- the info panel reports
-            // what is known and says the position is unknown -- but there is nowhere to
-            // point the camera, and the old arithmetic produced a NaN target that moved
-            // the view somewhere undefined.
-            if (!hasCamera && hasPosition(response.data)) {
-              const [x, y, z] = projectStarToScene(response.data, urlState.view ?? DEFAULT_VIEW_MODE)
-              const lookAt = new THREE.Vector3(x, y, z)
-              const position = lookAt.clone().add(new THREE.Vector3(0, 0, DEFAULT_CAMERA_OFFSET_PC))
-              setCameraTarget({ position, lookAt, key: Date.now() })
-            }
+          if (legacy && legacy.id !== requestedId) {
+            setLegacyNotice({ legacyStar: legacy, resolvedStar: resolved })
           }
         })
-        .catch(console.error)
+        .catch(() => { /* the notice is optional; never block the page on it */ })
     }
 
     // Clear URL params after loading (optional - keeps URL clean)
@@ -306,15 +332,15 @@ function App() {
           <StarField />
         </Canvas>
       </ErrorBoundary>
-      {!printableView && legacyAlternative && (
+      {!printableView && legacyNotice && (
         <LegacyLinkNotice
-          legacyStar={legacyAlternative}
-          currentStar={selectedStar}
+          legacyStar={legacyNotice.legacyStar}
+          currentStar={legacyNotice.resolvedStar}
           onSelect={(star) => {
             setSelectedStar(star)
-            setLegacyAlternative(null)
+            setLegacyNotice(null)
           }}
-          onDismiss={() => setLegacyAlternative(null)}
+          onDismiss={() => setLegacyNotice(null)}
         />
       )}
       {!printableView && <HUD />}

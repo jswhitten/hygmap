@@ -19,6 +19,7 @@ import { searchStars } from '../api/stars'
 import CoordinateJump from './CoordinateJump'
 import SelectionAnnouncer from './SelectionAnnouncer'
 import { parsecsToLightYears } from '../domain/coordinates'
+import { hasPosition } from '../domain/star'
 import { generateShareURL, copyToClipboard } from '../utils/urlState'
 import { captureScreenshot, generateScreenshotFilename } from '../utils/screenshot'
 import type { Star } from '../types/star'
@@ -196,11 +197,24 @@ export default function Toolbar({ onHome, onJumpToCoordinates, onCenter, getCame
                 className="search-result"
                 onClick={() => handleSelectResult(star)}
                 role="option"
-                aria-label={`${star.display_name}${star.spect ? `, spectral type ${star.spect}` : ''}`}
+                aria-label={
+                  `${star.display_name}` +
+                  `${star.spect ? `, spectral type ${star.spect}` : ''}` +
+                  `${hasPosition(star) ? '' : ', not on map: position unknown'}`
+                }
               >
                 <span className="result-name">{star.display_name}</span>
                 {star.spect && (
                   <span className="result-spect">{star.spect}</span>
+                )}
+                {/*
+                  25,342 stars have no usable parallax. They stay findable by decision
+                  (NULL-COORDINATES), which makes marking them the frontend's job: search.php
+                  explains before the user clicks, and this dropdown did not, so the same
+                  star behaved differently in the two UIs.
+                */}
+                {!hasPosition(star) && (
+                  <span className="result-nomap">not on map</span>
                 )}
               </button>
             ))}
@@ -240,12 +254,33 @@ export default function Toolbar({ onHome, onJumpToCoordinates, onCenter, getCame
           </svg>
         </button>
 
+        {/*
+          Disabled for a star with no position, not merely inert.
+
+          `onCenter` already refuses those (App.tsx's handleCenter returns early), so an
+          enabled button did nothing and said nothing: a mouse user saw the map not move,
+          and a keyboard or screen-reader user got no signal at all. Saying why is the
+          pattern the rest of NULL-COORDINATES follows — the info panel and search.php both
+          explain rather than fail quietly.
+        */}
         <button
           className="toolbar-button"
           onClick={() => selectedStar && onCenter(selectedStar)}
-          disabled={!selectedStar}
-          title={selectedStar ? `Center on ${selectedStar.display_name || 'selected star'}` : 'Select a star first'}
-          aria-label={selectedStar ? `Center on ${selectedStar.display_name || 'selected star'}` : 'Center on selected star (no star selected)'}
+          disabled={!selectedStar || !hasPosition(selectedStar)}
+          title={
+            !selectedStar
+              ? 'Select a star first'
+              : hasPosition(selectedStar)
+                ? `Center on ${selectedStar.display_name || 'selected star'}`
+                : `${selectedStar.display_name || 'This star'} has no known position, so the map cannot centre on it`
+          }
+          aria-label={
+            !selectedStar
+              ? 'Center on selected star (no star selected)'
+              : hasPosition(selectedStar)
+                ? `Center on ${selectedStar.display_name || 'selected star'}`
+                : `Cannot centre on ${selectedStar.display_name || 'selected star'}: its position is unknown`
+          }
         >
           <svg
             width="18"

@@ -65,12 +65,41 @@ class TestBuildIndex:
         assert idx == {"111": 10, "222": 11}
         assert ambiguous == 0
 
-    def test_ambiguous_identifier_is_dropped_not_guessed(self):
-        # The GAIA-DUPLICATES case: one Gaia source, two real binary components.
-        # Picking either would send old links to a coin-flip star.
-        rows = [{"id": 10, "gaia": "999"}, {"id": 11, "gaia": "999"}]
+    def test_ambiguous_identifier_resolves_to_the_brighter_component(self):
+        # The GAIA-DUPLICATES case: one Gaia source, two real binary components. They are
+        # at the same point on the map, so the brighter one is the right answer for an old
+        # link — better than refusing it, which is what this used to do.
+        rows = [{"id": 10, "gaia": "999", "mag": 8.4}, {"id": 11, "gaia": "999", "mag": 5.1}]
         idx, ambiguous = build_index(rows, "gaia")
-        assert "999" not in idx
+        assert idx["999"] == 11
+        assert ambiguous == 1
+
+    def test_brighter_component_wins_regardless_of_input_order(self):
+        bright = {"id": 11, "gaia": "999", "mag": 5.1}
+        faint = {"id": 10, "gaia": "999", "mag": 8.4}
+        assert build_index([bright, faint], "gaia")[0]["999"] == 11
+        assert build_index([faint, bright], "gaia")[0]["999"] == 11
+
+    def test_a_star_with_a_magnitude_beats_one_without(self):
+        # None means "unknown", not "infinitely bright".
+        rows = [{"id": 10, "gaia": "999", "mag": None}, {"id": 11, "gaia": "999", "mag": 12.0}]
+        assert build_index(rows, "gaia")[0]["999"] == 11
+
+    def test_ties_resolve_to_the_lower_id(self):
+        # Determinism matters: the row order Postgres returns must not change the CSV.
+        rows = [{"id": 11, "gaia": "999", "mag": None}, {"id": 10, "gaia": "999", "mag": None}]
+        assert build_index(rows, "gaia")[0]["999"] == 10
+        rows = [{"id": 11, "gaia": "999", "mag": 4.0}, {"id": 10, "gaia": "999", "mag": 4.0}]
+        assert build_index(rows, "gaia")[0]["999"] == 10
+
+    def test_three_way_collision_counts_once_and_picks_the_brightest(self):
+        rows = [
+            {"id": 10, "gaia": "999", "mag": 8.4},
+            {"id": 11, "gaia": "999", "mag": 5.1},
+            {"id": 12, "gaia": "999", "mag": 6.2},
+        ]
+        idx, ambiguous = build_index(rows, "gaia")
+        assert idx["999"] == 11
         assert ambiguous == 1
 
     def test_same_star_listed_twice_is_not_ambiguous(self):
@@ -141,15 +170,21 @@ class TestMatchRows:
         assert rows == []
         assert stats["unmatched"] == 1
 
-    def test_ambiguous_identifier_yields_no_match(self):
-        """An identifier dropped by build_index must not fall through to a worse key
-        and quietly match something else."""
-        current = [{"id": 10, "gaia": "999", "hip": "5"},
-                   {"id": 11, "gaia": "999", "hip": ""}]
-        gaia_idx, _ = build_index(current, "gaia")
+    def test_shared_identifier_matches_the_brighter_component(self):
+        """A Gaia id naming two binary components resolves rather than falling through.
+
+        This asserted `rows == []` until 2026-08-01, when the maintainer settled that
+        landing on either component of a close binary beats refusing the link. The
+        cascade must not fall through to a worse key either — the answer comes from
+        `gaia`, not from `hip`.
+        """
+        current = [{"id": 10, "gaia": "999", "hip": "5", "mag": 9.0},
+                   {"id": 11, "gaia": "999", "hip": "", "mag": 6.0}]
+        gaia_idx, ambiguous = build_index(current, "gaia")
+        assert ambiguous == 1
         rows, stats = match_rows([{"id": "1", "gaia": "999"}], {"gaia": gaia_idx})
-        assert rows == []
-        assert stats["unmatched"] == 1
+        assert rows == [(1, 11, "gaia")]
+        assert stats["unmatched"] == 0
 
     def test_regression_7301_maps_to_7323(self):
         """The recorded case: GJ 1 / HIP 439 was v3 id 7301 and is v4 id 7323.

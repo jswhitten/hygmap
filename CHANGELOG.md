@@ -16,6 +16,81 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **A fictional name whose universe is switched off now says so.** Searching `Vulcan` with
+  no universe selected produced a bare "No match", indistinguishable from a misspelling —
+  and "Vulcan" is the example in this project's own purpose statement, so it was the exact
+  first interaction the project describes itself by.
+  `search.php`'s no-match branch now asks whether the term matches a `fic` name in some
+  *other* world, and if it does, names that universe and links to `configure.php`. New
+  `ApiClient::findFictionalNameInOtherWorlds()`; one `/worlds` call plus one
+  `/fictional-names` call per other world, on the no-match path only, against a 191-row
+  table. A failure there is swallowed and logged — the search already succeeded, and the
+  hint must never turn a plain no-match into an error page.
+  Matching mirrors the search endpoint (case-insensitive substring, prefix-anchored below
+  3 characters) so the hint cannot promise a result the real search would then miss.
+
+- **The old-link notice no longer makes false claims after a new selection.**
+  `App.tsx` bound `LegacyLinkNotice`'s `currentStar` to the live `selectedStar`, and
+  nothing in the search or canvas selection paths clears the notice — so picking any
+  unrelated star left it asserting "You are seeing *&lt;that star&gt;*" about an id that
+  never named it. Reported by `audit-frontend` 2026-07-31-2014, and the reason that
+  auditor regressed B+ → B.
+  Both stars are now frozen when the notice is built: the claim is about the URL's id, so
+  it cannot move. The URL star is resolved once and shared by the selection path and the
+  notice, rather than fetched twice.
+  Pinned by a regression test in `App.test.tsx` that was **mutation-checked** — restoring
+  the old binding makes it fail, which the ORDER BY tiebreaker episode is the standing
+  reason to verify rather than assume. `LegacyLinkNotice` also gained
+  `aria-label="Old link notice"`, because `SelectionAnnouncer` is also a `role="status"`
+  live region and the two were indistinguishable by role.
+
+- **The React "Center" button is disabled, with a reason, for a star with no position.**
+  It was left enabled while `handleCenter` returned early, so a mouse user saw the map not
+  move and a keyboard or screen-reader user got nothing at all. Now disabled with both a
+  `title` and an `aria-label` saying why. Positionless results in the React search dropdown
+  also carry a **not on map** badge (10.1:1 contrast, 6.8:1 on hover) and say so in their
+  accessible name — `search.php` explained before the click and this dropdown did not, so
+  the same star behaved differently in the two UIs. Both covered by new Vitest tests,
+  including the Sol-at-the-origin case a falsy coordinate check would get wrong.
+
+- **`search.php` has tests for the first time.** No test executed the file at all; the CI
+  smoke test only searched "Sol", which takes the redirect branch, so every other path was
+  unexercised. This code had been hand-debugged three times — a contrast fix, a
+  `lang`/charset fix, and the shared page-shell refactor — with no regression test landing
+  on any of those occasions (`audit-tests`, major, 2026-07-31-2014).
+  New `tests/Integration/SearchTest.php` drives it over HTTP (it reads `$_GET`, calls
+  `session_start()` and `exit`s on two of four paths, so including it would take the
+  PHPUnit process with it): the positionless branch, its link without `select_center`, the
+  page shell, the redirect control case, plain no-match, and the disabled-universe hint.
+  The positionless star is read from `tests/fixtures/positionless-stars.json` rather than
+  hardcoded, so this and `Unit\PositionlessStarTest` cannot drift onto different stars.
+
+- **A v3 id shared by two stars now resolves to the brighter component** instead of being
+  dropped. `build_index()` in `db/scripts/match_athyg_v3.py` used to remove any identifier
+  held by two current stars (1,166 gaia, 61 hip, 12 hd, 11 hr — GAIA-DUPLICATES' real
+  binary components). Maintainer decision, 2026-07-31: both components sit at the same
+  point on the map, so landing on either beats refusing the link. Ties break on `id`, and a
+  star with no magnitude sorts last rather than brightest.
+  **The measured effect is much smaller than the roadmap predicted, which is the part worth
+  keeping.** Only **2 ids were newly resolved** — a dropped gaia key did not end the lookup,
+  it fell through the cascade to `tyc`, which resolves both components separately. The real
+  change is that **536 ids now point at a different star**: the brighter component rather
+  than whichever one Tycho-2 reached. So this is *536 old links land on the brighter
+  component*, not *1,200 broken links fixed*.
+  `athyg_v3_ids.csv` regenerated against the live catalog: 78,733 ranges covering 2,552,145
+  ids (was 79,681 / 2,552,143). Verified by re-running `11_import_athyg_v3_ids.sql` against
+  the live database and re-checking both the 7301 → 7323 regression case and a changed
+  case (v3 6348: id 6366 at mag 10.134 → id 6367 at 9.676, same gaia id).
+  These figures are the ones this file, `docs/api.md` and `docs/database.md` carried before
+  the ambiguity refusal existed; they are back because the refusal is gone, not because
+  anything was reverted.
+
+- **`docs/user-guide.md` now documents searching.** It had two passing mentions of the
+  feature and no explanation of it — including nothing about positionless stars, which
+  `docs/api.md` and both changelogs already covered. New section: what the search accepts,
+  the 1–2 character prefix rule, why fictional names need their universe on, and what
+  happens in each UI when you find a star that cannot be mapped.
+
 - **Search is fast again when a fictional universe is selected**
   [FICTIONAL-SEARCH-PERFORMANCE]. **19,642 ms → 0.502 ms** for `vulcan` with Star Trek on,
   measured by `EXPLAIN (ANALYZE)` against the live 2.84M-row catalog on a quiet host; the

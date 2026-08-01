@@ -5,7 +5,7 @@
 -- Loads db/data/athyg_v3_ids.csv, produced by db/scripts/match_athyg_v3.py.
 --
 -- `athyg.id` is the source catalog's row id, not ours. AT-HYG 4 renumbered it: of the
--- 2,552,143 v3.3 stars that still exist, only 636 kept the same id. So every star link
+-- 2,552,145 v3.3 stars that still exist, only 636 kept the same id. So every star link
 -- anyone saved before that migration now points somewhere else, and 99.99% of v3 ids are
 -- also a valid *different* v4 id, which is why it fails silently rather than 404ing.
 -- Worked example: ?select_star=7301 meant GJ 1 (mag 8.755, Sculptor) and now shows an
@@ -35,8 +35,8 @@
 -- meaning: for every v3 id from v3_start to v3_end inclusive, athyg_id = v3_id + offset.
 --
 -- AT-HYG 4 renumbered the catalog in blocks rather than shuffling it, so that offset is
--- constant across long runs of consecutive ids: the same mapping is 79,681 ranges instead
--- of 2,552,143 rows, and the file is 2 MB instead of 51 MB. GitHub warns above 50 MB and
+-- constant across long runs of consecutive ids: the same mapping is 78,733 ranges instead
+-- of 2,552,145 rows, and the file is 2 MB instead of 51 MB. GitHub warns above 50 MB and
 -- refuses above 100 MB, and this file is committed deliberately -- AT-HYG deleted the
 -- v3.3 source from its main branch six days before this feature was built, so the derived
 -- mapping is the durable artifact and needs to stay comfortably storable.

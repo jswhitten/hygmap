@@ -116,6 +116,50 @@ Click **Export CSV** to download a spreadsheet of visible stars including names,
 
 ---
 
+## Searching
+
+Both interfaces search the same catalog and accept the same things:
+
+- **Proper names** — `Sirius`, `Vega`, `Betelgeuse`
+- **Bayer and Flamsteed designations** — `Alpha Centauri` (or `Alp Cen`), `61 Cygni`
+- **Constellations** — `Ori` returns stars in Orion
+- **Catalog IDs** — `HIP 439`, `HD 48915`, `HR 2491`, `GJ 1`, `TYC 6995-1264-1`, or a Gaia
+  DR3 source ID
+
+Queries of one or two characters match the *start* of a name; three or more match anywhere
+inside it.
+
+### Fictional names need their universe switched on
+
+Fictional names are only searched in the universe you have selected, so searching `Vulcan`
+with no universe enabled finds nothing. Choose a universe under **Configure** (classic
+interface) first. If you search a fictional name while its universe is off, the classic
+interface now tells you which universe it belongs to instead of just reporting no match.
+
+This scoping is deliberate: a star has to be named the same way everywhere on one page, so
+names are never matched across universes at once.
+
+### Some stars are findable but cannot be shown on the map
+
+About **25,342 stars (0.9% of the catalog)** have no usable parallax measurement. Their
+position on the sky is known, but their *distance* is not — so there is no point in 3D
+space to draw them at.
+
+These stars stay searchable, because a catalog number that exists should not report "not
+found". What happens when you find one:
+
+- **Classic interface:** the search result explains that the star cannot be mapped, and
+  offers a link to what *is* known about it — apparent magnitude, RA/Dec, catalog IDs.
+  You are not redirected to the map, because there is nowhere to centre it.
+- **React interface:** the result is marked **not on map** in the search list. Selecting it
+  fills in the information panel, and the **Center** button is disabled with the reason
+  given.
+
+A star with no position is not the same as one that is simply out of view. Zooming out will
+never reveal it.
+
+---
+
 ## Understanding Stars
 
 ### Star Colors

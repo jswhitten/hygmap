@@ -101,6 +101,20 @@
   font-family: monospace;
 }
 
+/* Marks a star with no known position. #d8c48a measures 10.1:1 against the dropdown's
+   own background and 6.8:1 against the hover state, both well past WCAG 1.4.3 AA — the
+   badge is the only warning a result carries, so it must not be the dimmest thing in the
+   row. (.result-spect's #88aacc is 5.6:1; deliberately quieter, because it is a label
+   rather than a warning.) */
+.result-nomap {
+  font-size: 11px;
+  color: #d8c48a;
+  border: 1px solid #6b5f38;
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
 .toolbar-buttons {
   display: flex;
   gap: 8px;

@@ -193,6 +193,59 @@ final class ApiClient
     }
 
     /**
+     * Find a fictional name matching $term in a universe OTHER than $excludeWorldId.
+     *
+     * Answers one question, on one code path: search.php has already found nothing, and
+     * needs to distinguish "no such star" from "that name exists, but its universe is
+     * switched off". A cold visitor typing "Vulcan" with no universe selected gets the
+     * same bare "No match" as a typo, which is the first interaction this project
+     * describes itself by.
+     *
+     * Costs one `/worlds` call plus one `/fictional-names` call per other world, on the
+     * no-match path only. `fic` is 191 rows across a handful of worlds, so this is cheap
+     * today; if it stops being cheap, the fix is an API endpoint that matches names across
+     * worlds in one query, not a cache here.
+     *
+     * Matching mirrors the search endpoint deliberately: case-insensitive substring, but
+     * prefix-anchored below TRIGRAM_MIN_CHARS (3), because that is what the user's query
+     * would have done had the world been enabled. Saying "we found it" and then having the
+     * real search not find it would be worse than saying nothing.
+     *
+     * @param string $term       The query that just failed.
+     * @param int    $excludeWorldId The world already enabled, whose names were searched.
+     * @return array{name: string, world_id: int, world_name: string}|null
+     */
+    public function findFictionalNameInOtherWorlds(string $term, int $excludeWorldId): ?array
+    {
+        $needle = mb_strtolower(trim($term));
+        if ($needle === '') {
+            return null;
+        }
+        $anchored = mb_strlen($needle) < 3;
+
+        foreach ($this->queryWorlds() as $world) {
+            $worldId = (int)($world['id'] ?? 0);
+            if ($worldId <= 0 || $worldId === $excludeWorldId) {
+                continue;
+            }
+            foreach ($this->queryFiction($worldId) as $fic) {
+                $name = mb_strtolower((string)($fic['name'] ?? ''));
+                $hit = $anchored
+                    ? str_starts_with($name, $needle)
+                    : str_contains($name, $needle);
+                if ($hit) {
+                    return [
+                        'name' => (string)$fic['name'],
+                        'world_id' => $worldId,
+                        'world_name' => (string)($world['name'] ?? "universe $worldId"),
+                    ];
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get all fictional names (optionally filtered by world)
      *
      * @param int|null $world_id Filter by world ID

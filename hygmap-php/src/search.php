@@ -74,8 +74,29 @@ if ($row && $row['x'] === null) {
     $_SESSION['last_map'] = "/?select_star=$id&select_center=1&c=$c";
     header("Location: /?select_star=$id&select_center=1&c=$c", true, 302);
 } else {
-    search_page(
-        'No match',
-        '<h3>No match for &ldquo;' . htmlspecialchars($q, ENT_QUOTES) . '&rdquo;</h3>'
-    );
+    // Before saying "no match", check whether the name exists in a universe the visitor
+    // has not switched on. "Vulcan" with no universe selected is not a typo and should not
+    // read like one — it is the exact first interaction this project describes itself by,
+    // and it currently dead-ends. One extra lookup, on this path only.
+    //
+    // A failure here must not turn a plain "no match" into an error page: the search
+    // itself already succeeded, and this is a hint, not the answer.
+    $elsewhere = null;
+    try {
+        $elsewhere = ApiClient::instance()->findFictionalNameInOtherWorlds($q, $ficNames);
+    } catch (RuntimeException $e) {
+        error_log("Fictional-universe hint lookup failed: " . $e->getMessage());
+    }
+
+    $body = '<h3>No match for &ldquo;' . htmlspecialchars($q, ENT_QUOTES) . '&rdquo;</h3>';
+    if ($elsewhere !== null) {
+        $body .= '<p><strong>' . htmlspecialchars($elsewhere['name'], ENT_QUOTES)
+              . '</strong> is a name in <strong>'
+              . htmlspecialchars($elsewhere['world_name'], ENT_QUOTES)
+              . '</strong>, which is not switched on. Fictional names are only searched in'
+              . ' the universe you have selected, so this star is findable once you enable'
+              . ' it.</p>'
+              . '<p>[ <a href="/configure.php">Choose a fictional universe</a> ]</p>';
+    }
+    search_page('No match', $body);
 }

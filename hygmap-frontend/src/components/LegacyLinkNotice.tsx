@@ -29,9 +29,13 @@ export default function LegacyLinkNotice({
   onDismiss,
 }: LegacyLinkNoticeProps) {
   return (
+    /* aria-label because SelectionAnnouncer is also a role="status" live region, and the
+       two are otherwise indistinguishable to anything navigating by role — a screen-reader
+       user included. */
     <div
       role="status"
       aria-live="polite"
+      aria-label="Old link notice"
       style={{
         position: 'absolute',
         top: '1rem',

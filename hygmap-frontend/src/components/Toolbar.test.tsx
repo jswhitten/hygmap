@@ -117,6 +117,39 @@ describe("Toolbar Component", () => {
       const button = screen.getByRole("button", { name: /center.*test star/i });
       expect(button).not.toBeDisabled();
     });
+
+    // A positionless star left this button enabled while App.tsx's handleCenter returned
+    // early, so clicking it did nothing and said nothing. 25,342 stars are in that state.
+    it("should be disabled, with a stated reason, for a star with no position", () => {
+      useAppStore.setState({
+        selectedStar: {
+          id: 2,
+          x: null,
+          y: null,
+          z: null,
+          absmag: null,
+          display_name: "HIP 12345",
+        },
+      });
+
+      renderToolbar();
+
+      const button = screen.getByRole("button", { name: /cannot centre on HIP 12345/i });
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("title", expect.stringMatching(/no known position/i));
+    });
+
+    it("should stay enabled for a star at the origin", () => {
+      // Sol is at (0, 0, 0). A falsy check on the coordinates would disable it, which is
+      // the bug hasPosition() exists to prevent.
+      useAppStore.setState({
+        selectedStar: { id: 3, x: 0, y: 0, z: 0, absmag: 4.83, display_name: "Sol" },
+      });
+
+      renderToolbar();
+
+      expect(screen.getByRole("button", { name: /center on Sol/i })).not.toBeDisabled();
+    });
   });
 
   describe("Measure Button", () => {
@@ -258,6 +291,34 @@ describe("Toolbar Component", () => {
         const listbox = screen.getByRole("listbox", { name: /search results/i });
         expect(listbox).toBeInTheDocument();
       });
+    });
+
+    // search.php explains a positionless star before the user clicks; this dropdown showed
+    // it as an ordinary result, so the same star behaved differently in the two UIs.
+    it("should mark a positionless result as not on the map", async () => {
+      mockSearchResults([
+        { id: 1, x: 0, y: 0, z: 0, absmag: -1.46, display_name: "Sirius", spect: "A1V" },
+        { id: 2, x: null, y: null, z: null, absmag: null, display_name: "HIP 12345" },
+      ]);
+
+      renderToolbar();
+
+      fireEvent.change(screen.getByRole("textbox", { name: /search stars/i }), {
+        target: { value: "test" },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("not on map")).toBeInTheDocument();
+      });
+
+      // The badge is visual; the accessible name is what a screen-reader user gets.
+      expect(
+        screen.getByRole("option", { name: /HIP 12345.*not on map.*position unknown/i })
+      ).toBeInTheDocument();
+      // Sirius has a position and must not be marked — including at the origin, where a
+      // falsy coordinate check would produce a false positive.
+      expect(screen.getByRole("option", { name: /^Sirius/i })).toBeInTheDocument();
+      expect(screen.getAllByText("not on map")).toHaveLength(1);
     });
 
     it("should select star from search results", async () => {

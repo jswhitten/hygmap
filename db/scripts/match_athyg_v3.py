@@ -17,8 +17,8 @@ athyg_v3_ids table and the API are unchanged by this, it is purely how the mappi
 stored on disk.
 
 Ranges rather than 2.5M individual rows because the renumbering moved the catalog in
-blocks rather than shuffling it, so the offset is constant over long runs — 79,681 ranges
-instead of 2,552,143 rows, 51 MB down to 2 MB. See to_ranges().
+blocks rather than shuffling it, so the offset is constant over long runs — 78,733 ranges
+instead of 2,552,145 rows, 51 MB down to 2 MB. See to_ranges().
 
 Source data (deleted from AT-HYG's main branch 2026-07-25; the parent commit still has it):
 
@@ -111,23 +111,40 @@ def norm(value):
     return s
 
 
+def brightness_rank(row):
+    """Sort key that puts the brighter star first. Lower magnitude is brighter.
+
+    A star with no magnitude sorts last, not brightest — `None` is "we don't know", and
+    treating an unknown as -inf would hand every tie to the row with the least data. `id`
+    breaks exact ties so the choice is deterministic across runs and machines; without it
+    the index would depend on the order Postgres happened to return rows in, and the
+    committed CSV would churn for no reason.
+    """
+    mag = row.get("mag")
+    try:
+        mag = float(mag)
+    except (TypeError, ValueError):
+        mag = None
+    return (mag is None, mag if mag is not None else 0.0, row["id"])
+
+
 def build_index(rows, field):
-    """Index current stars by one identifier.
+    """Index current stars by one identifier, resolving collisions to the brighter star.
 
-    Any identifier held by more than one current star is REMOVED from the index rather
-    than resolved to the first. Those are GAIA-DUPLICATES' real binary components — Tycho-2
-    resolves both, Gaia records one source — so the identifier genuinely names two stars.
-    1,166 gaia ids and 61 hip ids are in this state.
+    An identifier held by more than one current star is GAIA-DUPLICATES' real binary
+    components — Tycho-2 resolves both, Gaia records one source — so the identifier
+    genuinely names two stars. 1,166 gaia ids and 61 hip ids are in this state.
 
-    **This is more conservative than it needs to be, per the maintainer (2026-07-31):**
-    resolving to the brighter component is perfectly acceptable. The two components of a
-    close binary are at the same place on the map, and landing on either one is a far better
-    outcome for an old link than refusing it. The original rationale here — that picking
-    would be "the exact silent-wrong-star failure this feature exists to end" — conflated
-    two very different errors: pointing at *the other component of the same binary* is not
-    the same as pointing at *an unrelated star in another constellation*, which is what the
-    renumbering did. Changing this is tracked in the ROADMAP; the refusal stands until then
-    because it is the safe direction to be wrong in, not because it is right.
+    **Those resolve to the brighter component (maintainer decision, 2026-07-31).** The two
+    components of a close binary sit at the same point on the map, so landing on either is
+    a far better outcome for an old link than refusing it. The earlier code dropped these
+    keys, on the rationale that picking would be "the exact silent-wrong-star failure this
+    feature exists to end" — which conflated two different errors: pointing at *the other
+    component of the same binary* is not pointing at *an unrelated star in another
+    constellation*, which is what the renumbering did.
+
+    The count is still returned and still reported, because "1,166 of these were a judgement
+    call" is worth printing even when the judgement is settled.
 
     Returns (index, ambiguous_count).
     """
@@ -137,13 +154,16 @@ def build_index(rows, field):
         key = norm(row.get(field))
         if key is None:
             continue
-        if key in index and index[key] != row["id"]:
-            ambiguous.add(key)
-        else:
-            index.setdefault(key, row["id"])
-    for key in ambiguous:
-        index.pop(key, None)
-    return index, len(ambiguous)
+        incumbent = index.get(key)
+        if incumbent is None:
+            index[key] = row
+            continue
+        if incumbent["id"] == row["id"]:
+            continue
+        ambiguous.add(key)
+        if brightness_rank(row) < brightness_rank(incumbent):
+            index[key] = row
+    return {k: r["id"] for k, r in index.items()}, len(ambiguous)
 
 
 def read_v3_rows(paths):
@@ -198,13 +218,13 @@ def to_ranges(rows):
 
     The AT-HYG 4 renumbering did not shuffle the catalog — it moved it in blocks, so
     `athyg_id - v3_id` stays constant across long runs of consecutive v3 ids. Measured on
-    the real mapping: 2,552,143 rows collapse to 6,582 distinct offset runs, and to 79,681
+    the real mapping: 2,552,145 rows collapse to 6,582 distinct offset runs, and to 78,733
     ranges once `match_method` (which alternates between gaia and tyc) is allowed to break
     them. That is the difference between a 51 MB file and a 2 MB one, holding exactly the
     same information.
 
     The one-row-per-id form was the obvious way to write this and it hid the structure: a
-    2.5M-row file tells you nothing, whereas 79,681 ranges make the block-structured
+    2.5M-row file tells you nothing, whereas 78,733 ranges make the block-structured
     renumbering visible on inspection.
 
     Emits (v3_start, v3_end, offset, match_method). A range breaks when the offset
@@ -269,8 +289,10 @@ def connect_db():
 
 
 def load_current_stars(cur):
-    cur.execute("SELECT id, gaia, tyc, hip, hd, hr, gj FROM athyg")
-    cols = ["id", "gaia", "tyc", "hip", "hd", "hr", "gj"]
+    # `mag` is not an identifier — build_index() uses it to pick the brighter component
+    # when two current stars share one legacy identifier.
+    cur.execute("SELECT id, gaia, tyc, hip, hd, hr, gj, mag FROM athyg")
+    cols = ["id", "gaia", "tyc", "hip", "hd", "hr", "gj", "mag"]
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
@@ -284,7 +306,7 @@ def run(v3_paths, output_file):
     for method in MATCH_CASCADE:
         idx, ambiguous = build_index(current, method)
         indexes[method] = idx
-        note = f" ({ambiguous:,} ambiguous, dropped)" if ambiguous else ""
+        note = f" ({ambiguous:,} shared by two stars, resolved to the brighter)" if ambiguous else ""
         print(f"  index {method}: {len(idx):,} keys{note}")
 
     print("Matching v3.3 rows...")

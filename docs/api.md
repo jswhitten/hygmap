@@ -360,7 +360,7 @@ curl "http://localhost:8000/api/stars/fictional-names?world_id=1"
 Resolves an **AT-HYG v3.3** star id to the star it names in the current (v4.0) catalog.
 
 `athyg.id` is the source catalog's row id, not HYGMap's. The AT-HYG 4 migration reassigned
-it: of the 2,552,143 v3.3 stars still present, only **636 kept the same id**. Every star
+it: of the 2,552,145 v3.3 stars still present, only **636 kept the same id**. Every star
 link saved before that migration therefore points at a different object — and it fails
 *silently*, because **99.99% of v3 ids are also a valid, different v4 id**. Nothing 404s;
 the wrong star simply loads.
