@@ -41,9 +41,16 @@ $view_coords = [
 $xy_zoom = $vars['xy_zoom'];
 $z_zoom = $vars['z_zoom'];
 
+// Did this link mean a different star before the AT-HYG 4 renumbering? Resolved BEFORE the
+// current star is fetched, because that fetch answers 404 and exits when the id names
+// nothing today -- and that is exactly the case where the legacy answer is unambiguous and
+// most worth showing. Only asked when the URL carries no `c=4` marker.
+$profiler->flag("Checking legacy star id");
+$legacy_star = resolveLegacyAlternative($select_star, (int)$vars['c'], $fic_names);
+
 // Fetch selected star and update view center if requested
 $profiler->flag("Querying selected star");
-$selected_star = fetchSelectedStar($select_star, $select_center, $fic_names, $unit, $view_coords);
+$selected_star = fetchSelectedStar($select_star, $select_center, $fic_names, $unit, $view_coords, $legacy_star);
 
 // Extract updated coordinates (may have been modified by fetchSelectedStar)
 $x_c = $view_coords['x_c'];
@@ -52,6 +59,10 @@ $z_c = $view_coords['z_c'];
 
 // Build selected star display data
 $star_info = buildSelectedStarData($selected_star, $fic_names, $unit);
+
+$legacy_info = $legacy_star !== null
+    ? buildSelectedStarData($legacy_star, $fic_names, $unit)
+    : null;
 
 // Build map image HTML
 $baseParams = [
@@ -128,6 +139,20 @@ $profiler->flag('FINISH');
 
     <!-- SELECTED STAR INFO -->
     <div class="info">
+      <?php if ($legacy_info !== null && $legacy_info['has_star']): ?>
+        <?php
+          // This link carried no catalog marker and names a different star under the old
+          // AT-HYG v3.3 numbering. Both readings are shown because neither can be ruled
+          // out from the id alone — see IndexHelpers::resolveLegacyAlternative().
+        ?>
+        <div role="note" style="margin:0 0 0.75em 0; padding:0.5em; background:#e8f0fe; color:#17304f; border-left:3px solid #4a7fc1;">
+          <strong>This may be an old link.</strong>
+          Star numbering changed when the catalog was updated to AT-HYG&nbsp;4.
+          You are seeing <strong><?= htmlspecialchars($star_info['has_star'] ? (string)$star_info['display_name'] : 'no star', ENT_QUOTES) ?></strong>.
+          Before the update, this link meant
+          <a href="?select_star=<?= (int)$legacy_star['id'] ?>&amp;select_center=1&amp;c=<?= IndexHelpers::CATALOG_VERSION ?>"><?= htmlspecialchars((string)$legacy_info['display_name'], ENT_QUOTES) ?></a>.
+        </div>
+      <?php endif; ?>
       <?php if ($star_info['has_star']): ?>
         <h3><?= $star_info['display_name'] ?></h3>
         <?php if (!empty($star_info['position_note'])): ?>
@@ -174,7 +199,7 @@ $profiler->flag('FINISH');
               [ <a href="<?= htmlspecialchars($star_info['simbad_url'], ENT_QUOTES) ?>" target="_blank">Look up this star in SIMBAD</a> ]<br/>
               <?php endif; ?>
               <br/>
-              [ <a href="<?= htmlspecialchars(getenv('FRONTEND_URL') ?: 'http://localhost:5173', ENT_QUOTES) ?>/?star=<?= (int)$select_star ?>" target="_blank">View in 3D</a> ]<br/>
+              [ <a href="<?= htmlspecialchars(getenv('FRONTEND_URL') ?: 'http://localhost:5173', ENT_QUOTES) ?>/?star=<?= (int)$select_star ?>&amp;c=<?= IndexHelpers::CATALOG_VERSION ?>" target="_blank">View in 3D</a> ]<br/>
               <br/>
               [ <a href="http://www.fourmilab.ch/cgi-bin/uncgi/Yourtel?lon=<?= urlencode((string)$star_info['ra']) ?>h&lat=<?= urlencode((string)$star_info['selected_dec_av']) ?>&ns=<?= urlencode($star_info['selected_dec_ns']) ?>&date=0&fov=45&coords=1&moonp=1&deep=1&deepm=7&consto=1&constn=1&constb=1&limag=6.5&starn=1&starnm=3.5&starb=1&starbm=4.5&imgsize=512&scheme=0" target="_blank">Plot a sky map centered on this star at fourmilab.ch</a> ]<br/>
               <?= $star_info['memory_alpha'] ?>
@@ -283,7 +308,7 @@ $profiler->flag('FINISH');
     <tbody>
       <?php foreach ($star_table_data['rows'] as $star): ?>
       <tr>
-        <td><a href="?select_star=<?= (int)$star['id'] ?>&select_center=1"><?= htmlspecialchars($star['name'], ENT_QUOTES) ?></a></td>
+        <td><a href="?select_star=<?= (int)$star['id'] ?>&select_center=1&c=<?= IndexHelpers::CATALOG_VERSION ?>"><?= htmlspecialchars($star['name'], ENT_QUOTES) ?></a></td>
         <td><?= htmlspecialchars($star['con'], ENT_QUOTES) ?></td>
         <td><?= htmlspecialchars($star['spect'], ENT_QUOTES) ?></td>
         <td><?= htmlspecialchars((string)$star['absmag'], ENT_QUOTES) ?></td>

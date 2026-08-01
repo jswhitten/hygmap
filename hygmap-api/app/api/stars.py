@@ -9,6 +9,7 @@ from app.database import get_db
 from app.schemas import (
     StarListResponse,
     StarDetailResponse,
+    LegacyStarResponse,
     StarBase,
     StarDetail,
     ProperName,
@@ -555,6 +556,56 @@ async def get_worlds(
         result="success",
         data=worlds,
         length=len(worlds),
+    )
+
+
+@router.get("/legacy/{v3_id}", response_model=LegacyStarResponse)
+@limiter.limit(settings.RATE_LIMIT)
+async def get_star_by_legacy_id(
+    request: Request,  # Required for rate limiter
+    v3_id: int,
+    world_id: int = Query(0, ge=0, description="Fictional world ID for fictional name (0 = no fictional name)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Resolve an AT-HYG v3.3 star id to the star it names in the current catalog.
+
+    The AT-HYG 4 migration renumbered every star, so links saved before it point at a
+    different object and do so silently -- 99.99% of v3 ids are also a valid, *different*
+    v4 id, so the wrong star loads with no error. This endpoint answers only "what did
+    this id used to mean"; whether a given incoming id should be read as legacy is not
+    knowable here and is left to the caller.
+
+    Returns 404 when no v3 star maps to the current catalog under that id -- either the id
+    never existed in v3.3, or its star did not survive to v4 (22 such), or its identifier
+    is shared by two real binary components and the matcher refused to guess.
+    """
+    query = text("""
+        SELECT
+            a.id, a.proper, a.bayer, a.flam, a.con, a.spect, a.absmag,
+            a.x, a.y, a.z, a.hyg, a.hip, a.hd, a.hr, a.gj, a.cns5,
+            a.tyc, a.gaia, a.ra, a.dec, a.dist, a.mag,
+            COALESCE(f.name, '') AS name,
+            v.match_method
+        FROM athyg_v3_ids v
+        JOIN athyg a ON a.id = v.athyg_id
+        LEFT JOIN fic f ON a.id = f.star_id AND f.world_id = :world_id
+        WHERE v.v3_id = :v3_id
+    """)
+
+    result = await db.execute(query, {"v3_id": v3_id, "world_id": world_id})
+    row = result.mappings().first()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="No star found for that legacy ID")
+
+    star_fields = {k: v for k, v in row.items() if k != "match_method"}
+
+    return LegacyStarResponse(
+        result="success",
+        v3_id=v3_id,
+        match_method=row["match_method"],
+        data=StarDetail(**star_fields),
     )
 
 

@@ -1,6 +1,12 @@
 .env
 .claude/
+# Downloaded AT-HYG source catalogs (athyg_v33-1.csv, athyg_40.csv, ...) — large and
+# regenerable from Codeberg, so never committed.
 /db/data/athyg_v*
+# ...but the derived v3->v4 id map IS committed: db/Dockerfile COPYs it, so excluding it
+# breaks a clean-clone build, and it is the durable artifact that outlives the 199MB of
+# source it was built from (which AT-HYG deleted from its main branch on 2026-07-25).
+!/db/data/athyg_v3_ids.csv
 /db/scripts/cns5.dat
 /db/scripts/ReadMe.txt
 /db/scripts/table*

@@ -337,8 +337,11 @@ class IndexHelpersTest extends TestCase
 
         $this->assertStringContainsString('<map name="starmap">', $html);
         $this->assertSame(2, substr_count($html, '<area '), 'Expected one area per labelled star');
-        $this->assertStringContainsString('href="?select_star=1&amp;select_center=1"', $html);
-        $this->assertStringContainsString('href="?select_star=2&amp;select_center=1"', $html);
+        // The c=4 marker says "this id is a current AT-HYG 4 id". Without it the app
+        // cannot tell its own links from ones saved before the renumbering, and would
+        // offer a legacy-id notice on links it just generated itself.
+        $this->assertStringContainsString('href="?select_star=1&amp;select_center=1&amp;c=4"', $html);
+        $this->assertStringContainsString('href="?select_star=2&amp;select_center=1&amp;c=4"', $html);
     }
 
     public function testBuildStarImageMapSkipsStarsTooDimToBeLabelled(): void

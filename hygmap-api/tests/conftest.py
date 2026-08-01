@@ -49,6 +49,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     # Recreate tables from scratch for each test to avoid UNIQUE conflicts
     async with test_engine.begin() as conn:
         await conn.execute(text("DROP TABLE IF EXISTS signals"))
+        await conn.execute(text("DROP TABLE IF EXISTS athyg_v3_ids"))
         await conn.execute(text("DROP TABLE IF EXISTS fic"))
         await conn.execute(text("DROP TABLE IF EXISTS fic_worlds"))
         await conn.execute(text("DROP TABLE IF EXISTS athyg"))
@@ -97,6 +98,18 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 name TEXT NOT NULL,
                 FOREIGN KEY (star_id) REFERENCES athyg(id),
                 FOREIGN KEY (world_id) REFERENCES fic_worlds(id)
+            )
+        """))
+
+        # AT-HYG v3.3 -> current id mapping. A lookup table rather than a column on athyg
+        # because the mapping is many-to-one: AT-HYG 4 merged some v3.3 rows, so 5 real
+        # stars are each named by two v3 ids.
+        await conn.execute(text("""
+            CREATE TABLE athyg_v3_ids (
+                v3_id INTEGER PRIMARY KEY,
+                athyg_id INTEGER NOT NULL,
+                match_method TEXT NOT NULL,
+                FOREIGN KEY (athyg_id) REFERENCES athyg(id)
             )
         """))
 
@@ -157,6 +170,25 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
                 (16, NULL, NULL, 'Lyn', 'K0V', 9.99, 30.0, 31.0, 30.0, NULL, NULL),
                 (15, NULL, NULL, 'Lyn', 'K0V', 9.99, 31.0, 30.0, 30.0, NULL, NULL),
                 (14, NULL, NULL, 'Lyn', 'K0V', 9.99, 30.0, 30.0, 30.0, NULL, NULL)
+        """))
+
+        # Legacy v3.3 ids.
+        #
+        # Star 3 (Sirius) models the case the whole feature exists for: its v3 id (7301)
+        # is ALSO a valid, different v4 id in the real catalogue, so a bare id is
+        # ambiguous. 99.99% of v3 ids are in this state.
+        #
+        # Stars 4 and 5 share one current star deliberately -- two v3 rows merged into one
+        # v4 star. That is why this is a table and not a column: a column could hold only
+        # one of them, and UPDATE...FROM would pick which one nondeterministically.
+        await conn.execute(text("""
+            INSERT INTO athyg_v3_ids (v3_id, athyg_id, match_method)
+            VALUES
+                (7301, 3, 'gaia'),
+                (2, 3, 'hd'),
+                (9001, 4, 'gaia'),
+                (9002, 4, 'tyc'),
+                (5, 5, 'hip')
         """))
 
         # Set GJ and CNS5 IDs for test stars

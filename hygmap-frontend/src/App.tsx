@@ -8,19 +8,20 @@ import HUD from './components/HUD'
 import Settings from './components/Settings'
 import Toolbar from './components/Toolbar'
 import StarInfoPanel from './components/StarInfoPanel'
+import LegacyLinkNotice from './components/LegacyLinkNotice'
 import SignalInfoPanel from './components/SignalInfoPanel'
 import PrintableOverlay from './components/PrintableOverlay'
 import ErrorBoundary from './components/ErrorBoundary'
 import CameraAnimator from './render/CameraAnimator'
 import KeyboardNavigator from './components/KeyboardNavigator'
 import { useAppStore } from './state/store'
-import { fetchStarById } from './api/stars'
+import { fetchStarById, fetchStarByLegacyId } from './api/stars'
 import type { Star } from './types/star'
 import { projectStarToScene, projectSceneCoords, isLockedViewMode, DEFAULT_VIEW_MODE } from './domain/viewMode'
 import { hasPosition } from './domain/star'
 import { galacticToScene } from './domain/coordinates'
 import type { ViewMode } from './domain/viewMode'
-import { decodeStateFromURL } from './utils/urlState'
+import { decodeStateFromURL, shouldCheckLegacyId } from './utils/urlState'
 import './App.css'
 
 // Default distance (in parsecs) to place the camera from the target
@@ -122,7 +123,12 @@ function App() {
     key: number // Unique key to force animation restart
   } | null>(null)
 
+  // The star this link's id meant before the AT-HYG 4 renumbering, when that differs from
+  // the star it means now. Null whenever there is nothing to disambiguate.
+  const [legacyAlternative, setLegacyAlternative] = useState<Star | null>(null)
+
   const viewMode = useAppStore((state) => state.viewMode)
+  const selectedStar = useAppStore((state) => state.selectedStar)
   const printableView = useAppStore((state) => state.printableView)
   const setPrintableView = useAppStore((state) => state.setPrintableView)
   const { setSelectedStar, setUnit, setViewMode, setCoordinateSystem } = useAppStore((state) => ({
@@ -158,6 +164,23 @@ function App() {
         urlState.tz ?? 0
       )
       setCameraTarget({ position, lookAt, key: Date.now() })
+    }
+
+    // Was this link written before the AT-HYG 4 renumbering?
+    //
+    // Only asked when the URL carries no current catalog marker. A bare id cannot be
+    // attributed to a catalog by inspection -- 99.99% of v3 ids are also a valid,
+    // DIFFERENT v4 id -- so rather than guess, offer the reader both readings. The star
+    // they asked for still loads either way; this only adds a notice.
+    if (shouldCheckLegacyId(urlState) && urlState.star) {
+      const requestedId = urlState.star
+      fetchStarByLegacyId(requestedId)
+        .then((legacy) => {
+          // Nothing to say when the id meant the same star anyway: 636 stars kept their
+          // id across the migration, and a notice offering the same star is noise.
+          if (legacy && legacy.id !== requestedId) setLegacyAlternative(legacy)
+        })
+        .catch(() => { /* the notice is optional; never block the page on it */ })
     }
 
     // Fetch and select star from URL
@@ -283,6 +306,17 @@ function App() {
           <StarField />
         </Canvas>
       </ErrorBoundary>
+      {!printableView && legacyAlternative && (
+        <LegacyLinkNotice
+          legacyStar={legacyAlternative}
+          currentStar={selectedStar}
+          onSelect={(star) => {
+            setSelectedStar(star)
+            setLegacyAlternative(null)
+          }}
+          onDismiss={() => setLegacyAlternative(null)}
+        />
+      )}
       {!printableView && <HUD />}
       {!printableView && <StarInfoPanel />}
   {!printableView && <SignalInfoPanel />}

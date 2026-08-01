@@ -128,6 +128,20 @@ class StarDetailResponse(BaseModel):
     data: Optional[StarDetail] = None
 
 
+class LegacyStarResponse(BaseModel):
+    """Resolution of an AT-HYG v3.3 star id to the current catalog.
+
+    AT-HYG 4 renumbered every star, so a link saved before that migration points at a
+    different object. This says what a legacy id *used* to mean; it deliberately does not
+    say whether the caller's id IS a legacy id, because that is unknowable -- 99.99% of v3
+    ids are also a valid, different v4 id. Deciding is the client's job.
+    """
+    result: str = "success"
+    v3_id: int
+    match_method: Optional[str] = None
+    data: Optional[StarDetail] = None
+
+
 class ProperName(BaseModel):
     """Star with proper name for dropdown"""
     id: int

@@ -4,7 +4,7 @@
  * Includes retry logic with exponential backoff for network failures.
  */
 
-import type { StarListResponse, StarDetailResponse, BoundingBox } from '../types/star'
+import type { Star, StarListResponse, StarDetailResponse, BoundingBox } from '../types/star'
 import { API_URL, fetchWithRetry } from './client'
 
 export { ApiError } from './client'
@@ -40,6 +40,28 @@ export async function fetchStars(options: FetchStarsOptions): Promise<StarListRe
 export async function fetchStarById(starId: number): Promise<StarDetailResponse> {
   const response = await fetchWithRetry(`${API_URL}/api/stars/${starId}`)
   return response.json()
+}
+
+/**
+ * Resolve an AT-HYG v3.3 star id to the star it names in the current catalog.
+ *
+ * AT-HYG 4 renumbered every star, so a link saved before that migration points somewhere
+ * else -- silently, because 99.99% of v3 ids are also a valid, different v4 id. Returns
+ * null when nothing maps to that legacy id, which includes the ordinary case of a link
+ * that was always a current id.
+ *
+ * Deliberately swallows failures: this only ever adds an informational notice, and a
+ * broken hint must not stop the star the user asked for from loading.
+ */
+export async function fetchStarByLegacyId(v3Id: number): Promise<Star | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/stars/legacy/${v3Id}`)
+    if (!response.ok) return null
+    const body = await response.json()
+    return body?.data ?? null
+  } catch {
+    return null
+  }
 }
 
 /**

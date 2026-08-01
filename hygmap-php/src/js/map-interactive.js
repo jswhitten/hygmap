@@ -7,6 +7,12 @@
 (function() {
     'use strict';
 
+    // AT-HYG catalog version that star ids in generated links belong to.
+    // Must stay in step with IndexHelpers::CATALOG_VERSION (PHP) and
+    // CURRENT_CATALOG_VERSION (React). If they drift, the app stops recognising its own
+    // links and shows an old-link notice on freshly generated ones.
+    const CATALOG_VERSION = 4;
+
     // Configuration
     const HOVER_RADIUS = 15;  // Pixels - how close mouse must be to star center
     const TOOLTIP_OFFSET_X = 15;
@@ -255,8 +261,15 @@
             const star = findNearestStar(pos.x, pos.y);
 
             if (star) {
-                // Click: select and center star
-                window.location.href = `?select_star=${star.id}&select_center=1`;
+                // Click: select and center star.
+                //
+                // CATALOG_VERSION marks the id as belonging to the current AT-HYG
+                // numbering. Without it the app cannot tell its own links from ones saved
+                // before the AT-HYG 4 renumbering, and would offer an old-link notice on a
+                // link it just generated. Must stay in step with
+                // IndexHelpers::CATALOG_VERSION.
+                window.location.href =
+                    `?select_star=${star.id}&select_center=1&c=${CATALOG_VERSION}`;
             }
         });
     });
@@ -280,6 +293,7 @@
         // Preserve selected star if any
         if (selectedStarId && !params.select_star) {
             url.searchParams.set('select_star', selectedStarId);
+            url.searchParams.set('c', CATALOG_VERSION);
         }
 
         window.location.href = url.toString();
@@ -420,6 +434,7 @@
         // Add selected star if any
         if (selectedStarId) {
             url.searchParams.set('select_star', selectedStarId);
+            url.searchParams.set('c', CATALOG_VERSION);
         }
 
         return url.toString();

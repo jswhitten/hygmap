@@ -19,6 +19,7 @@ final class Request
     private const MAP_DEFAULTS = [
         'select_star'   => 0,
         'select_center' => 0,
+        'c'             => 0,
         'x_c'           => 0.0,
         'y_c'           => 0.0,
         'z_c'           => 0.0,
@@ -35,6 +36,7 @@ final class Request
      * @return array{
      *   select_star: int,
      *   select_center: int,
+     *   c: int,
      *   x_c: float,
      *   y_c: float,
      *   z_c: float,
@@ -49,6 +51,11 @@ final class Request
         $spec = [
             'select_star'   => ['filter' => FILTER_VALIDATE_INT,   'flags' => FILTER_NULL_ON_FAILURE],
             'select_center' => ['filter' => FILTER_VALIDATE_INT,   'flags' => FILTER_NULL_ON_FAILURE],
+            // Catalog version marker. Links this app generates carry c=4, meaning
+            // "select_star is a current AT-HYG 4 id". Its ABSENCE is the signal that
+            // matters: an unmarked id may predate the AT-HYG 4 renumbering, and 99.99% of
+            // v3 ids are also a valid different v4 id, so it cannot be told apart by value.
+            'c'             => ['filter' => FILTER_VALIDATE_INT,   'flags' => FILTER_NULL_ON_FAILURE],
             'x_c'           => ['filter' => FILTER_VALIDATE_FLOAT, 'flags' => FILTER_NULL_ON_FAILURE],
             'y_c'           => ['filter' => FILTER_VALIDATE_FLOAT, 'flags' => FILTER_NULL_ON_FAILURE],
             'z_c'           => ['filter' => FILTER_VALIDATE_FLOAT, 'flags' => FILTER_NULL_ON_FAILURE],

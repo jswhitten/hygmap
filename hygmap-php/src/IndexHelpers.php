@@ -47,6 +47,91 @@ final class IndexHelpers
         return array_key_exists('x', $star) && $star['x'] !== null;
     }
 
+    /** Catalog version this app's own links are stamped with (AT-HYG 4.0). */
+    public const CATALOG_VERSION = 4;
+
+    /**
+     * Would this link have meant a different star before the AT-HYG 4 renumbering?
+     *
+     * `athyg.id` is the source catalog's row id, and AT-HYG 4 reassigned it: of the
+     * 2,552,143 v3.3 stars still in the catalog, only 636 kept their id. So a link saved
+     * before that migration now points at a different object — and it does so *silently*,
+     * because **99.99% of v3 ids are also a valid, different v4 id**. Nothing 404s. The
+     * page loads, the map centres, and it shows the wrong star.
+     *
+     * There is no way to tell from the id itself which catalog a link was written against,
+     * so this does not try. Links this app generates now carry `c=4`; an id arriving
+     * without that marker is ambiguous, and the honest response is to show the reader both
+     * readings rather than pick one. Guessing is not safer: treating every unmarked id as
+     * legacy would break every link saved since the migration in exactly the same way.
+     *
+     * Returns the star the id used to mean, or null when there is nothing to disambiguate:
+     * the link is marked current, no v3 star maps to that id, or the mapping is to the very
+     * same star (the 636 that kept their id — nothing changed for those).
+     *
+     * @param int $select_star Star ID from the URL
+     * @param int $catalog_version The `c` parameter (0 when absent)
+     * @param int $fic_names Fiction world ID
+     * @return array|null The star this id named under AT-HYG v3.3
+     */
+    public static function resolveLegacyAlternative(int $select_star, int $catalog_version, int $fic_names): ?array
+    {
+        if (!self::shouldCheckLegacyId($select_star, $catalog_version)) {
+            return null;
+        }
+
+        try {
+            $legacy = ApiClient::instance()->queryLegacyStar($select_star, $fic_names);
+        } catch (RuntimeException $e) {
+            // A disambiguation hint is not worth failing the page over. If the API cannot
+            // answer, the reader still gets the star they asked for.
+            error_log("HYGMap: legacy id lookup failed for {$select_star}: {$e->getMessage()}");
+            return null;
+        }
+
+        return self::legacyNoticeFor($select_star, $legacy);
+    }
+
+    /**
+     * Is this link worth a legacy lookup at all?
+     *
+     * Split out from the fetch so the decision is unit-testable without an API. That is the
+     * same move REPO-HYGIENE made for `MapRenderer`, for the same reason: a method that
+     * reaches for `ApiClient::instance()` cannot be tested, and `ApiClient` is final.
+     *
+     * @param int $select_star Star ID from the URL
+     * @param int $catalog_version The `c` parameter (0 when absent)
+     */
+    public static function shouldCheckLegacyId(int $select_star, int $catalog_version): bool
+    {
+        // Only the CURRENT version suppresses the check. An unrecognised marker (a future
+        // c=5, or junk) is treated as unmarked rather than trusted, because this build
+        // cannot vouch for a numbering it does not know.
+        return $select_star > 0 && $catalog_version !== self::CATALOG_VERSION;
+    }
+
+    /**
+     * Given what the legacy lookup returned, is there anything to tell the reader?
+     *
+     * @param int $select_star Star ID from the URL
+     * @param array|null $legacy The API's answer for that id under AT-HYG v3.3
+     * @return array|null The star to offer as the alternative reading
+     */
+    public static function legacyNoticeFor(int $select_star, ?array $legacy): ?array
+    {
+        if (!$legacy || !isset($legacy['id'])) {
+            return null;
+        }
+
+        // 636 stars kept their id across the migration. For those an old link is still
+        // correct, and a notice offering the same star would be noise.
+        if ((int)$legacy['id'] === $select_star) {
+            return null;
+        }
+
+        return $legacy;
+    }
+
     /**
      * Fetch selected star and update view center if requested
      *
@@ -55,9 +140,13 @@ final class IndexHelpers
      * @param int $fic_names Fiction world ID
      * @param string $unit Distance unit for conversion
      * @param array &$view_coords Reference to coordinates array to update
+     * @param array|null $legacy_star The star this id named under AT-HYG v3.3, if any.
+     *        Used only to improve the 404 message: when the current id resolves to nothing
+     *        but the legacy id resolves to a star, the link is unambiguously an old one and
+     *        we can say so instead of the generic "ids change" hedge.
      * @return array|null Selected star data or null
      */
-    public static function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords): ?array
+    public static function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords, ?array $legacy_star = null): ?array
     {
         if ($select_star <= 0) {
             return null;
@@ -86,6 +175,20 @@ final class IndexHelpers
             // A bad id in the URL, or a bookmark from before a catalog renumbering. The
             // service is fine, so say what is actually wrong and answer 404.
             error_log("HYGMap: star not found: {$select_star} ({$e->getMessage()})");
+
+            // The unambiguous case: nothing has this id in the current catalog, but a v3.3
+            // star did. There is no competing reading to weigh, so name the star outright
+            // rather than offering the generic "ids change" hedge.
+            if ($legacy_star !== null && isset($legacy_star['id'])) {
+                ErrorHandler::handleNotFound(sprintf(
+                    'No star with id %d in the current catalog. This link predates the AT-HYG 4 '
+                    . 'update, where it meant %s — now at id %d.',
+                    $select_star,
+                    (string)StarFormatter::getDisplayName($legacy_star, $fic_names),
+                    (int)$legacy_star['id']
+                ));
+            }
+
             ErrorHandler::handleNotFound(sprintf(
                 'No star with id %d. It may have been a stale link — star ids change when the '
                 . 'catalog is updated. Try searching for the star by name instead.',
@@ -334,7 +437,8 @@ final class IndexHelpers
             $label = (string)($star['name'] ?? ('Star ' . $id));
 
             $areas[] = sprintf(
-                '<area shape="circle" coords="%d,%d,%d" href="?select_star=%d&amp;select_center=1" alt="%s" title="%s">',
+                '<area shape="circle" coords="%d,%d,%d" href="?select_star=%d&amp;select_center=1&amp;c='
+                . self::CATALOG_VERSION . '" alt="%s" title="%s">',
                 $sx,
                 $sy,
                 $radius,
@@ -591,14 +695,19 @@ final class IndexHelpers
 // Backwards-compatible function wrappers
 // =============================================================================
 
-function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords): ?array
+function fetchSelectedStar(int $select_star, int $select_center, int $fic_names, string $unit, array &$view_coords, ?array $legacy_star = null): ?array
 {
-    return IndexHelpers::fetchSelectedStar($select_star, $select_center, $fic_names, $unit, $view_coords);
+    return IndexHelpers::fetchSelectedStar($select_star, $select_center, $fic_names, $unit, $view_coords, $legacy_star);
 }
 
 function buildSelectedStarData(?array $selected_star, int $fic_names, string $unit): array
 {
     return IndexHelpers::buildSelectedStarData($selected_star, $fic_names, $unit);
+}
+
+function resolveLegacyAlternative(int $select_star, int $catalog_version, int $fic_names): ?array
+{
+    return IndexHelpers::resolveLegacyAlternative($select_star, $catalog_version, $fic_names);
 }
 
 function buildMapHtml(string $image_type, int $image_size, array $baseParams, ?string $usemap = null): string

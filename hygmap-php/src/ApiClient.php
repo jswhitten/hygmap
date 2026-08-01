@@ -114,6 +114,27 @@ final class ApiClient
     }
 
     /**
+     * Resolve an AT-HYG v3.3 star ID to the star it names in the current catalog.
+     *
+     * Returns null when nothing maps to that legacy ID — either it never existed in v3.3,
+     * or its star did not survive the v4 migration, or its identifier is shared by two
+     * real binary components and the matcher refused to guess between them.
+     *
+     * @param int $v3_id AT-HYG v3.3 star ID
+     * @param int $world_id Fictional world ID
+     * @return array|null Current star data, or null if the legacy ID resolves to nothing
+     */
+    public function queryLegacyStar(int $v3_id, int $world_id): ?array
+    {
+        try {
+            $response = $this->get("/api/stars/legacy/{$v3_id}", ['world_id' => $world_id]);
+        } catch (ApiNotFoundException $e) {
+            return null;
+        }
+        return $response['data'] ?? null;
+    }
+
+    /**
      * Query signals within a bounding box
      *
      * @param array $bbox [xmin, xmax, ymin, ymax, zmin, zmax] in parsecs

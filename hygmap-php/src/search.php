@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/ApiClient.php';
 require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/IndexHelpers.php';
 
 session_start();
 
@@ -47,13 +48,15 @@ if ($row && $row['x'] === null) {
     echo '<p>This star exists in the catalog, but no parallax measurement exists for it, so'
        . ' its distance and position are unknown. It has a place on the sky but not in 3D'
        . ' space, so the map has nowhere to put it.</p>';
-    echo '<p>[ <a href="/?select_star=' . $id . '">See what is known about it</a> ]</p>';
+    echo '<p>[ <a href="/?select_star=' . $id . '&amp;c=' . IndexHelpers::CATALOG_VERSION
+       . '">See what is known about it</a> ]</p>';
     echo '<p>[ <a href="/">Back to map</a> ]</p>';
     echo '</body></html>';
 } elseif ($row) {
     $id = (int)$row['id'];
-    $_SESSION['last_map'] = "/?select_star=$id&select_center=1";
-    header("Location: /?select_star=$id&select_center=1",true,302);
+    $c = IndexHelpers::CATALOG_VERSION;
+    $_SESSION['last_map'] = "/?select_star=$id&select_center=1&c=$c";
+    header("Location: /?select_star=$id&select_center=1&c=$c", true, 302);
 } else {
     echo "<h3>No match for &ldquo;".htmlspecialchars($q)."&rdquo;</h3>";
     echo '<p><a href="/">Back to map</a></p>';

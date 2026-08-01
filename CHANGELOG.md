@@ -16,6 +16,36 @@ If you are unsure whether a change is user-visible, ask whether someone using th
 notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
+- **Star links saved before the AT-HYG 4 update are recognised again** [ATHYG-V3-URLS].
+  `athyg.id` is the source catalog's row id, and AT-HYG 4 reassigned it: of the 2,552,143
+  v3.3 stars still in the catalog, **only 636 kept their id**. So every bookmarked star link
+  from before the migration pointed somewhere else — and did so *silently*, because
+  **99.99% of v3 ids are also a valid, different v4 id**. Nothing 404s; the wrong star just
+  loads. `?select_star=7301` shows an anonymous mag 11.5 star in Cepheus; it used to mean
+  GJ 1, mag 8.755, in Sculptor.
+  New `athyg_v3_ids` table maps 2,552,143 v3.3 ids onto current ones, built by
+  `db/scripts/match_athyg_v3.py` and exposed as `GET /api/stars/legacy/{v3_id}`. Both UIs
+  now stamp their own links with a catalog marker (`c=4`, `?star=…&c=4` in React) and, for
+  an id arriving *without* one, show both readings and let the reader choose.
+  **The app never guesses which catalog a bare id belongs to, and that is the whole design.**
+  Treating unmarked ids as legacy would fix pre-migration links by breaking every link saved
+  since, identically and silently — the damage is symmetric, so no guessing rule is safe.
+  The marker is also what makes the *next* renumbering survivable.
+  Three findings shaped it. **The source data was nearly lost:** AT-HYG deleted the v3.3
+  CSVs from `main` on 2026-07-25, six days before this work; they were recovered from the
+  parent commit via Git LFS (`media/`, not `raw/`, which returns a 133-byte pointer that
+  looks like a corrupt download). **The mapping is many-to-one** — 5 current stars are each
+  named by two v3 ids, because v4 merged v3.3 rows — so this is a lookup table, not a column
+  on `athyg`; a column would have dropped five links and picked its winner
+  *nondeterministically* via `UPDATE…FROM`, the same class of bug WIDE-ZOOM-QUERY fixed in
+  `ORDER BY`. And **ambiguous identifiers are refused, not guessed**: 1,166 Gaia ids and 61
+  HIP ids name two real binary components each (GAIA-DUPLICATES), so ~1,200 links would
+  otherwise have landed on a coin flip.
+  Match rate 2,552,143 of 2,552,165 (100.0%), via gaia 2,514,585 / tyc 37,558; the 22
+  unmatched are stars that did not survive to v4 and are honestly reported as dead links.
+  A unit test caught a real bug before it shipped: `float()` on a 19-digit Gaia source_id
+  loses precision (`…744064` → `…744192`), which would have silently corrupted the primary
+  match key for 98.6% of the catalog.
 - **Fixed: the "no parallax measurement" note was unreadable.** The note box added for
   positionless stars (`hygmap-php/src/index.php:134`) set a dark background with no `color`,
   and the classic UI's stylesheet is a light theme that supplies no inherited colour — so the

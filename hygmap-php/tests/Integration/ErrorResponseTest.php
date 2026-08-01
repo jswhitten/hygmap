@@ -94,7 +94,7 @@ class ErrorResponseTest extends TestCase
         $this->assertStringContainsString('<map name="starmap">', $response['body']);
         $this->assertStringContainsString('usemap="#starmap"', $response['body']);
         $this->assertMatchesRegularExpression(
-            '/<area shape="circle" coords="\d+,\d+,\d+" href="\?select_star=\d+&amp;select_center=1"/',
+            '/<area shape="circle" coords="\d+,\d+,\d+" href="\?select_star=\d+&amp;select_center=1&amp;c=4"/',
             $response['body'],
             'Image map areas must link to the same URL the JS click handler would use'
         );

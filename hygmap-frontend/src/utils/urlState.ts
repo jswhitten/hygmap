@@ -8,6 +8,21 @@
 import type { ViewMode } from '../domain/viewMode'
 import { DEFAULT_VIEW_MODE, normalizeViewMode } from '../domain/viewMode'
 
+/** AT-HYG catalog version that star ids in generated links belong to. */
+export const CURRENT_CATALOG_VERSION = 4
+
+/**
+ * Should this link's star id be checked against the pre-AT-HYG-4 numbering?
+ *
+ * Only the current version suppresses the check. An absent or unrecognised marker is
+ * treated as unknown rather than trusted -- this build cannot vouch for a numbering it
+ * does not know, and guessing is not safe in either direction: treating every unmarked id
+ * as legacy would break every link saved since the migration, just as silently.
+ */
+export function shouldCheckLegacyId(state: ShareableState): boolean {
+  return state.star !== undefined && state.catalog !== CURRENT_CATALOG_VERSION
+}
+
 interface ShareableState {
   // Camera position (scene coords)
   cx?: number
@@ -19,6 +34,11 @@ interface ShareableState {
   tz?: number
   // Selected star ID
   star?: number
+  /**
+   * Catalog version the `star` id belongs to. Absent means "unknown", which is the case
+   * for every link saved before this marker existed.
+   */
+  catalog?: number
   // View settings
   unit?: 'pc' | 'ly'
   view?: ViewMode
@@ -41,8 +61,16 @@ export function encodeStateToURL(state: ShareableState): string {
   if (state.ty !== undefined) params.set('ty', state.ty.toFixed(2))
   if (state.tz !== undefined) params.set('tz', state.tz.toFixed(2))
 
-  // Selected star
-  if (state.star !== undefined) params.set('star', state.star.toString())
+  // Selected star, stamped with the catalog its id belongs to.
+  //
+  // AT-HYG 4 renumbered every star, so a bare id cannot be attributed to a catalog by
+  // inspection: 99.99% of v3 ids are also a valid, DIFFERENT v4 id. The marker is what
+  // lets a link written now be told apart from one written before the migration -- and
+  // what will make the next renumbering survivable.
+  if (state.star !== undefined) {
+    params.set('star', state.star.toString())
+    params.set('c', String(CURRENT_CATALOG_VERSION))
+  }
 
   // View settings (only include non-default values)
   if (state.unit && state.unit !== 'pc') params.set('unit', state.unit)
@@ -78,6 +106,12 @@ export function decodeStateFromURL(search: string): ShareableState {
   // Selected star
   const star = params.get('star')
   if (star) state.star = parseInt(star, 10)
+
+  const catalog = params.get('c')
+  if (catalog) {
+    const parsed = parseInt(catalog, 10)
+    if (!Number.isNaN(parsed)) state.catalog = parsed
+  }
 
   // View settings
   const unit = params.get('unit')
