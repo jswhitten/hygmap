@@ -17,8 +17,10 @@ notice without reading the source. If yes, it belongs in both.
 
 ## Unreleased
 - **Search is fast again when a fictional universe is selected**
-  [FICTIONAL-SEARCH-PERFORMANCE]. **19,642 ms → 0.658 ms** for `vulcan` with Star Trek on,
-  measured by `EXPLAIN (ANALYZE, BUFFERS)` against the live 2.84M-row catalog.
+  [FICTIONAL-SEARCH-PERFORMANCE]. **19,642 ms → 0.502 ms** for `vulcan` with Star Trek on,
+  measured by `EXPLAIN (ANALYZE)` against the live 2.84M-row catalog on a quiet host; the
+  whole request is now 6.5–9.6 ms end to end, so the query is no longer a measurable part
+  of it.
   Every search run by a visitor with Star Trek or Babylon 5 selected — **including searches
   for real star names** — was scanning essentially the whole table. `search.php` passes the
   session's `fic_names` into every query, so this was the normal path for one of the
